@@ -1602,9 +1602,14 @@ async function cargarFilaMulti(rows) {
           especie:     x['Especie']||'',
           variedad:    x['Variedades']||x['Variedad']||'',
           tipo:        x['Tipo Material']||'',
-          cant:        x['Cantidad']||x['N° Plantas Estab.']||'',
+          cant:        x['Cantidad']||'',
           portainjerto:x['Portainjerto']||'',
           nplan:       x['N° Plantas']||'',
+          // Verif defaults when Material sheet unavailable
+          cantReal:    x['Cantidad']||'',
+          ok:          true,
+          nplanEstab:  x['N° Plantas']||'',
+          nplanEstadia:x['N° Plantas']||'',
         });
       });
   }
