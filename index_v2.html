@@ -308,7 +308,8 @@ input[type=number]{font-family:var(--mono)}
   <div class="sb-item" id="nav-3" onclick="goStage(3)"><span class="sb-num">III</span>Ingreso ECA</div>
   <div class="sb-item" id="nav-4" onclick="goStage(4)"><span class="sb-num">IV</span>Analisis</div>
   <div class="sb-item" id="nav-5" onclick="goStage(5)"><span class="sb-num">V</span>Cobro</div>
-  <div class="sb-item" id="nav-6" onclick="goStage(6)"><span class="sb-num">VI</span>Cierre</div>
+  <div class="sb-item" id="nav-6" onclick="goStage(6)"><span class="sb-num">VI</span>Recuento</div>
+  <div class="sb-item" id="nav-7" onclick="goStage(7)"><span class="sb-num">VII</span>Término</div>
   <hr class="sb-divider">
   <div class="sb-sec">Sistema</div>
   <div class="sb-item" id="nav-config" onclick="goStage('config')"><span class="sb-num">C</span>Configuracion</div>
@@ -706,7 +707,6 @@ input[type=number]{font-family:var(--mono)}
   </div>
   <div class="tabs">
     <button class="tab active" onclick="showTab(5,0)">Cobro Analisis</button>
-    <button class="tab" onclick="showTab(5,1)">Cobro Estadia</button>
   </div>
 
   <!-- Tab 5.1: Cobro analisis -->
@@ -732,8 +732,49 @@ input[type=number]{font-family:var(--mono)}
   </div>
   </div>
 
-  <!-- Tab 5.2: Cobro estadia -->
-  <div class="tab-panel" id="t5-1">
+  
+
+
+<!-- ════════════════════════════════════
+     ETAPA VI — CIERRE
+════════════════════════════════════ -->
+<div class="stage" id="stage-6">
+  <div class="sec-h">
+    <div class="sec-n">VI</div>
+    <div>
+      <div class="sec-t">Recuento Final y Cobro Estadía</div>
+      <div class="sec-s">Plantas finales y cobro estadía</div>
+    </div>
+    <div class="sec-actions">
+      <button class="btn btn-gh btn-sm" onclick="limpiarEtapa(6)">Limpiar</button>
+    </div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" onclick="showTab(6,0)">Plantas Finales</button>
+    <button class="tab" onclick="showTab(6,1)">Cobro Estadía</button>
+  </div>
+
+  <!-- Tab 6.1: Plantas finales -->
+  <div class="tab-panel active" id="t6-0">
+  <div class="tab-body">
+    <div class="info-box">Confirme o corrija la cantidad de plantas obtenidas al final del proceso. Datos pre-cargados desde Etapa III.</div>
+    <div class="tbl-wrap">
+    <table class="tbl" id="plantas-tbl">
+      <thead><tr>
+        <th>Especie / Hibrido</th><th>Variedad</th>
+        <th>N° Plantas Estab. (Etapa III)</th>
+        <th>N° Plantas Finales</th>
+        <th>Observaciones</th>
+      </tr></thead>
+      <tbody id="plantas-body"></tbody>
+    </table>
+    </div>
+  </div>
+  </div>
+
+  
+<!-- Tab 6.2: Cobro Estadia (desde Etapa V) -->
+  <div class="tab-panel" id="t6-1">
   <div class="tab-body">
     <div class="info-box">Cobro por estadia en ECA. Datos de especies desde Etapa III.</div>
     <div class="tbl-wrap">
@@ -760,76 +801,34 @@ input[type=number]{font-family:var(--mono)}
   </div>
 
   <div class="stage-nav">
-    <button class="btn btn-gh btn-sm" onclick="goStage(4)">&#8592; IV. Analisis</button>
-    <span class="stage-pg">5 / 6</span>
-    <button class="btn btn-nv btn-sm" onclick="goStage(6)">VI. Cierre &#8594;</button>
+    <button class="btn btn-gh btn-sm" onclick="goStage(5)">&#8592; V. Cobro</button>
+    <span class="stage-pg">6 / 7</span>
+    <button class="btn btn-nv btn-sm" onclick="goStage(7)">VII. Término &#8594;</button>
   </div>
 </div>
+</div>
+
 
 <!-- ════════════════════════════════════
-     ETAPA VI — CIERRE
+     ETAPA VII — RESOLUCIÓN DE TÉRMINO
 ════════════════════════════════════ -->
-<div class="stage" id="stage-6">
+<div class="stage" id="stage-7">
   <div class="sec-h">
-    <div class="sec-n">VI</div>
+    <div class="sec-n">VII</div>
     <div>
-      <div class="sec-t">Resumen Final y Cierre</div>
-      <div class="sec-s">Plantas finales, cobro estadia y resolucion de termino</div>
+      <div class="sec-t">Resolución de Término</div>
+      <div class="sec-s">Cierre del proceso, firma y entrega</div>
     </div>
     <div class="sec-actions">
-      <button class="btn btn-gh btn-sm" onclick="limpiarEtapa(6)">Limpiar</button>
+      <button class="btn btn-gh btn-sm" onclick="limpiarEtapa(7)">Limpiar</button>
     </div>
   </div>
   <div class="tabs">
-    <button class="tab active" onclick="showTab(6,0)">Plantas Finales</button>
-    <button class="tab" onclick="showTab(6,1)">Cobro Estadia Final</button>
-    <button class="tab" onclick="showTab(6,2)">Resolucion Termino</button>
+    <button class="tab active" onclick="showTab(7,0)">Resolución Término</button>
   </div>
 
-  <!-- Tab 6.1: Plantas finales -->
-  <div class="tab-panel active" id="t6-0">
-  <div class="tab-body">
-    <div class="info-box">Confirme o corrija la cantidad de plantas obtenidas al final del proceso. Datos pre-cargados desde Etapa III.</div>
-    <div class="tbl-wrap">
-    <table class="tbl" id="plantas-tbl">
-      <thead><tr>
-        <th>Especie / Hibrido</th><th>Variedad</th>
-        <th>N° Plantas Estab. (Etapa III)</th>
-        <th>N° Plantas Finales</th>
-        <th>Observaciones</th>
-      </tr></thead>
-      <tbody id="plantas-body"></tbody>
-    </table>
-    </div>
-  </div>
-  </div>
-
-  <!-- Tab 6.2: Cobro estadia final -->
-  <div class="tab-panel" id="t6-1">
-  <div class="tab-body">
-    <div class="info-box">Cobro de estadía al cierre del proceso. Use los campos SPS/CORE de la primera fila para replicar a todas las filas.</div>
-    <div class="tbl-wrap">
-    <table class="tbl" id="estadia-fin-tbl">
-      <thead><tr>
-        <th>Especie</th><th style="width:90px;text-align:center">N° Plantas</th>
-        <th style="width:80px;text-align:center">Meses ECA</th>
-        <th style="text-align:center">N° SPS Estadía</th>
-        <th style="text-align:center">N° CORE Estadía</th>
-      </tr></thead>
-      <tbody id="estadia-fin-body"></tbody>
-    </table>
-    </div>
-    <div style="margin-top:10px;padding:9px 14px;background:var(--nv);border-radius:var(--rs);
-      display:flex;align-items:center;gap:20px">
-      <span style="font-size:10px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.5px">Total Plantas Finales</span>
-      <input id="f6-total-fin" readonly style="font-family:var(--mono);font-weight:700;font-size:15px;
-        background:transparent;border:none;color:#fff;width:80px">
-    </div>
-  </div>
-  </div>
-
-  <!-- Tab 6.3: Resolucion de termino -->
-  <div class="tab-panel" id="t6-2">
+<!-- Tab 7.1: Resolucion de Termino -->
+  <div class="tab-panel" id="t7-0">
   <div class="tab-body">
     <div class="info-box">Complete los datos de la resolución de término y el estado de cierre del proceso.</div>
     <div class="fg">
@@ -873,11 +872,11 @@ input[type=number]{font-family:var(--mono)}
   </div>
 
   <div class="stage-nav">
-    <button class="btn btn-gh btn-sm" onclick="goStage(5)">&#8592; V. Cobro</button>
-    <span class="stage-pg">6 / 6</span>
-    <button class="btn btn-gd btn-sm" onclick="guardarTodo()">Guardar todo</button>
+    <button class="btn btn-gh btn-sm" onclick="goStage(6)">&#8592; VI. Recuento Final</button>
+    <span class="stage-pg">7 / 7</span>
   </div>
 </div>
+
 
 <!-- ════════════════════════════════════
      PANEL CONSULTA
@@ -1225,6 +1224,7 @@ function goStage(n) {
   document.querySelectorAll('.stage').forEach(e=>e.classList.remove('active'));
   document.querySelectorAll('.sb-item').forEach(e=>e.classList.remove('active'));
   if(n===3) setTimeout(renderEstablecimientoTable, 80);
+  if(n===6) setTimeout(renderEstadiaTable, 80);
   const stEl=$('stage-'+n); if(stEl) stEl.classList.add('active');
   const navEl=$('nav-'+n); if(navEl) navEl.classList.add('active');
   currentStage=n;
@@ -1233,6 +1233,7 @@ function goStage(n) {
   if(n===4) { updateResBars(); renderAnalisisTabs(); }
   if(n===5) renderCobroTabs();
   if(n===6) renderCierreTabs();
+  if(n===7) setTimeout(updateReadonlyRefs, 50);
   if(n==='panel') { renderStats(); renderRecientes(); }
   window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -1242,6 +1243,8 @@ function showTab(stage, idx) {
   const panels = document.querySelectorAll(`#stage-${stage} .tab-panel`);
   tabs.forEach((t,i)=>t.classList.toggle('active',i===idx));
   panels.forEach((p,i)=>p.classList.toggle('active',i===idx));
+  // Estadía table now lives in stage 6 tab 1
+  if(stage===6 && idx===1) setTimeout(renderEstadiaTable, 50);
   // Re-fit folio/corr inputs now that the tab is visible
   if(stage===4) {
     setTimeout(()=>{
@@ -3170,9 +3173,7 @@ function renderCobroTabs() {
 
   if(!totalRows) tbody.innerHTML='<tr><td colspan="6" style="color:var(--g400);padding:16px;font-size:12px;text-align:center">Complete analisis en la Etapa IV.</td></tr>';
 
-  // ── Cobro Estadia ──
-  renderEstadiaTable();
-}
+}  // renderEstadiaTable now in stage 6 tab 2
 
 function makeCobroRow(key, i, r, nAn) {
   const tr=document.createElement('tr');
@@ -3457,6 +3458,8 @@ function addEstRow() {
 
 // ── ETAPA VI — CIERRE ──
 function renderCierreTabs() {
+  // Also render estadía table (tab 6.2) if it's visible
+  setTimeout(()=>{ if(document.getElementById('t6-1')?.classList.contains('active')) renderEstadiaTable(); }, 100);
   // ── Tab 6.1: Plantas finales ──
   const tbody=$('plantas-body'); if(!tbody) return;
   tbody.innerHTML='';
