@@ -4279,11 +4279,27 @@ async function doSave(rows,isUpdate,res,nsol) {
     const toDelete=[];
     allRows.slice(1).forEach((row,i)=>{
       if(res) {
-        if(String(row[2]||'').trim()===res.trim()) toDelete.push(i+1); // Res. now col index 2
+        if(String(row[2]||'').trim()===res.trim()) toDelete.push(i+1);
       } else {
-        if(String(row[0]||'').trim()===String(nsol) && !String(row[2]||'').trim()) toDelete.push(i+1); // Solicitud now col index 0
+        if(String(row[0]||'').trim()===String(nsol) && !String(row[2]||'').trim()) toDelete.push(i+1);
       }
     });
+
+    // Safety check: if existing rows have analysis data but new rows don't, abort
+    // This prevents wiping analysis when saving from Etapa I/II without loading Etapa IV
+    const existingHasAnalysis = allRows.slice(1).some((row,i) => {
+      if(!toDelete.includes(i+1)) return false;
+      return !!(row[17]||row[35]||row[36]); // Análisis(17), Patógenos(35), Estado Análisis(36)
+    });
+    const newHasAnalysis = rows.some(r => r['Análisis']||r['Patógenos']||r['Estado Análisis']);
+    if(existingHasAnalysis && !newHasAnalysis) {
+      setS('Advertencia: los datos de análisis no están cargados. Carga la Etapa IV antes de guardar para no perder esos datos.','warn');
+      // Merge: keep existing analysis rows, only update non-analysis data
+      // For safety, abort the full overwrite and only save if user confirms
+      // Show warning and stop — do NOT proceed with the save
+      return; // already showed warning above
+    }
+
     if(toDelete.length) {
       // Get sheet ID (tab id, not spreadsheet id) — need it for batchUpdate
       const sheetMeta = await fetch(`${BASE_URL}/${GS.sheetId}?fields=sheets.properties&key=${GS.apiKey}`);
