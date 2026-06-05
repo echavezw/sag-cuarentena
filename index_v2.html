@@ -1581,6 +1581,11 @@ async function cargarFilaMulti(rows) {
         cant:        x['Cantidad']||'',
         portainjerto:x['Portainjerto']||'',
         nplan:       x['N° Plantas']||'',
+        // Verif columns
+        cantReal:    x['Cant. Real']    !== undefined ? x['Cant. Real']    : (x['Cantidad']||''),
+        ok:          x['Recibida']      !== undefined ? x['Recibida']!=='0': true,
+        nplanEstab:  x['N° Plantas Establ.'] || x['N° Plantas']||'',
+        obs:         x['Observaciones'] || '',
       }));
     }
   } catch(e) { /* fall through to Detalle-based espData */ }
@@ -2262,11 +2267,11 @@ function renderVerifTable(data) {
     especie:  e.especie||'',
     variedad: e.variedad||'',
     tipo:     e.tipo||'',
-    cant:     e.cant||'',   // cantidad declarada
-    cantReal: e.cant||'',   // default real = declared
-    nplan:    e.nplan||'',  // N° Plantas Establ.
+    cant:     e.cant||'',
+    cantReal: e.cantReal !== undefined ? e.cantReal : (e.cant||''),
+    nplan:    e.nplanEstab || e.nplan || '',
     obs:      e.obs||'',
-    ok:       true,          // default checked
+    ok:       e.ok !== undefined ? e.ok : true,
   }));
   tbody.innerHTML='';
   rows.forEach((r,i)=>tbody.appendChild(makeVerifRow(i,r)));
@@ -2396,6 +2401,22 @@ function onVerifCantReal(i) {
   cantReal.style.background = match ? 'var(--ok-bg)' : 'var(--warn-bg)';
   cantReal.style.color      = match ? 'var(--ok)'    : 'var(--warn)';
   if(icon){ icon.style.color = match?'var(--ok)':'var(--g200)'; }
+}
+
+function syncVerifFromDOM() {
+  const tb = document.getElementById('verif-body');
+  if(!tb) return;
+  verifRows = [...tb.children].map((_,i) => ({
+    especie:   document.getElementById('ve-'+i)?.value||'',
+    variedad:  document.getElementById('vv-'+i)?.value||'',
+    tipo:      document.getElementById('vt-'+i)?.value||'',
+    cant:      document.getElementById('vcd-'+i)?.value||'',
+    cantReal:  document.getElementById('vcr-'+i)?.value||'',
+    nplan:     document.getElementById('vnplan-'+i)?.value||'',
+    obs:       document.getElementById('vobs-'+i)?.value||'',
+    ok:        document.getElementById('vchk-'+i)?.checked ?? true,
+    portainjerto: '',
+  }));
 }
 
 function addVerifRow() { const tb=$('verif-body'); if(!tb) return; tb.appendChild(makeVerifRow(tb.children.length,{ok:true})); }
@@ -4118,6 +4139,7 @@ function buildRows(nsol,imp) {
   };
   const rows=[];
   // Sync all analysis from DOM
+  syncVerifFromDOM();  // read verif table state (cantReal, ok, nplan, obs)
   Object.values(AN_TYPES).forEach(({key})=>{ if(key) syncAnFromDOM(key); });
   syncCobroFromDOM(); // read SPS/CORE from cobro DOM back into anRows
   const allAn=Object.values(anRows).flat().filter(a=>a.patogeno||a.especie);
@@ -4250,18 +4272,30 @@ async function saveMaterial(nsol, imp, res) {
   const esp = getEspecies();
   if(!esp.length) return;
 
+  // Sync verif DOM state first so cantReal/ok/nplan/obs are current
+  syncVerifFromDOM();
+
   // Build rows — one per variety row in the species table
-  const matRows = esp.map(e => [
-    res||'',
-    String(nsol),
-    imp,
-    e.especie||'',
-    e.variedad||'',
-    e.tipo||'',
-    e.cant||'',
-    e.portainjerto||'',
-    e.nplan||v('f3-nplan')||'',
-  ]);
+  // Merge verif data by matching especie+variedad
+  const matRows = esp.map(e => {
+    const vr = verifRows.find(v=>v.especie===e.especie && (v.variedad||'')===(e.variedad||''));
+    return [
+      res||'',
+      String(nsol),
+      imp,
+      e.especie||'',
+      e.variedad||'',
+      e.tipo||'',
+      e.cant||'',
+      e.portainjerto||'',
+      e.nplan||v('f3-nplan')||'',
+      // Verif columns (new)
+      vr ? String(vr.cantReal||e.cant||'') : (e.cant||''),
+      vr ? (vr.ok !== false ? '1' : '0') : '1',
+      vr ? (vr.nplan||e.nplan||'') : (e.nplan||''),
+      vr ? (vr.obs||'') : '',
+    ];
+  });
 
   // Delete existing Material rows for this record
   const allMat = await fetchSheetRows(SHEET_MATERIAL);
