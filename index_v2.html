@@ -596,6 +596,26 @@ input[type=number]{font-family:var(--mono)}
           <option>Plantada</option><option>Recibida</option>
         </select></div>
     </div>
+
+    <!-- Tabla Plantas Establecimiento -->
+    <div style="margin-top:18px">
+      <div style="font-size:11px;font-weight:700;color:var(--nv);letter-spacing:.4px;text-transform:uppercase;margin-bottom:8px">
+        Material a Establecer
+      </div>
+      <div class="tbl-wrap">
+      <table class="tbl" id="estab-mat-tbl">
+        <thead><tr>
+          <th style="width:44px;text-align:center;padding:7px 5px">
+            <span style="font-size:15px;font-weight:300;font-family:'Cormorant Garamond',Georgia,serif;color:var(--gd)">✓</span>
+          </th>
+          <th style="text-align:center">Especie / Híbrido</th>
+          <th style="text-align:center">Variedad(es)</th>
+          <th style="width:130px;text-align:center">N° Plantas Establ.</th>
+        </tr></thead>
+        <tbody id="estab-mat-body"></tbody>
+      </table>
+      </div>
+    </div>
   </div>
   </div>
 
@@ -1216,6 +1236,7 @@ function init() {
 function goStage(n) {
   document.querySelectorAll('.stage').forEach(e=>e.classList.remove('active'));
   document.querySelectorAll('.sb-item').forEach(e=>e.classList.remove('active'));
+  if(n===3) setTimeout(renderEstablecimientoTable, 80);
   const stEl=$('stage-'+n); if(stEl) stEl.classList.add('active');
   const navEl=$('nav-'+n); if(navEl) navEl.classList.add('active');
   currentStage=n;
@@ -2136,6 +2157,66 @@ function onS3Estado() {
   else if(est==='No Recibida') selEl('f2-recibida','No');
 }
 
+function renderEstablecimientoTable() {
+  const tbody = document.getElementById('estab-mat-body');
+  if(!tbody) return;
+  tbody.innerHTML = '';
+
+  // Read from verif-body rows where cantReal >= 1 (same logic as estadía)
+  const verifBody = document.getElementById('verif-body');
+  let rows = [];
+  if(verifBody && verifBody.children.length) {
+    [...verifBody.children].forEach((tr,i) => {
+      const esp     = document.getElementById('ve-'+i)?.value||'';
+      const vari    = document.getElementById('vv-'+i)?.value||'';
+      const cantReal= parseFloat(document.getElementById('vcr-'+i)?.value||'0')||0;
+      if(esp && cantReal >= 1) rows.push({especie:esp, variedad:vari, nplan:String(cantReal)});
+    });
+  }
+  // Fallback: use getEspecies()
+  if(!rows.length) {
+    const seen = new Set();
+    getEspecies().filter(e=>e.especie).forEach(e=>{
+      const k = e.especie+'|'+(e.variedad||'');
+      if(!seen.has(k)){ seen.add(k); rows.push({especie:e.especie, variedad:e.variedad||'', nplan:e.nplan||''}); }
+    });
+  }
+
+  if(!rows.length){
+    tbody.innerHTML='<tr><td colspan="4" style="color:var(--g400);padding:12px;text-align:center;font-size:12px">Complete material en Etapa I / Verificación.</td></tr>';
+    return;
+  }
+
+  rows.forEach((r,i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML=`
+      <td style="text-align:center;padding:5px 8px">
+        <label style="cursor:pointer;display:flex;align-items:center;justify-content:center"
+          onclick="toggleEstabChk(${i})">
+          <input type="checkbox" id="emchk-${i}" checked style="display:none">
+          <span id="emchk-icon-${i}" style="
+            font-size:15px;font-weight:300;font-family:'Cormorant Garamond',Georgia,serif;
+            color:var(--ok);line-height:1;transition:color .15s;user-select:none">✓</span>
+        </label>
+      </td>
+      <td style="font-style:italic;padding:5px 8px;text-align:center">${esc(r.especie)}</td>
+      <td style="padding:5px 8px;text-align:center">${esc(r.variedad||'—')}</td>
+      <td style="padding:5px 8px;text-align:center">
+        <input type="number" id="em-nplan-${i}" value="${esc(r.nplan||'')}" min="0"
+          style="font-family:var(--mono);text-align:center;width:80px">
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function toggleEstabChk(i) {
+  const chk  = document.getElementById('emchk-'+i);
+  const icon = document.getElementById('emchk-icon-'+i);
+  if(!chk||!icon) return;
+  chk.checked = !chk.checked;
+  icon.style.color = chk.checked ? 'var(--ok)' : 'var(--g200)';
+}
+
 function renderVerifTable(data) {
   const tbody=$('verif-body'); if(!tbody) return;
   // Use provided data or get from species table
@@ -2153,7 +2234,7 @@ function renderVerifTable(data) {
   tbody.innerHTML='';
   rows.forEach((r,i)=>tbody.appendChild(makeVerifRow(i,r)));
   if(!rows.length) addVerifRow();
-  setTimeout(()=>makeVerifResizable(), 50);
+  setTimeout(()=>{ makeVerifResizable(); renderEstablecimientoTable(); }, 50);
 }
 
 function toggleAllVerifChecks() {
