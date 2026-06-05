@@ -4294,17 +4294,17 @@ async function saveMaterial(nsol, imp, res) {
     ];
   });
 
-  // Ensure Material sheet has the extended header (13 cols)
   const MAT_HEADERS = [
     'Res.','Solicitud','Importador','Especie','Variedad',
     'Tipo Material','Cantidad','Portainjerto','N° Plantas',
     'Cant. Real','Recibida','N° Plantas Establ.','Observaciones'
   ];
 
-  // Delete existing Material rows for this record
+  // Read existing state BEFORE touching anything
   const allMat = await fetchSheetRows(SHEET_MATERIAL);
-  // Write header row if sheet is empty or has fewer columns than expected
   const currentHeaders = allMat[0]||[];
+
+  // 1. Fix header row if needed
   if(currentHeaders.length < MAT_HEADERS.length) {
     await fetch(
       `${BASE_URL}/${GS.sheetId}/values/${SHEET_MATERIAL}!A1?valueInputOption=USER_ENTERED`,
@@ -4312,7 +4312,15 @@ async function saveMaterial(nsol, imp, res) {
        headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
        body:JSON.stringify({values:[MAT_HEADERS]})});
   }
-  if(allMat.length > 1) {
+
+  // 2. APPEND new rows FIRST — data safe before any delete
+  const matAppendResp = await fetch(
+    `${BASE_URL}/${GS.sheetId}/values/${SHEET_MATERIAL}!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+    {method:'POST',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+     body:JSON.stringify({values:matRows})});
+
+  // 3. Only delete old rows if append succeeded
+  if(matAppendResp.ok && allMat.length > 1) {
     const sheetMeta = await fetch(`${BASE_URL}/${GS.sheetId}?fields=sheets.properties&key=${GS.apiKey}`);
     const sheetMetaJson = await sheetMeta.json();
     const matSheet = (sheetMetaJson.sheets||[]).find(s=>s.properties?.title===SHEET_MATERIAL);
@@ -4335,12 +4343,6 @@ async function saveMaterial(nsol, imp, res) {
       }
     }
   }
-
-  // Append new rows
-  await fetch(
-    `${BASE_URL}/${GS.sheetId}/values/${SHEET_MATERIAL}!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
-    {method:'POST',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
-     body:JSON.stringify({values:matRows})});
 }
 
 // Read Material rows for a given record (by Res. or Solicitud)
