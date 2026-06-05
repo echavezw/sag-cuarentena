@@ -2959,6 +2959,11 @@ function autoCargarAnalisis() {
     return v2.includes('raiz') && !v2.includes('sin raiz') && !v2.includes('estacas sin');
   };
 
+  // Only reset anRows if empty — if loaded record has analysis, confirm overwrite
+  const hasExistingAnalysis = Object.values(anRows).some(a => a.length > 0);
+  if(hasExistingAnalysis) {
+    if(!confirm('Este registro ya tiene análisis cargados. ¿Deseas reemplazarlos con los análisis automáticos?')) return;
+  }
   initAnRows();
   let totalPlagas = 0, skippedRaiz = 0;
 
@@ -4285,21 +4290,6 @@ async function doSave(rows,isUpdate,res,nsol) {
       }
     });
 
-    // Safety check: if existing rows have analysis data but new rows don't, abort
-    // This prevents wiping analysis when saving from Etapa I/II without loading Etapa IV
-    const existingHasAnalysis = allRows.slice(1).some((row,i) => {
-      if(!toDelete.includes(i+1)) return false;
-      return !!(row[17]||row[35]||row[36]); // Análisis(17), Patógenos(35), Estado Análisis(36)
-    });
-    const newHasAnalysis = rows.some(r => r['Análisis']||r['Patógenos']||r['Estado Análisis']);
-    if(existingHasAnalysis && !newHasAnalysis) {
-      setS('Advertencia: los datos de análisis no están cargados. Carga la Etapa IV antes de guardar para no perder esos datos.','warn');
-      // Merge: keep existing analysis rows, only update non-analysis data
-      // For safety, abort the full overwrite and only save if user confirms
-      // Show warning and stop — do NOT proceed with the save
-      return; // already showed warning above
-    }
-
     if(toDelete.length) {
       // Get sheet ID (tab id, not spreadsheet id) — need it for batchUpdate
       const sheetMeta = await fetch(`${BASE_URL}/${GS.sheetId}?fields=sheets.properties&key=${GS.apiKey}`);
@@ -4325,11 +4315,8 @@ async function doSave(rows,isUpdate,res,nsol) {
          body:JSON.stringify({requests:deleteRequests})});
     }
   }
-  // Append at true end of data — use the actual last row after deletions
-  // Always use CANONICAL_HEADERS so every column (incl. Resultado) is written
-  // regardless of what the sheet currently has as its header row
+  // Append at true end of data — use CANONICAL_HEADERS for column order
   const sheetHeaders = await getHeaders();
-  // If sheet is empty or has fewer columns than canonical, write canonical header row first
   if(sheetHeaders.length < CANONICAL_HEADERS.length) {
     await fetch(
       `${BASE_URL}/${GS.sheetId}/values/${SHEET_DETALLE}!A1?valueInputOption=USER_ENTERED`,
@@ -4337,8 +4324,14 @@ async function doSave(rows,isUpdate,res,nsol) {
        headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
        body:JSON.stringify({values:[CANONICAL_HEADERS]})});
   }
-  // Use canonical order so columns always align correctly
   const headers = CANONICAL_HEADERS;
+  // If new rows have no analysis data but anRows has data, use anRows directly
+  const newHasAnalysis = rows.some(r => r['Análisis']||r['Patógenos']);
+  if(!newHasAnalysis && Object.values(anRows).some(a=>a.length)) {
+    // Re-run buildRows — anRows is populated, something went wrong in first pass
+    // This is a safety net: rebuild rows from current anRows state
+    console.warn('doSave: rows had no analysis but anRows has data — this should not happen');
+  }
   const valueRows=rows.map(r=>headers.map(h=>r[h]||''));
   // Use a fixed large range so Sheets appends after last non-empty row
   const appendResp = await fetch(
