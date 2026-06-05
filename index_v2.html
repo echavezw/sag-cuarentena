@@ -566,11 +566,10 @@ input[type=number]{font-family:var(--mono)}
     </div>
   </div>
   <div class="tabs">
-    <button class="tab active" onclick="showTab(3,0)">Establecimiento</button>
-    <button class="tab" onclick="showTab(3,1)">Verificacion Material</button>
+    <button class="tab active" onclick="showTab(3,0)">Verificación y Establecimiento del Material</button>
   </div>
 
-  <!-- Tab 3.1: Establecimiento -->
+  <!-- Tab 3.1: Verificación y Establecimiento (merged) -->
   <div class="tab-panel active" id="t3-0">
   <div class="tab-body">
     <div id="res-bar-3" class="res-bar" style="display:none">
@@ -597,58 +596,42 @@ input[type=number]{font-family:var(--mono)}
         </select></div>
     </div>
 
-    <!-- Tabla Plantas Establecimiento -->
+    <!-- Tabla fusionada: Verificación + Establecimiento -->
     <div style="margin-top:18px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <div style="font-size:11px;font-weight:700;color:var(--nv);letter-spacing:.4px;text-transform:uppercase">
-          Material a Establecer
-        </div>
+        <div style="font-size:11px;color:var(--g600)">Verifique el material recibido y registre las plantas establecidas.</div>
         <div style="display:flex;gap:6px">
-          <button class="btn btn-danger btn-sm" onclick="delEstabSelected()" title="Eliminar filas marcadas">Eliminar selec.</button>
-          <button class="btn btn-gh btn-sm" onclick="addEstabRow()">+ Agregar fila</button>
+          <button class="btn btn-gh btn-sm" onclick="addVerifRow()">+ Agregar fila</button>
         </div>
       </div>
       <div class="tbl-wrap">
-      <table class="tbl" id="estab-mat-tbl">
-        <thead><tr>
-          <th style="width:36px;text-align:center;padding:7px 5px">✓</th>
-          <th style="text-align:center">Especie / Híbrido</th>
-          <th style="text-align:center">Variedad(es)</th>
-          <th style="width:110px;text-align:center">N° Plantas Establ.</th>
-          <th style="width:32px"></th>
-        </tr></thead>
-        <tbody id="estab-mat-body"></tbody>
+      <table class="tbl" id="verif-tbl">
+        <thead>
+          <!-- Row 1: section headers -->
+          <tr>
+            <th rowspan="2" style="width:44px;text-align:center;padding:7px 5px;cursor:pointer;user-select:none"
+              onclick="toggleAllVerifChecks()" title="Marcar/desmarcar todos">
+              <span id="ok-all-icon" style="font-size:15px;font-weight:300;font-family:'Cormorant Garamond',Georgia,serif;color:var(--gd)">✓</span>
+              <div style="font-size:8px;color:rgba(255,255,255,.5);margin-top:1px">todos</div>
+            </th>
+            <th rowspan="2" style="width:160px;text-align:center">Especie / Híbrido</th>
+            <th rowspan="2" style="width:110px;text-align:center">Variedad(es)</th>
+            <th rowspan="2" style="width:100px;text-align:center">Tipo Material</th>
+            <th colspan="2" style="text-align:center;border-bottom:1px solid var(--g200);background:var(--g50);font-size:10px;letter-spacing:.3px;text-transform:uppercase;color:var(--g600)">Verificación del Material Recibido</th>
+            <th colspan="1" style="text-align:center;border-bottom:1px solid var(--g200);background:var(--gold-bg);font-size:10px;letter-spacing:.3px;text-transform:uppercase;color:var(--g700)">Establecimiento del Material</th>
+            <th rowspan="2" style="text-align:left">Observaciones</th>
+            <th rowspan="2" style="width:28px"></th>
+          </tr>
+          <!-- Row 2: sub-headers -->
+          <tr>
+            <th style="width:75px;text-align:center;font-size:11px">Cant. Decl.</th>
+            <th style="width:75px;text-align:center;font-size:11px">Cant. Real</th>
+            <th style="width:95px;text-align:center;font-size:11px;background:var(--gold-bg)">N° Plantas Establ.</th>
+          </tr>
+        </thead>
+        <tbody id="verif-body"></tbody>
       </table>
       </div>
-    </div>
-  </div>
-  </div>
-
-  <!-- Tab 3.2: Verificacion (tabla check) -->
-  <div class="tab-panel" id="t3-1">
-  <div class="tab-body">
-    <div class="info-box">Verifique el material recibido contra lo declarado en la Etapa I. Marque el check si llego y agregue observaciones si es necesario.</div>
-    <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
-      <button class="btn btn-gh btn-sm" onclick="addVerifRow()">+ Agregar fila</button>
-    </div>
-    <div class="tbl-wrap">
-    <table class="tbl" id="verif-tbl">
-      <thead><tr>
-        <th style="width:44px;text-align:center;padding:7px 5px;cursor:pointer;user-select:none"
-          onclick="toggleAllVerifChecks()" title="Marcar/desmarcar todos">
-          <span id="ok-all-icon" style="font-size:15px;font-weight:300;font-family:'Cormorant Garamond',Georgia,serif;color:var(--gd)">✓</span>
-          <div style="font-size:8px;color:rgba(255,255,255,.5);margin-top:1px">todos</div>
-        </th>
-        <th style="width:160px;text-align:center">Especie / Hibrido</th>
-        <th style="width:110px;text-align:center">Variedad(es)</th>
-        <th style="width:100px;text-align:center">Tipo Material</th>
-        <th style="width:75px;text-align:center">Cant. Decl.</th>
-        <th style="width:75px;text-align:center">Cant. Real</th>
-        <th style="text-align:left">Observaciones</th>
-        <th style="width:28px"></th>
-      </tr></thead>
-      <tbody id="verif-body"></tbody>
-    </table>
     </div>
   </div>
   </div>
@@ -2281,6 +2264,7 @@ function renderVerifTable(data) {
     tipo:     e.tipo||'',
     cant:     e.cant||'',   // cantidad declarada
     cantReal: e.cant||'',   // default real = declared
+    nplan:    e.nplan||'',  // N° Plantas Establ.
     obs:      e.obs||'',
     ok:       true,          // default checked
   }));
@@ -2372,6 +2356,10 @@ function makeVerifRow(i,r) {
       <input type="number" id="vcr-${i}" value="${cantReal}"
         style="font-family:var(--mono);text-align:center;width:100%;${checked?'background:var(--ok-bg);color:var(--ok)':''}"
         placeholder="Real" oninput="onVerifCantReal(${i})">
+    </td>
+    <td style="text-align:center;padding:4px 6px;background:var(--gold-bg)">
+      <input type="number" id="vnplan-${i}" value="${r.nplan||''}" min="0"
+        placeholder="—" style="font-family:var(--mono);text-align:center;width:70px;background:var(--gold-bg)">
     </td>
     <td><input id="vobs-${i}" value="${esc(r.obs||'')}" placeholder="Observaciones..."></td>
     <td><button class="del-btn" onclick="delVerifRow(${i})">×</button></td>`;
@@ -3247,8 +3235,9 @@ function renderEstadiaTable() {
       const esp     = document.getElementById('ve-'+i)?.value||'';
       const vari    = document.getElementById('vv-'+i)?.value||'';
       const cantReal= parseFloat(document.getElementById('vcr-'+i)?.value||'0')||0;
-      const nplan   = document.getElementById('vcr-'+i)?.value||'';
-      if(esp && cantReal >= 1) rows.push({especie:esp, variedad:vari, nplan:String(cantReal)});
+      // Use N° Plantas Establ. from merged verif column (vnplan-i)
+      const nplan   = document.getElementById('vnplan-'+i)?.value||String(cantReal);
+      if(esp && cantReal >= 1) rows.push({especie:esp, variedad:vari, nplan});
     });
   }
   // Fallback: use getEspecies() if verif-body not populated yet
