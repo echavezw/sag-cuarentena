@@ -3446,24 +3446,61 @@ function addEstRow() {
 
 // ── ETAPA VI — CIERRE ──
 function renderCierreTabs() {
-  // ── Tab 6.1: Plantas finales pre-cargadas desde Etapa I/III ──
+  // ── Tab 6.1: Plantas finales ──
   const tbody=$('plantas-body'); if(!tbody) return;
   tbody.innerHTML='';
-  const esp=getEspecies();
-  esp.forEach((e,i)=>{
-    const nEstab=parseInt(e.nplan)||0;
-    const tr=document.createElement('tr');
+
+  // Source data: one row per variedad with cantReal >= 1 (same as estadía)
+  // N° Plantas Estab. (Etapa III) = vnplan-i (col N° Plantas Establ. de verificación)
+  // N° Plantas Finales = est-n-i (col N° Plantas estadía, editable)
+  const verifBody = document.getElementById('verif-body');
+  const rows = [];
+  if(verifBody && verifBody.children.length) {
+    let estIdx = 0;
+    [...verifBody.children].forEach((_,i) => {
+      const esp      = document.getElementById('ve-'+i)?.value||'';
+      const vari     = document.getElementById('vv-'+i)?.value||'';
+      const cantReal = parseFloat(document.getElementById('vcr-'+i)?.value||'0')||0;
+      if(!esp) return;
+      // nplanEstab: N° Plantas Establ. from verif column (vnplan-i)
+      const nplanEstab = parseInt(document.getElementById('vnplan-'+i)?.value||'0')||0;
+      // nplanFin: N° Plantas from estadía table (est-n-*), only if cantReal >= 1
+      let nplanFin = 0;
+      if(cantReal >= 1) {
+        nplanFin = parseInt(document.getElementById('est-n-'+estIdx)?.value||'0')||0;
+        estIdx++;
+      }
+      rows.push({especie:esp, variedad:vari, nplanEstab, nplanFin, cantReal});
+    });
+  }
+
+  // Fallback: use _loadedEspData or getEspecies()
+  if(!rows.length) {
+    const esp = (window._loadedEspData||[]).length ? window._loadedEspData : getEspecies();
+    esp.forEach(e => rows.push({
+      especie: e.especie||'',
+      variedad: e.variedad||'',
+      nplanEstab: parseInt(e.nplanEstab||e.nplanEstab||e.nplan||'0')||0,
+      nplanFin:   parseInt(e.nplanEstadia||e.nplan||'0')||0,
+      cantReal: 1,
+    }));
+  }
+
+  rows.forEach((e,i) => {
+    const nEstab = e.nplanEstab||0;
+    // N° Plantas Finales: estadía value, fallback 0
+    const nFin   = e.nplanFin!==undefined ? e.nplanFin : 0;
+    const tr = document.createElement('tr');
     tr.innerHTML=`
       <td style="font-style:italic;padding:5px 8px">${esc(e.especie)}</td>
       <td style="padding:5px 8px;font-size:11px;color:var(--g600)">${esc(e.variedad||'—')}</td>
       <td style="font-family:var(--mono);text-align:center;padding:5px 8px">${nEstab||'—'}</td>
-      <td style="padding:4px 6px"><input type="number" id="pf-${i}" value="${nEstab||''}"
+      <td style="padding:4px 6px"><input type="number" id="pf-${i}" value="${nFin}"
         style="font-family:var(--mono);text-align:center;width:80px" oninput="calcDiff(${i},${nEstab})"></td>
       <td id="pf-diff-${i}" style="font-family:var(--mono);text-align:center;padding:5px 8px;color:var(--g400)">—</td>
       <td style="padding:4px 6px"><input id="pf-obs-${i}" placeholder="Observaciones..."></td>`;
     tbody.appendChild(tr);
-    // init diff display
-    if(nEstab) calcDiff(i, nEstab);
+    calcDiff(i, nEstab);
   });
   if(!esp.length) tbody.innerHTML='<tr><td colspan="6" style="color:var(--g400);padding:16px;font-size:12px;text-align:center">Complete la tabla de material en la Etapa I.</td></tr>';
 
