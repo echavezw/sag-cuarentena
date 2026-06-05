@@ -2278,7 +2278,7 @@ function renderVerifTable(data) {
   tbody.innerHTML='';
   rows.forEach((r,i)=>tbody.appendChild(makeVerifRow(i,r)));
   if(!rows.length) addVerifRow();
-  setTimeout(()=>{ makeVerifResizable(); renderEstablecimientoTable(); }, 50);
+  setTimeout(()=>{ makeVerifResizable(); renderEstablecimientoTable(); calcNplanEstab(); }, 50);
 }
 
 function toggleAllVerifChecks() {
@@ -2366,7 +2366,8 @@ function makeVerifRow(i,r) {
     </td>
     <td style="text-align:center;padding:4px 6px;background:var(--gold-bg)">
       <input type="number" id="vnplan-${i}" value="${r.nplan||''}" min="0"
-        placeholder="—" style="font-family:var(--mono);text-align:center;width:70px;background:var(--gold-bg)">
+        placeholder="—" style="font-family:var(--mono);text-align:center;width:70px;background:var(--gold-bg)"
+        oninput="calcNplanEstab()">
     </td>
     <td><input id="vobs-${i}" value="${esc(r.obs||'')}" placeholder="Observaciones..."></td>
     <td><button class="del-btn" onclick="delVerifRow(${i})">×</button></td>`;
@@ -3558,6 +3559,19 @@ function replicarSPSFin(val) {
 }
 function replicarCOREFin(val) {
   document.querySelectorAll('[id^="pfin-core-"]').forEach(inp=>{ inp.value=val; });
+}
+
+function calcNplanEstab() {
+  let totalNplan = 0, totalVar = 0;
+  document.querySelectorAll('[id^="vnplan-"]').forEach(inp => {
+    const val = parseInt(inp.value)||0;
+    totalNplan += val;
+    if(val > 0) totalVar++;
+  });
+  const nplanEl = document.getElementById('f3-nplan');
+  const nvarEl  = document.getElementById('f3-nvar');
+  if(nplanEl) nplanEl.value = totalNplan || '';
+  if(nvarEl)  nvarEl.value  = totalVar  || '';
 }
 
 function calcPlantasTotal() {
