@@ -1585,6 +1585,7 @@ async function cargarFilaMulti(rows) {
         ok:          x['Recibida']   !== undefined ? x['Recibida']!=='0' : true,
         nplanEstab:  x['N° Plantas Establ.']||x['N° Plantas']||'',
         obs:         x['Observaciones']||'',
+        nplanEstadia: x['N° Plantas Estadía']||x['N° Plantas Estadia']||x['N° Plantas']||'',
       }));
     }
   } catch(e) { /* fall through to Detalle-based espData */ }
@@ -1608,6 +1609,7 @@ async function cargarFilaMulti(rows) {
       });
   }
 
+  window._loadedEspData = espData; // store for estadía table
   renderEspTable(espData);
   renderVerifTable(espData);
   // Load analysis rows
@@ -1675,6 +1677,7 @@ function limpiarFormSilent() {
   anRows={V:[],H:[],B:[],F:[],E:[],N:[]};
   verifRows=[];
   window._resEspRows=null;
+  window._loadedEspData=null;
   renderEspTable();
   renderVerifTable();
 }
@@ -3255,7 +3258,13 @@ function renderEstadiaTable() {
       const vari    = document.getElementById('vv-'+i)?.value||'';
       const cantReal= parseFloat(document.getElementById('vcr-'+i)?.value||'0')||0;
       // Use N° Plantas Establ. from merged verif column (vnplan-i)
-      const nplan   = document.getElementById('vnplan-'+i)?.value||String(cantReal);
+      // nplanEstadia from Material sheet (saved estadía edit) takes priority
+      const espData2 = (window._loadedEspData||[]).find(e=>e.especie===esp&&(e.variedad||'')===(vari||''));
+      const savedEstadia = espData2?.nplanEstadia;
+      const vnplanVal = document.getElementById('vnplan-'+i)?.value||'';
+      const nplan = (savedEstadia!==undefined && savedEstadia!=='')
+        ? savedEstadia
+        : (vnplanVal||String(cantReal));
       if(esp && cantReal >= 1) rows.push({especie:esp, variedad:vari, nplan});
     });
   }
@@ -4272,6 +4281,26 @@ async function saveMaterial(nsol, imp, res) {
   // Sync verif DOM → verifRows before reading
   syncVerifFromDOM();
 
+  // Read N° Plantas Estadía keyed by especie|variedad
+  // estadía table rows match verif rows filtered by cantReal>=1, same order
+  const estadiaNplan = {}; // key: 'especie|variedad' → nplan value
+  const estBody = document.getElementById('estadia-body');
+  const verifBody2 = document.getElementById('verif-body');
+  if(estBody && verifBody2) {
+    // Build filtered list (same as renderEstadiaTable) to get especie/variedad per index
+    let estIdx = 0;
+    [...verifBody2.children].forEach((_,i) => {
+      const esp     = document.getElementById('ve-'+i)?.value||'';
+      const vari    = document.getElementById('vv-'+i)?.value||'';
+      const cantReal= parseFloat(document.getElementById('vcr-'+i)?.value||'0')||0;
+      if(esp && cantReal >= 1) {
+        const nplanEl = document.getElementById('est-n-'+estIdx);
+        if(nplanEl) estadiaNplan[esp+'|'+(vari||'')] = nplanEl.value||'';
+        estIdx++;
+      }
+    });
+  }
+
   // Build rows — one per variety row in the species table
   // Note: use 'vrow' not 'v' to avoid shadowing the global v() DOM helper
   const nplanDefault = v('f3-nplan')||'';
@@ -4291,13 +4320,16 @@ async function saveMaterial(nsol, imp, res) {
       vrow ? (vrow.ok !== false ? '1' : '0') : '1',
       vrow ? (vrow.nplan!==undefined && vrow.nplan!=='' ? vrow.nplan : (e.nplan||nplanDefault)) : (e.nplan||nplanDefault),
       vrow ? (vrow.obs||'') : '',
+      // N° Plantas Estadía — from estadía table if edited, else nplan default
+      (()=>{ const k=e.especie+'|'+(e.variedad||''); return estadiaNplan[k]!==undefined ? estadiaNplan[k] : (e.nplan||nplanDefault); })(),
     ];
   });
 
   const MAT_HEADERS = [
     'Res.','Solicitud','Importador','Especie','Variedad',
     'Tipo Material','Cantidad','Portainjerto','N° Plantas',
-    'Cant. Real','Recibida','N° Plantas Establ.','Observaciones'
+    'Cant. Real','Recibida','N° Plantas Establ.','Observaciones',
+    'N° Plantas Estadía'
   ];
 
   // Read existing state BEFORE touching anything
