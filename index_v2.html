@@ -796,7 +796,7 @@ input[type=number]{font-family:var(--mono)}
         <th>Especie / Hibrido</th><th>Variedad</th>
         <th>N° Plantas Estab. (Etapa III)</th>
         <th>N° Plantas Finales</th>
-        <th>Diferencia</th><th>Observaciones</th>
+        <th>Observaciones</th>
       </tr></thead>
       <tbody id="plantas-body"></tbody>
     </table>
@@ -3495,13 +3495,26 @@ function renderCierreTabs() {
       <td style="font-style:italic;padding:5px 8px">${esc(e.especie)}</td>
       <td style="padding:5px 8px;font-size:11px;color:var(--g600)">${esc(e.variedad||'—')}</td>
       <td style="font-family:var(--mono);text-align:center;padding:5px 8px">${nEstab||'—'}</td>
-      <td style="padding:4px 6px"><input type="number" id="pf-${i}" value="${nFin}"
-        style="font-family:var(--mono);text-align:center;width:80px" oninput="calcDiff(${i},${nEstab})"></td>
-      <td id="pf-diff-${i}" style="font-family:var(--mono);text-align:center;padding:5px 8px;color:var(--g400)">—</td>
+      <td style="padding:4px 6px;text-align:center">
+        <input type="number" id="pf-${i}" value="${nFin||''}"
+          placeholder="—"
+          style="font-family:var(--mono);text-align:center;width:80px;${nFin===0?'color:var(--g400)':''}"
+          oninput="calcPlantasTotal()">
+      </td>
       <td style="padding:4px 6px"><input id="pf-obs-${i}" placeholder="Observaciones..."></td>`;
     tbody.appendChild(tr);
-    calcDiff(i, nEstab);
   });
+
+  // Total row
+  const totalTr = document.createElement('tr');
+  totalTr.style.cssText = 'background:var(--nv);color:#fff;font-weight:700';
+  totalTr.innerHTML=`
+    <td colspan="2" style="padding:7px 8px;font-size:11px;letter-spacing:.4px;text-transform:uppercase">Total</td>
+    <td style="font-family:var(--mono);text-align:center;padding:7px 8px">—</td>
+    <td id="pf-total" style="font-family:var(--mono);text-align:center;padding:7px 8px;font-size:14px">—</td>
+    <td></td>`;
+  tbody.appendChild(totalTr);
+  calcPlantasTotal();
   if(!esp.length) tbody.innerHTML='<tr><td colspan="6" style="color:var(--g400);padding:16px;font-size:12px;text-align:center">Complete la tabla de material en la Etapa I.</td></tr>';
 
   // ── Tab 6.2: Cobro estadia final ──
@@ -3547,12 +3560,22 @@ function replicarCOREFin(val) {
   document.querySelectorAll('[id^="pfin-core-"]').forEach(inp=>{ inp.value=val; });
 }
 
-function calcDiff(i,estab) {
-  const final=parseInt(document.getElementById(`pf-${i}`)?.value)||0;
-  const diff=final-estab;
-  const el=$(`pf-diff-${i}`);
-  if(el){ el.textContent=diff===0?'=':(diff>0?'+':'')+diff; el.style.color=diff<0?'var(--err)':diff>0?'var(--ok)':'var(--g400)'; }
+function calcPlantasTotal() {
+  let total = 0;
+  document.querySelectorAll('[id^="pf-"]').forEach(inp => {
+    if(inp.id === 'pf-total') return;
+    total += parseInt(inp.value)||0;
+  });
+  const el = document.getElementById('pf-total');
+  if(el) el.textContent = total || '—';
+  // Also update f6-total-fin for buildRows
+  const tf = document.getElementById('f6-total-fin');
+  if(tf) tf.value = total||'';
   calcTotalFin();
+}
+
+function calcDiff(i,estab) {
+  calcPlantasTotal();
 }
 function calcTotalFin() {
   let total=0;
