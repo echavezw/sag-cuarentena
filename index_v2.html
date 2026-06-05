@@ -2267,7 +2267,7 @@ function renderVerifTable(data) {
     variedad: e.variedad||'',
     tipo:     e.tipo||'',
     cant:     e.cant||'',
-    cantReal: e.cantReal !== undefined ? e.cantReal : (e.cant||''),
+    cantReal: (e.cantReal !== undefined && e.cantReal !== '') ? e.cantReal : (e.cant||''),
     nplan:    e.nplanEstab||e.nplan||'',
     obs:      e.obs||'',
     ok:       e.ok !== undefined ? e.ok : true,
@@ -4287,15 +4287,31 @@ async function saveMaterial(nsol, imp, res) {
       e.cant||'',
       e.portainjerto||'',
       e.nplan||nplanDefault,
-      vrow ? String(vrow.cantReal||e.cant||'') : (e.cant||''),
+      vrow ? String(vrow.cantReal!==undefined && vrow.cantReal!=='' ? vrow.cantReal : (e.cant||'')) : (e.cant||''),
       vrow ? (vrow.ok !== false ? '1' : '0') : '1',
-      vrow ? (vrow.nplan||e.nplan||nplanDefault) : (e.nplan||nplanDefault),
+      vrow ? (vrow.nplan!==undefined && vrow.nplan!=='' ? vrow.nplan : (e.nplan||nplanDefault)) : (e.nplan||nplanDefault),
       vrow ? (vrow.obs||'') : '',
     ];
   });
 
+  // Ensure Material sheet has the extended header (13 cols)
+  const MAT_HEADERS = [
+    'Res.','Solicitud','Importador','Especie','Variedad',
+    'Tipo Material','Cantidad','Portainjerto','N° Plantas',
+    'Cant. Real','Recibida','N° Plantas Establ.','Observaciones'
+  ];
+
   // Delete existing Material rows for this record
   const allMat = await fetchSheetRows(SHEET_MATERIAL);
+  // Write header row if sheet is empty or has fewer columns than expected
+  const currentHeaders = allMat[0]||[];
+  if(currentHeaders.length < MAT_HEADERS.length) {
+    await fetch(
+      `${BASE_URL}/${GS.sheetId}/values/${SHEET_MATERIAL}!A1?valueInputOption=USER_ENTERED`,
+      {method:'PUT',
+       headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+       body:JSON.stringify({values:[MAT_HEADERS]})});
+  }
   if(allMat.length > 1) {
     const sheetMeta = await fetch(`${BASE_URL}/${GS.sheetId}?fields=sheets.properties&key=${GS.apiKey}`);
     const sheetMetaJson = await sheetMeta.json();
