@@ -599,18 +599,23 @@ input[type=number]{font-family:var(--mono)}
 
     <!-- Tabla Plantas Establecimiento -->
     <div style="margin-top:18px">
-      <div style="font-size:11px;font-weight:700;color:var(--nv);letter-spacing:.4px;text-transform:uppercase;margin-bottom:8px">
-        Material a Establecer
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:11px;font-weight:700;color:var(--nv);letter-spacing:.4px;text-transform:uppercase">
+          Material a Establecer
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-danger btn-sm" onclick="delEstabSelected()" title="Eliminar filas marcadas">Eliminar selec.</button>
+          <button class="btn btn-gh btn-sm" onclick="addEstabRow()">+ Agregar fila</button>
+        </div>
       </div>
       <div class="tbl-wrap">
       <table class="tbl" id="estab-mat-tbl">
         <thead><tr>
-          <th style="width:44px;text-align:center;padding:7px 5px">
-            <span style="font-size:15px;font-weight:300;font-family:'Cormorant Garamond',Georgia,serif;color:var(--gd)">✓</span>
-          </th>
+          <th style="width:36px;text-align:center;padding:7px 5px">✓</th>
           <th style="text-align:center">Especie / Híbrido</th>
           <th style="text-align:center">Variedad(es)</th>
-          <th style="width:130px;text-align:center">N° Plantas Establ.</th>
+          <th style="width:110px;text-align:center">N° Plantas Establ.</th>
+          <th style="width:32px"></th>
         </tr></thead>
         <tbody id="estab-mat-body"></tbody>
       </table>
@@ -1514,6 +1519,7 @@ async function cargarFilaMulti(rows) {
   const r=rows[0];
   // Store for fallback in buildRows (fields not yet rendered don't overwrite sheet data)
   _lastLoadedRow = r;
+  _estabRows = []; // reset so renderEstablecimientoTable refreshes on next render
   // Etapa I
   selEl('f1-imp', r['Importador']||'');
   // Ensure ref data loaded before autocompleting
@@ -2157,53 +2163,83 @@ function onS3Estado() {
   else if(est==='No Recibida') selEl('f2-recibida','No');
 }
 
-function renderEstablecimientoTable() {
+// Internal store for the estab-mat table rows (survives re-renders)
+let _estabRows = [];
+
+function renderEstablecimientoTable(forceRefresh) {
   const tbody = document.getElementById('estab-mat-body');
   if(!tbody) return;
+
+  // On first call or forced refresh: rebuild from verif-body + getEspecies
+  if(forceRefresh || !_estabRows.length) {
+    const verifBody = document.getElementById('verif-body');
+    const newRows = [];
+    if(verifBody && verifBody.children.length) {
+      [...verifBody.children].forEach((tr,i) => {
+        const esp     = document.getElementById('ve-'+i)?.value||'';
+        const vari    = document.getElementById('vv-'+i)?.value||'';
+        const cantReal= parseFloat(document.getElementById('vcr-'+i)?.value||'0')||0;
+        // N° Plantas Establ. = nplan from getEspecies (not cantReal)
+        const espData  = getEspecies().find(e=>e.especie===esp && (e.variedad||'')===(vari||''));
+        const nplan    = espData?.nplan || '';
+        if(esp && cantReal >= 1) newRows.push({especie:esp, variedad:vari, nplan});
+      });
+    }
+    if(!newRows.length) {
+      // Fallback: getEspecies directly
+      const seen = new Set();
+      getEspecies().filter(e=>e.especie).forEach(e=>{
+        const k = e.especie+'|'+(e.variedad||'');
+        if(!seen.has(k)){ seen.add(k); newRows.push({especie:e.especie, variedad:e.variedad||'', nplan:e.nplan||''}); }
+      });
+    }
+    // Merge: preserve manually edited nplan if row already exists
+    newRows.forEach(nr=>{
+      const existing = _estabRows.find(r=>r.especie===nr.especie && r.variedad===nr.variedad);
+      nr.nplan = existing?.nplan ?? nr.nplan;
+    });
+    _estabRows = newRows;
+  }
+
   tbody.innerHTML = '';
 
-  // Read from verif-body rows where cantReal >= 1 (same logic as estadía)
-  const verifBody = document.getElementById('verif-body');
-  let rows = [];
-  if(verifBody && verifBody.children.length) {
-    [...verifBody.children].forEach((tr,i) => {
-      const esp     = document.getElementById('ve-'+i)?.value||'';
-      const vari    = document.getElementById('vv-'+i)?.value||'';
-      const cantReal= parseFloat(document.getElementById('vcr-'+i)?.value||'0')||0;
-      if(esp && cantReal >= 1) rows.push({especie:esp, variedad:vari, nplan:String(cantReal)});
-    });
-  }
-  // Fallback: use getEspecies()
-  if(!rows.length) {
-    const seen = new Set();
-    getEspecies().filter(e=>e.especie).forEach(e=>{
-      const k = e.especie+'|'+(e.variedad||'');
-      if(!seen.has(k)){ seen.add(k); rows.push({especie:e.especie, variedad:e.variedad||'', nplan:e.nplan||''}); }
-    });
-  }
-
-  if(!rows.length){
-    tbody.innerHTML='<tr><td colspan="4" style="color:var(--g400);padding:12px;text-align:center;font-size:12px">Complete material en Etapa I / Verificación.</td></tr>';
+  if(!_estabRows.length){
+    tbody.innerHTML='<tr><td colspan="5" style="color:var(--g400);padding:12px;text-align:center;font-size:12px">Complete material en Etapa I / Verificación.</td></tr>';
     return;
   }
 
-  rows.forEach((r,i) => {
+  _estabRows.forEach((r,i) => {
     const tr = document.createElement('tr');
     tr.innerHTML=`
-      <td style="text-align:center;padding:5px 8px">
+      <td style="text-align:center;padding:5px 6px;white-space:nowrap">
         <label style="cursor:pointer;display:flex;align-items:center;justify-content:center"
           onclick="toggleEstabChk(${i})">
-          <input type="checkbox" id="emchk-${i}" checked style="display:none">
+          <input type="checkbox" id="emchk-${i}" ${r.deleted?'':'checked'} style="display:none">
           <span id="emchk-icon-${i}" style="
             font-size:15px;font-weight:300;font-family:'Cormorant Garamond',Georgia,serif;
-            color:var(--ok);line-height:1;transition:color .15s;user-select:none">✓</span>
+            color:${r.deleted?'var(--g200)':'var(--ok)'};line-height:1;transition:color .15s;user-select:none">✓</span>
         </label>
       </td>
-      <td style="font-style:italic;padding:5px 8px;text-align:center">${esc(r.especie)}</td>
-      <td style="padding:5px 8px;text-align:center">${esc(r.variedad||'—')}</td>
-      <td style="padding:5px 8px;text-align:center">
+      <td style="font-style:italic;padding:5px 8px;white-space:nowrap">
+        <input id="em-esp-${i}" value="${esc(r.especie)}" list="esp-dl"
+          placeholder="Especie..." style="font-style:italic;text-align:center;min-width:120px"
+          oninput="_estabRows[${i}].especie=this.value">
+      </td>
+      <td style="padding:5px 8px;white-space:nowrap">
+        <input id="em-var-${i}" value="${esc(r.variedad||'')}"
+          placeholder="Variedad..." style="text-align:center;min-width:90px"
+          oninput="_estabRows[${i}].variedad=this.value">
+      </td>
+      <td style="padding:5px 6px;text-align:center">
         <input type="number" id="em-nplan-${i}" value="${esc(r.nplan||'')}" min="0"
-          style="font-family:var(--mono);text-align:center;width:80px">
+          style="font-family:var(--mono);text-align:center;width:70px"
+          oninput="_estabRows[${i}].nplan=this.value">
+      </td>
+      <td style="text-align:center;padding:5px 6px">
+        <button onclick="delEstabRow(${i})" title="Eliminar fila"
+          style="background:none;border:none;cursor:pointer;color:var(--g400);font-size:14px;
+          line-height:1;padding:2px 6px;border-radius:3px"
+          onmouseover="this.style.color='var(--err)'" onmouseout="this.style.color='var(--g400)'">×</button>
       </td>`;
     tbody.appendChild(tr);
   });
@@ -2214,7 +2250,24 @@ function toggleEstabChk(i) {
   const icon = document.getElementById('emchk-icon-'+i);
   if(!chk||!icon) return;
   chk.checked = !chk.checked;
+  if(_estabRows[i]) _estabRows[i].deleted = !chk.checked;
   icon.style.color = chk.checked ? 'var(--ok)' : 'var(--g200)';
+}
+
+function delEstabRow(i) {
+  _estabRows.splice(i,1);
+  renderEstablecimientoTable();
+}
+
+function addEstabRow() {
+  _estabRows.push({especie:'', variedad:'', nplan:''});
+  renderEstablecimientoTable();
+}
+
+function delEstabSelected() {
+  // Delete rows where checkbox is unchecked (deleted flag)
+  _estabRows = _estabRows.filter(r=>!r.deleted);
+  renderEstablecimientoTable();
 }
 
 function renderVerifTable(data) {
