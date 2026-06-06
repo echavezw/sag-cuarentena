@@ -796,12 +796,17 @@ input[type=number]{font-family:var(--mono)}
       <tbody id="estadia-body"></tbody>
     </table>
     </div>
-    <div style="margin-top:12px;padding:10px 14px;background:var(--nv);border-radius:var(--rs);
-      display:flex;align-items:center;gap:20px">
-      <span style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.5px">Total Plantas</span>
-      <input id="f5-total-plantas" readonly style="font-family:var(--mono);font-weight:700;font-size:16px;
-        background:transparent;border:none;color:#fff;width:80px">
-    </div>
+    <table class="tbl" style="margin-top:0;border-top:2px solid var(--nv)">
+      <tbody><tr style="background:var(--nv);color:#fff;font-weight:700">
+        <td style="width:32px;padding:7px 8px"></td>
+        <td style="padding:7px 8px;font-size:11px;letter-spacing:.4px;text-transform:uppercase" colspan="2">Total Plantas</td>
+        <td style="font-family:var(--mono);text-align:center;padding:7px 8px;font-size:14px;width:90px">
+          <input id="f5-total-plantas" readonly style="font-family:var(--mono);font-weight:700;font-size:14px;
+            background:transparent;border:none;color:#fff;width:70px;text-align:center">
+        </td>
+        <td colspan="3"></td>
+      </tr></tbody>
+    </table>
   </div>
   </div>
 
@@ -3326,13 +3331,13 @@ function renderEstadiaTable() {
         <input type="number" id="est-m-${i}" value="12"
           style="font-family:var(--mono);text-align:center">
       </td>
-      <td style="padding:5px 8px">
+      <td style="padding:5px 8px;text-align:center">
         <input id="est-sps-${i}" value="${esc(loadedSpsEst)}" placeholder="N° SPS"
-          style="font-family:var(--mono)" oninput="replicarSPSEst(this.value)">
+          style="font-family:var(--mono);text-align:center;width:100%" oninput="replicarSPSEst(this.value)">
       </td>
-      <td style="padding:5px 8px">
+      <td style="padding:5px 8px;text-align:center">
         <input id="est-core-${i}" value="${esc(loadedCoreEst)}" placeholder="N° CORE"
-          style="font-family:var(--mono)" oninput="replicarCOREEst(this.value)">
+          style="font-family:var(--mono);text-align:center;width:100%" oninput="replicarCOREEst(this.value)">
       </td>`;
     estbody.appendChild(tr);
   });
@@ -3516,13 +3521,12 @@ function renderCierreTabs() {
     const tr = document.createElement('tr');
     tr.innerHTML=`
       <td style="font-style:italic;padding:5px 8px">${esc(e.especie)}</td>
-      <td style="padding:5px 8px;font-size:11px;color:var(--g600)">${esc(e.variedad||'—')}</td>
+      <td style="padding:5px 8px;text-align:center;font-size:11px;color:var(--g600)">${esc(e.variedad||'—')}</td>
       <td style="font-family:var(--mono);text-align:center;padding:5px 8px">${nEstab||'—'}</td>
       <td style="padding:4px 6px;text-align:center">
-        <input type="number" id="pf-${i}" value="${nFin||''}"
-          placeholder="—"
-          style="font-family:var(--mono);text-align:center;width:80px;${nFin===0?'color:var(--g400)':''}"
-          oninput="calcPlantasTotal()">
+        ${nEstab===0
+          ? '<span style="font-family:var(--mono);color:var(--g400);font-size:13px">—</span><input type="hidden" id="pf-'+i+'" value="">'
+          : '<input type="number" id="pf-'+i+'" value="'+(nFin||'')+'" placeholder="—" style="font-family:var(--mono);text-align:center;width:80px" oninput="calcPlantasTotal()">'}
       </td>
       <td style="padding:4px 6px"><input id="pf-obs-${i}" placeholder="Observaciones..."></td>`;
     tbody.appendChild(tr);
