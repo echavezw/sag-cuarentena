@@ -148,6 +148,20 @@ body{font-family:var(--font);font-weight:300;background:var(--g100);color:var(--
 .c1{grid-column:span 1}.c2{grid-column:span 2}.c3{grid-column:span 3}.c4{grid-column:span 4}
 .ff{display:flex;flex-direction:column;gap:4px}
 .lbl{font-size:9.5px;font-weight:700;color:var(--g600);text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;gap:4px}
+
+/* ── Field hierarchy ── */
+/* Primary: larger input, darker label, subtle gold-left border */
+.ff-primary .lbl{font-size:10px;font-weight:800;color:var(--nv);letter-spacing:.08em}
+.ff-primary input,.ff-primary select{border-color:var(--gd);background:#fff;
+  font-size:14px;font-weight:500;padding:9px 11px}
+.ff-primary input:focus,.ff-primary select:focus{border-color:var(--nv);
+  box-shadow:0 0 0 3px rgba(10,22,40,.12)}
+/* Secondary: smaller, muted */
+.ff-secondary .lbl{font-size:9px;font-weight:600;color:var(--g400);letter-spacing:.04em}
+.ff-secondary input,.ff-secondary select,.ff-secondary textarea{
+  font-size:11.5px;background:var(--g50);border-color:var(--g200);color:var(--g600)}
+.ff-secondary input:focus,.ff-secondary select:focus{border-color:var(--g400);
+  box-shadow:none;background:#fff}
 .lbl .req{color:var(--gd)}.lbl .auto{background:var(--gold-bg);color:var(--gd);font-size:8px;padding:1px 5px;border-radius:99px;font-weight:700;text-transform:none;letter-spacing:0;border:1px solid var(--gold-bd)}
 .lbl .ro{background:var(--g100);color:var(--g400);font-size:8px;padding:1px 5px;border-radius:99px;font-weight:700;text-transform:none}
 input,select,textarea{padding:7px 9px;border:1.5px solid var(--g300,#b0b8c4);border-radius:var(--rs);
@@ -358,7 +372,7 @@ input[type=number]{font-family:var(--mono)}
   <div class="tab-panel active" id="t1-0">
   <div class="tab-body">
     <div class="fg">
-      <div class="ff c2"><label class="lbl"><span class="req">*</span> N° Solicitud</label>
+      <div class="ff c2 ff-primary"><label class="lbl"><span class="req">*</span> N° Solicitud</label>
         <div style="display:flex;gap:6px;align-items:center">
           <input id="f1-nsol" readonly style="font-size:17px;font-weight:700;font-family:var(--mono)">
           <button id="nsol-lock" onclick="toggleSolLock()" title="Desbloquear"
@@ -370,8 +384,8 @@ input[type=number]{font-family:var(--mono)}
       </div>
       <div class="ff c1"><label class="lbl">Fecha Recepcion</label><input type="date" id="f1-fech-rec"></div>
       
-      <div class="ff c2"><label class="lbl">Oficina <span class="auto">FIJO</span></label><input id="f1-oficina" readonly value="Red Laboratorios SAG - ECA"></div>
-      <div class="ff c2"><label class="lbl">Region</label><input id="f1-region" value="Metropolitana"></div>
+      <div class="ff c2 ff-secondary"><label class="lbl">Oficina <span class="auto">FIJO</span></label><input id="f1-oficina" readonly value="Red Laboratorios SAG - ECA"></div>
+      <div class="ff c2 ff-secondary"><label class="lbl">Region</label><input id="f1-region" value="Metropolitana"></div>
     </div>
   </div>
   </div>
@@ -380,7 +394,7 @@ input[type=number]{font-family:var(--mono)}
   <div class="tab-panel" id="t1-1">
   <div class="tab-body">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
-      <div class="ff" style="flex:1">
+      <div class="ff ff-primary" style="flex:1">
         <label class="lbl"><span class="req">*</span> Nombre Importador</label>
         <div style="display:flex;gap:6px">
           <select id="f1-imp" onchange="onImp()" style="flex:1"><option value="">— Seleccionar —</option></select>
@@ -390,20 +404,20 @@ input[type=number]{font-family:var(--mono)}
     </div>
     <div class="fg">
       <div class="ff c1"><label class="lbl">RUT <span class="auto">AUTO</span></label><input id="f1-rut"></div>
-      <div class="ff c2"><label class="lbl">Telefono <span class="auto">AUTO</span></label><input id="f1-tel" type="tel" placeholder="+56 9 XXXX XXXX"></div>
-      <div class="ff c1"><label class="lbl">Ciudad <span class="auto">AUTO</span></label><input id="f1-ciudad"></div>
-      <div class="ff c2"><label class="lbl">Direccion <span class="auto">AUTO</span></label><input id="f1-dir" placeholder="Calle y numero"></div>
-      <div class="ff c2"><label class="lbl">Correo Electronico <span class="auto">AUTO</span></label><input id="f1-email" type="email"></div>
+      <div class="ff c2 ff-secondary"><label class="lbl">Telefono <span class="auto">AUTO</span></label><input id="f1-tel" type="tel" placeholder="+56 9 XXXX XXXX"></div>
+      <div class="ff c1 ff-secondary"><label class="lbl">Ciudad <span class="auto">AUTO</span></label><input id="f1-ciudad"></div>
+      <div class="ff c2 ff-secondary"><label class="lbl">Direccion <span class="auto">AUTO</span></label><input id="f1-dir" placeholder="Calle y numero"></div>
+      <div class="ff c2 ff-secondary"><label class="lbl">Correo Electronico <span class="auto">AUTO</span></label><input id="f1-email" type="email"></div>
     </div>
     <hr class="divider">
     <p style="font-size:11.5px;font-weight:600;color:var(--g600);margin-bottom:12px">Contrapartes</p>
     <div class="fg">
       <div class="ff c2"><label class="lbl">Contraparte Importacion</label><input id="f1-cp1-nombre" list="cp-dl"></div>
-      <div class="ff c1"><label class="lbl">Telefono</label><input id="f1-cp1-tel"></div>
-      <div class="ff c1"><label class="lbl">Email</label><input id="f1-cp1-email" type="email"></div>
+      <div class="ff c1 ff-secondary"><label class="lbl">Telefono</label><input id="f1-cp1-tel"></div>
+      <div class="ff c1 ff-secondary"><label class="lbl">Email</label><input id="f1-cp1-email" type="email"></div>
       <div class="ff c2"><label class="lbl">Contraparte Cuarentena</label><input id="f1-cp2-nombre" list="cp-dl"></div>
-      <div class="ff c1"><label class="lbl">Telefono</label><input id="f1-cp2-tel"></div>
-      <div class="ff c1"><label class="lbl">Email</label><input id="f1-cp2-email" type="email"></div>
+      <div class="ff c1 ff-secondary"><label class="lbl">Telefono</label><input id="f1-cp2-tel"></div>
+      <div class="ff c1 ff-secondary"><label class="lbl">Email</label><input id="f1-cp2-email" type="email"></div>
     </div>
     <datalist id="cp-dl"></datalist>
   </div>
@@ -421,19 +435,19 @@ input[type=number]{font-family:var(--mono)}
         <button class="btn btn-gh btn-sm" onclick="agregarNuevo('proveedor')" title="Agregar nuevo proveedor">+</button>
       </div>
         <datalist id="prov-dl"></datalist></div>
-      <div class="ff c1"><label class="lbl">Ciudad</label><input id="f1-prov-ciudad"></div>
-      <div class="ff c1"><label class="lbl"><span class="req">*</span> Pais Origen</label>
+      <div class="ff c1 ff-secondary"><label class="lbl">Ciudad</label><input id="f1-prov-ciudad"></div>
+      <div class="ff c1 ff-primary"><label class="lbl"><span class="req">*</span> Pais Origen</label>
         <select id="f1-pais" onchange="onPais()"><option value="">— Seleccionar —</option></select></div>
-      <div class="ff c1"><label class="lbl">Zona CE <span class="auto">AUTO</span></label><input id="f1-zona-ce" readonly></div>
+      <div class="ff c1 ff-secondary"><label class="lbl">Zona CE <span class="auto">AUTO</span></label><input id="f1-zona-ce" readonly></div>
       <div class="ff c1"><label class="lbl">Uso Propuesto</label>
         <select id="f1-uso"><option value="">—</option><option>Investigacion</option><option>Otro</option><option>Propagacion</option></select></div>
-      <div class="ff c1"><label class="lbl">N° Reg. Vivero</label><input id="f1-vivero"></div>
+      <div class="ff c1 ff-secondary"><label class="lbl">N° Reg. Vivero</label><input id="f1-vivero"></div>
       <div class="ff c1"><label class="lbl">Pto. Ingreso</label>
         <select id="f1-pto"><option value="">—</option><option>AMB</option><option>Maritimo</option><option>Otro</option><option>Terrestre</option></select></div>
       <div class="ff c1"><label class="lbl">Fecha Est. Ingreso</label><input type="date" id="f1-fing" oninput="autoFillFingAsig(this.value)"></div>
       <div class="ff c1"><label class="lbl">Req. Frio</label>
         <select id="f1-frio"><option value="">—</option><option>Si</option><option>No</option></select></div>
-      <div class="ff c1"><label class="lbl">N° Horas Frio</label><input type="number" id="f1-horas-frio" min="0" placeholder="0"></div>
+      <div class="ff c1 ff-secondary"><label class="lbl">N° Horas Frio</label><input type="number" id="f1-horas-frio" min="0" placeholder="0"></div>
     </div>
   </div>
   </div>
@@ -499,7 +513,7 @@ input[type=number]{font-family:var(--mono)}
   <div class="tab-body">
     <div class="info-box">Al ingresar el N° de resolucion y el año, se cargaran automaticamente todos los datos desde Google Sheets.</div>
     <div class="fg">
-      <div class="ff c1"><label class="lbl"><span class="req">*</span> N° Resolucion</label>
+      <div class="ff c1 ff-primary"><label class="lbl"><span class="req">*</span> N° Resolucion</label>
         <input type="number" id="f2-nres" oninput="onRes();autoEstadoRes()" style="font-size:16px;font-weight:700;font-family:var(--mono)"></div>
       <div class="ff c1"><label class="lbl">Año Emision</label>
         <input type="number" id="f2-anio-res" placeholder="ej. 2025" oninput="onRes()" style="font-family:var(--mono)"></div>
@@ -513,9 +527,9 @@ input[type=number]{font-family:var(--mono)}
       <div class="ff c2"><label class="lbl">Vigencia Final Hasta</label><input type="date" id="f2-vfin-hasta" oninput="onVfinHasta()"></div>
       <div class="ff c2"><label class="lbl">Estado Resolucion</label>
         <select id="f2-estado"><option value="">—</option><option>Sin Firma</option><option>Vencida</option><option>Vigente</option></select></div>
-      <div class="ff c1"><label class="lbl">Recibida</label>
+      <div class="ff c1 ff-secondary"><label class="lbl">Recibida</label>
         <select id="f2-recibida"><option value="">—</option><option>Si</option><option>No</option></select></div>
-      <div class="ff c1"><label class="lbl">Proceso</label>
+      <div class="ff c1 ff-secondary"><label class="lbl">Proceso</label>
         <select id="f2-proceso"><option value="Sin Res.">Sin Res.</option><option value="Con Res.">Con Res.</option></select></div>
     </div>
   </div>
@@ -589,9 +603,9 @@ input[type=number]{font-family:var(--mono)}
       <div><div class="rb-lbl">Solicitud</div><div class="rb-txt" id="rb3-sol">—</div></div>
     </div>
     <div class="fg">
-      <div class="ff c2"><label class="lbl">Fecha Ingreso ECA</label><input type="date" id="f3-fing" oninput="calcAnioIng()"></div>
+      <div class="ff c2 ff-primary"><label class="lbl">Fecha Ingreso ECA</label><input type="date" id="f3-fing" oninput="calcAnioIng()"></div>
       <div class="ff c1"><label class="lbl">Ano Ingreso <span class="auto">AUTO</span></label><input id="f3-anio" readonly style="font-family:var(--mono)"></div>
-      <div class="ff c1"><label class="lbl">Cubiculo</label>
+      <div class="ff c1 ff-primary"><label class="lbl">Cubiculo</label>
         <select id="f3-cub"><option value="">— Seleccionar —</option></select></div>
       <div class="ff c2"><label class="lbl">Fecha Injertacion / Plantacion</label><input type="date" id="f3-finj" oninput="calcLev()"></div>
       <div class="ff c2"><label class="lbl">Fecha Levantamiento Est. <span class="auto">CALC</span></label><input type="date" id="f3-flev" readonly></div>
