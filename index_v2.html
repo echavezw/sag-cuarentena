@@ -150,10 +150,10 @@ body{font-family:var(--font);font-weight:300;background:var(--g100);color:var(--
 .lbl{font-size:9.5px;font-weight:700;color:var(--g600);text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;gap:4px}
 .lbl .req{color:var(--gd)}.lbl .auto{background:var(--gold-bg);color:var(--gd);font-size:8px;padding:1px 5px;border-radius:99px;font-weight:700;text-transform:none;letter-spacing:0;border:1px solid var(--gold-bd)}
 .lbl .ro{background:var(--g100);color:var(--g400);font-size:8px;padding:1px 5px;border-radius:99px;font-weight:700;text-transform:none}
-input,select,textarea{padding:7px 9px;border:1.5px solid var(--g100);border-radius:var(--rs);
-  font-size:13px;font-family:var(--font);width:100%;color:var(--ink);background:var(--g50);
+input,select,textarea{padding:7px 9px;border:1.5px solid var(--g300,#b0b8c4);border-radius:var(--rs);
+  font-size:13px;font-family:var(--font);width:100%;color:var(--ink);background:var(--wh);
   outline:none;-webkit-appearance:none;transition:border .12s,box-shadow .12s}
-input:focus,select:focus,textarea:focus{border-color:var(--gd);box-shadow:0 0 0 2px rgba(184,151,90,.14);background:#fff}
+input:focus,select:focus,textarea:focus{border-color:var(--nv);box-shadow:0 0 0 3px rgba(10,22,40,.10);background:#fff}
 input[readonly]{background:var(--g50);border-color:var(--g100);color:var(--g600);cursor:default;font-family:var(--mono);font-size:12px}
 input[readonly]:focus{box-shadow:none;border-color:var(--g100)}
 textarea{resize:vertical;min-height:60px;line-height:1.5}
@@ -178,6 +178,9 @@ input[type=number]{font-family:var(--mono)}
 /* ── TABLES ── */
 .tbl-wrap{overflow-x:auto;border:1px solid var(--g200);border-radius:var(--rs);margin-top:10px}
 .tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl tbody tr:nth-child(even){background:var(--g50)}
+.tbl tbody tr:nth-child(odd){background:var(--wh)}
+.tbl tbody tr:hover{background:var(--gold-bg)}
 .tbl thead th{background:var(--nv);color:rgba(255,255,255,.75);padding:7px 9px;
   font-size:9.5px;font-weight:600;letter-spacing:.4px;text-align:left;
   border-bottom:2px solid var(--gd);white-space:nowrap;position:sticky;top:0}
@@ -320,7 +323,7 @@ input[type=number]{font-family:var(--mono)}
   <div class="sb-item" id="nav-config" onclick="goStage('config')"><span class="sb-num">C</span>Configuracion</div>
   <div class="sb-actions">
     <button class="btn btn-gd btn-sm" onclick="nuevaSolicitud()">+ Nueva Solicitud</button>
-    <button class="btn btn-gh btn-sm" onclick="guardarTodo()">Guardar</button>
+    <button onclick="guardarTodo()" style="width:100%;padding:10px 0;margin-top:4px;background:linear-gradient(135deg,var(--nv),var(--nv2));color:var(--gd);border:1.5px solid var(--gd);border-radius:var(--rs);font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;transition:all .15s;font-family:var(--font)" onmouseover="this.style.background='var(--gd)';this.style.color='var(--nv)'" onmouseout="this.style.background='linear-gradient(135deg,var(--nv),var(--nv2))';this.style.color='var(--gd)'">Guardar</button>
   </div>
 </div>
 
