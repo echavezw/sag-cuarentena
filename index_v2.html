@@ -67,6 +67,16 @@ body{font-family:var(--font);font-weight:300;background:var(--g100);color:var(--
 .sb-dot.ok{background:var(--ok)}
 .sb-dot.warn{background:#f59e0b}
 .sb-dot.empty{background:var(--g200)}
+.sb-dot.dirty{background:#f59e0b;box-shadow:0 0 0 2px rgba(245,158,11,.3);
+  animation:pulse-dot 1.5s ease-in-out infinite}
+@keyframes pulse-dot{0%,100%{box-shadow:0 0 0 2px rgba(245,158,11,.3)}
+  50%{box-shadow:0 0 0 4px rgba(245,158,11,.15)}}
+
+/* Unsaved banner above Guardar button */
+#unsaved-banner{display:none;font-size:10px;font-weight:600;color:#b45309;
+  background:#fffbeb;border:1px solid #fcd34d;border-radius:4px;
+  padding:4px 8px;text-align:center;margin-bottom:4px;letter-spacing:.3px}
+#unsaved-banner.show{display:block}
 .sb-item:hover{background:var(--g50);color:var(--ink)}
 .sb-item.active{background:var(--gold-bg);color:var(--ink);font-weight:600;border-left-color:var(--gd)}
 .sb-num{width:18px;height:18px;border-radius:50%;background:var(--g100);color:var(--g400);
@@ -337,7 +347,8 @@ input[type=number]{font-family:var(--mono)}
   <div class="sb-item" id="nav-config" onclick="goStage('config')"><span class="sb-num">C</span>Configuracion</div>
   <div class="sb-actions">
     <button class="btn btn-gd btn-sm" onclick="nuevaSolicitud()">+ Nueva Solicitud</button>
-    <button onclick="guardarTodo()" style="width:100%;padding:10px 0;margin-top:4px;background:linear-gradient(135deg,var(--nv),var(--nv2));color:var(--gd);border:1.5px solid var(--gd);border-radius:var(--rs);font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;transition:all .15s;font-family:var(--font)" onmouseover="this.style.background='var(--gd)';this.style.color='var(--nv)'" onmouseout="this.style.background='linear-gradient(135deg,var(--nv),var(--nv2))';this.style.color='var(--gd)'">Guardar</button>
+    <div id="unsaved-banner">⬤ Cambios sin guardar</div>
+    <button onclick="guardarTodo()" style="width:100%;padding:10px 0;background:linear-gradient(135deg,var(--nv),var(--nv2));color:var(--gd);border:1.5px solid var(--gd);border-radius:var(--rs);font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;transition:all .15s;font-family:var(--font)" onmouseover="this.style.background='var(--gd)';this.style.color='var(--nv)'" onmouseout="this.style.background='linear-gradient(135deg,var(--nv),var(--nv2))';this.style.color='var(--gd)'">Guardar</button>
   </div>
 </div>
 
@@ -1245,6 +1256,7 @@ function init() {
   renderVerifTable();
   goStage('panel');
   setTimeout(updateSidebarDots, 200);
+  initDirtyTracking();
   $('modal').addEventListener('click', e=>{ if(e.target===$('modal')) closeModal(); });
   const jm=document.querySelectorAll('.modal-overlay')[1];
   if(jm) jm.addEventListener('click', e=>{ if(e.target===jm) cerrarJsonModal(); });
@@ -1691,7 +1703,7 @@ async function cargarFilaMulti(rows) {
   _isEditMode=false;
   buildRecordIndex();
   setActiveRecord(res, yr, rows);
-  updateSidebarDots();
+  clearDirty();
   // Navigate to Etapa II if has resolution, otherwise Etapa I
   goStage(res ? 2 : 1);
 }
@@ -1719,6 +1731,7 @@ function limpiarFormSilent() {
   verifRows=[];
   window._resEspRows=null;
   window._loadedEspData=null;
+  clearDirty();
   renderEspTable();
   renderVerifTable();
 }
@@ -3574,6 +3587,51 @@ function replicarCOREFin(val) {
   document.querySelectorAll('[id^="pfin-core-"]').forEach(inp=>{ inp.value=val; });
 }
 
+// ── DIRTY STATE TRACKING ──
+let _dirtyStages = new Set(); // which stages have unsaved changes
+let _lastSavedRecord = null;  // key of last saved record
+let _isDirty = false;
+
+function markDirty(stageN) {
+  if(!stageN) stageN = currentStage;
+  if(!stageN || stageN==='panel' || stageN==='hist' || stageN==='config') return;
+  _isDirty = true;
+  _dirtyStages.add(stageN);
+  // Show banner
+  const banner = document.getElementById('unsaved-banner');
+  if(banner) banner.classList.add('show');
+  // Mark dot as dirty for this stage
+  const dot = document.getElementById('dot-'+stageN);
+  if(dot && !dot.classList.contains('dirty')) {
+    dot.dataset.prevClass = dot.className; // save current state
+    dot.className = 'sb-dot dirty';
+  }
+}
+
+function clearDirty() {
+  _isDirty = false;
+  _dirtyStages.clear();
+  const banner = document.getElementById('unsaved-banner');
+  if(banner) banner.classList.remove('show');
+  // Restore dots to completion state
+  updateSidebarDots();
+}
+
+// Wire global input/change listener to detect edits
+function initDirtyTracking() {
+  // Use event delegation on the content area
+  const contentEl = document.querySelector('.content');
+  if(!contentEl) return;
+  ['input','change'].forEach(evt => {
+    contentEl.addEventListener(evt, e => {
+      // Ignore readonly fields and hidden inputs
+      const t = e.target;
+      if(t.readOnly || t.type==='hidden' || t.closest('#status-bar')) return;
+      markDirty(currentStage);
+    }, {passive:true});
+  });
+}
+
 // ── SIDEBAR STATUS DOTS ──
 function setDot(n, state) {
   const el = document.getElementById('dot-'+n);
@@ -4435,7 +4493,7 @@ async function doSave(rows,isUpdate,res,nsol) {
     throw new Error(`Error guardando (${appendResp.status}): ${errTxt.substring(0,200)}`);
   }
   setS(`Guardado correctamente (${rows.length} filas).`,'ok');
-  updateSidebarDots();
+  clearDirty();
   saveProveedorIfNew(v('f1-prov'));
   // Save material/varieties to dedicated sheet
   try { await saveMaterial(nsol, v('f1-imp'), res||''); } catch(e){ console.warn('saveMaterial error:',e); }
