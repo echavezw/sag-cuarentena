@@ -453,6 +453,60 @@ input[type=number]{font-family:var(--mono)}
 .al-inc-pill     { font-size: 8.5px; padding: 1px 6px; border-radius: 3px; background: var(--gds); color: var(--gd); border: 1px solid var(--gold-bd); white-space: nowrap; }
 .al-inc-pill-g   { font-size: 8.5px; padding: 1px 6px; border-radius: 3px; background: var(--g100); color: var(--g400); white-space: nowrap; }
 .al-empty { padding: 28px; text-align: center; color: var(--g400); font-size: 12px; font-style: italic; }
+
+/* ── CORE BLOQUEANTE ── */
+.an-blocked-overlay {
+  position:relative;
+}
+.an-blocked-overlay::after {
+  content:'🔒';
+  position:absolute; inset:0;
+  background:rgba(220,38,38,.07);
+  border:1.5px solid rgba(220,38,38,.3);
+  border-radius:3px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:11px; pointer-events:none;
+}
+input.field-blocked, select.field-blocked {
+  background: rgba(220,38,38,.07) !important;
+  border-color: rgba(220,38,38,.4) !important;
+  color: var(--g400) !important;
+  cursor: not-allowed !important;
+  pointer-events: none;
+}
+.core-block-banner {
+  background: var(--err-bg);
+  border: 1px solid var(--err-bd);
+  border-radius: var(--rs);
+  padding: 8px 12px;
+  font-size: 11.5px;
+  color: var(--err);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.core-block-banner strong { font-weight: 700; }
+.btn-aviso-mail {
+  background: var(--nv); color: var(--gd);
+  border: 1px solid var(--gd); border-radius: var(--rs);
+  padding: 4px 10px; font-size: 10.5px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  font-family: var(--font); letter-spacing: .3px;
+  transition: all .15s;
+}
+.btn-aviso-mail:hover { background: var(--gd); color: var(--nv); }
+.al-send-btn {
+  display: inline-block;
+  font-size: 9px; padding: 2px 7px; border-radius: 3px;
+  background: var(--nv); color: var(--gd);
+  border: 1px solid rgba(184,151,90,.4);
+  cursor: pointer; font-family: var(--font);
+  font-weight: 600; white-space: nowrap;
+  transition: all .12s; margin-top: 3px;
+}
+.al-send-btn:hover { background: var(--gd); color: var(--nv); }
 </style>
 </head>
 <body>
@@ -1493,7 +1547,7 @@ function goStage(n) {
   currentStage=n;
   if(n===2) { window._resEspRows=null; updateReadonlyRefs(); }
   if(n===3) updateResBars();
-  if(n===4) { updateResBars(); renderAnalisisTabs(); }
+  if(n===4) { updateResBars(); renderAnalisisTabs(); setTimeout(checkCoreBlocks, 200); }
   if(n===5) renderCobroTabs();
 
   if(n===7) { showTab(7,0); setTimeout(updateReadonlyRefs, 50); }
@@ -3440,6 +3494,8 @@ function renderCobroTabs() {
 
   if(!totalRows) tbody.innerHTML='<tr><td colspan="6" style="color:var(--g400);padding:16px;font-size:12px;text-align:center">Complete analisis en la Etapa IV.</td></tr>';
 
+  // Check core blocks after cobro renders
+  setTimeout(checkCoreBlocks, 100);
 }  // renderEstadiaTable now in stage 6 tab 2
 
 function makeCobroRow(key, i, r, nAn) {
@@ -5551,6 +5607,7 @@ function renderAlertsSidebar() {
         <div class="al-meta" style="margin-top:2px">
           ${a.esp ? `<span class="al-esp">${a.esp}</span>` : ''}
         </div>
+        ${a.tag === 'CORE BLOQ' ? `<button class="al-send-btn" onclick="event.stopPropagation();sendCoreAviso('${a.emailTerr||''}','${a.reg}','${a.imp}','${a.blockerLabel||a.analysis}','${a.blockerPat||''}')">✉ Enviar aviso a Contraparte Territorial</button>` : ''}
       </div>`;
     });
     g += '</div>';
@@ -5603,6 +5660,7 @@ function renderAlertsStage() {
     <td>${sevBadge(a)}</td>
     <td style="font-size:10px;color:var(--g600)">${a.tag}</td>
     <td class="al-days-cell">${daysCell(a)}</td>
+    <td>${a.tag === 'CORE BLOQ' ? `<button class="al-send-btn" onclick="sendCoreAviso('${a.emailTerr||''}','${a.reg}','${a.imp}','${a.blockerLabel||a.analysis}','${a.blockerPat||''}')">✉ Aviso</button>` : ''}</td>
   </tr>`).join('');
 
   tc.innerHTML = `
@@ -5621,6 +5679,7 @@ function renderAlertsStage() {
             <th>Alerta</th>
             <th>Tipo</th>
             <th>Días</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -5717,6 +5776,178 @@ function goStageFromAlert(key) {
   } else {
     goStage(1);
   }
+}
+// ══════════════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════════════
+//  CORE BLOQUEANTE — checkCoreBlocks()
+//  Ordena análisis por fecha de envío (proxy: TDM Real / TDM Est)
+//  Si un análisis tiene CORE vacío, bloquea TDM y SPS de todos los
+//  análisis posteriores en el mismo registro.
+// ══════════════════════════════════════════════════════════════════
+
+// Returns list of {key, i, label, patogeno, sps, core, fecha} for all cobro rows
+function getAllCobroRows() {
+  const result = [];
+  Object.entries(AN_TYPES).forEach(([idx, {key, label}]) => {
+    const rows = anRows[key] || [];
+    rows.forEach((r, i) => {
+      if (!r.patogeno && !r.especie) return;
+      // Get date proxy: TDM real → TDM est → CCAA real → CCAA est
+      const fecha = r.tdm || r.tdm_est || r.ccaa_real || r.ccaa_est || '';
+      result.push({
+        key, i, label,
+        patogeno: r.patogeno || '',
+        especie: r.especie || '',
+        sps: r.sps || '',
+        core: r.core || '',
+        fecha,
+        fechaObj: fecha ? new Date(fecha) : null
+      });
+    });
+  });
+  // Sort by date ascending (null dates go last)
+  result.sort((a, b) => {
+    if (!a.fechaObj && !b.fechaObj) return 0;
+    if (!a.fechaObj) return 1;
+    if (!b.fechaObj) return -1;
+    return a.fechaObj - b.fechaObj;
+  });
+  return result;
+}
+
+function checkCoreBlocks() {
+  // Sync DOM → anRows first
+  Object.values(AN_TYPES).forEach(({key}) => { if(key) syncAnFromDOM(key); });
+
+  const rows = getAllCobroRows();
+  if (!rows.length) return;
+
+  // Find first row WITHOUT core (excluding the very first row)
+  // Rule: analysis[0] has no prereq; analysis[N] (N>=1) requires core of analysis[N-1]
+  const blockingRows = []; // rows that are blocking subsequent ones
+
+  for (let i = 1; i < rows.length; i++) {
+    const prev = rows[i - 1];
+    if (!prev.core) {
+      blockingRows.push({ blocker: prev, blocked: rows[i], blockedIdx: i });
+    }
+  }
+
+  // Clear previous blocks
+  clearCoreBlocks();
+
+  if (!blockingRows.length) return;
+
+  // For each blocked analysis onwards, disable TDM and SPS in Etapa IV cobro table
+  // Find the index of first blocker
+  const firstBlockIdx = blockingRows[0].blockedIdx;
+  const blockedList = rows.slice(firstBlockIdx);
+  const blockerRow = blockingRows[0].blocker;
+
+  // Block TDM fields in Etapa IV
+  blockedList.forEach(r => {
+    ['ae-tdm-est', 'ae-tdm'].forEach(prefix => {
+      const el = document.getElementById(`${prefix}-${r.key}-${r.i}`);
+      if (el) {
+        el.classList.add('field-blocked');
+        el.disabled = true;
+        el.title = `Bloqueado: CORE de análisis ${blockerRow.label} (${blockerRow.patogeno}) pendiente`;
+      }
+    });
+    // Block SPS in Etapa V
+    const spsEl = document.getElementById(`cobro-sps-${r.key}-${r.i}`);
+    if (spsEl) {
+      spsEl.classList.add('field-blocked');
+      spsEl.disabled = true;
+      spsEl.title = `Bloqueado: CORE de análisis ${blockerRow.label} (${blockerRow.patogeno}) pendiente`;
+    }
+  });
+
+  // Show block banner in Etapa IV and V
+  const bannerMsg = `🔒 <strong>Bloqueado:</strong> CORE de análisis <strong>${blockerRow.label}</strong> (${blockerRow.patogeno}) pendiente. TDM y SPS de análisis posteriores deshabilitados.`;
+  const emailTerr = v('f1-cp2-email') || '';
+  const emailTel  = v('f1-cp2-tel')  || '';
+  const reg       = v('f2-nres') ? `Res. ${v('f2-nres')}/${v('f2-anio-res')}` : `Sol. ${v('f1-nsol')||''}`;
+  const imp       = v('f1-imp') || '';
+
+  showBlockBanner('an-body-' + Object.entries(AN_TYPES).find(([,{key}]) => key === blockerRow.key)?.[0],
+    bannerMsg, emailTerr, reg, imp, blockerRow.label, blockerRow.patogeno);
+  showBlockBanner('cobro-body',
+    bannerMsg, emailTerr, reg, imp, blockerRow.label, blockerRow.patogeno);
+
+  // Add alert to _alerts
+  const cub  = v('f3-cub') || '';
+  const esp  = blockedList.map(r => r.especie).filter(Boolean)[0] || '';
+  _alerts = _alerts.filter(a => a.tag !== 'CORE BLOQ'); // remove old
+  _alerts.push({
+    severity: 'vencido',
+    reg, imp, cub, esp,
+    analysis: blockerRow.label,
+    action: `CORE pendiente — bloquea ${blockedList.length} análisis posterior(es)`,
+    tag: 'CORE BLOQ',
+    days: null,
+    key: reg,
+    emailTerr, emailTel,
+    blockerLabel: blockerRow.label,
+    blockerPat: blockerRow.patogeno,
+    blockedCount: blockedList.length
+  });
+
+  // Refresh sidebar chips
+  const nr = _alerts.filter(a => a.severity === 'vencido').length;
+  const no = _alerts.filter(a => a.severity === 'proximo').length;
+  const nb = _alerts.filter(a => a.severity === 'pendiente').length;
+  const total = nr + no + nb;
+  const cr = document.getElementById('al-count-r'); if(cr) cr.textContent = nr;
+  const co = document.getElementById('al-count-o'); if(co) co.textContent = no;
+  const cb = document.getElementById('al-count-b'); if(cb) cb.textContent = nb;
+  const badge = document.getElementById('sb-alerts-badge');
+  if (badge) { badge.textContent = total; badge.classList.toggle('hidden', total === 0); }
+  renderAlertsSidebar();
+}
+
+function clearCoreBlocks() {
+  // Re-enable all blocked fields
+  document.querySelectorAll('.field-blocked').forEach(el => {
+    el.classList.remove('field-blocked');
+    el.disabled = false;
+    el.title = '';
+  });
+  // Remove banners
+  document.querySelectorAll('.core-block-banner').forEach(el => el.remove());
+}
+
+function showBlockBanner(containerId, msg, emailTerr, reg, imp, blockerLabel, blockerPat) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  // Remove existing banner
+  container.querySelectorAll('.core-block-banner').forEach(e => e.remove());
+
+  const banner = document.createElement('div');
+  banner.className = 'core-block-banner';
+  banner.innerHTML = `<span>${msg}</span>
+    <button class="btn-aviso-mail" onclick="sendCoreAviso('${emailTerr}','${reg}','${imp}','${blockerLabel}','${blockerPat}')">✉ Enviar aviso</button>`;
+
+  // Insert at top of container
+  container.insertBefore(banner, container.firstChild);
+}
+
+function sendCoreAviso(emailTerr, reg, imp, blockerLabel, blockerPat) {
+  const to      = emailTerr || '';
+  const subject = encodeURIComponent(`CORE pendiente bloquea análisis — ${reg}`);
+  const body    = encodeURIComponent(
+    `Estimado/a,\n\nSe informa que el análisis ${blockerLabel} (${blockerPat}) del registro ${reg} (Importador: ${imp}) tiene CORE/Factura pendiente de ingreso.\n\nEsta situación bloquea la realización de TDM y el registro de SPS de los análisis posteriores.\n\nPor favor gestionar el pago a la brevedad.\n\nSistema SAG · Cuarentena Vegetal ECA`
+  );
+  const mailto = `mailto:${to}?subject=${subject}&body=${body}`;
+  window.open(mailto, '_blank');
+}
+
+// Hook sendCoreAviso into alert cards (sidebar + stage table)
+function sendCoreAvisoFromAlert(alertIdx) {
+  const a = _alerts[alertIdx];
+  if (!a) return;
+  sendCoreAviso(a.emailTerr || '', a.reg, a.imp, a.blockerLabel || a.analysis, a.blockerPat || '');
 }
 // ══════════════════════════════════════════════════════════════════
 </script>
