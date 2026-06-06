@@ -294,6 +294,165 @@ input[type=number]{font-family:var(--mono)}
 @media(max-width:900px){.timeline{display:none}.content{max-width:calc(100vw - 200px)}}
 @media(max-width:600px){.sidebar{display:none}.content{max-width:100%}}
 @media(max-width:600px){.sidebar{display:none}.content{max-width:100%}}
+
+/* ── ALERTAS PANEL (sidebar) ── */
+#sb-alerts-section { border-top: 1px solid var(--g200); margin-top: 4px; }
+#sb-alerts-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px 6px; cursor: pointer; user-select: none;
+}
+.sb-alerts-title {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 9px; font-weight: 700; letter-spacing: 1.2px;
+  text-transform: uppercase; color: var(--g400);
+}
+#sb-alerts-badge {
+  background: var(--err); color: #fff; font-size: 9px; font-weight: 700;
+  padding: 1px 5px; border-radius: 99px;
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+#sb-alerts-badge.hidden { display: none; }
+#sb-alerts-toggle { font-size: 9px; color: var(--g400); transition: transform .2s; }
+#sb-alerts-toggle.open { transform: rotate(180deg); }
+#sb-alerts-body { overflow-y: auto; max-height: 340px; padding: 0 6px 8px; }
+#sb-alerts-body::-webkit-scrollbar { width: 3px; }
+#sb-alerts-body::-webkit-scrollbar-thumb { background: var(--g200); border-radius: 2px; }
+.sb-alert-chips {
+  display: flex; gap: 4px; padding: 4px 12px 6px;
+  border-bottom: 1px solid var(--g100);
+}
+.sb-chip {
+  flex: 1; text-align: center; padding: 5px 2px; border-radius: 5px; cursor: pointer;
+  transition: opacity .15s;
+}
+.sb-chip:hover { opacity: .8; }
+.sb-chip-r { background: rgba(220,38,38,.1);  border: 1px solid rgba(220,38,38,.25); }
+.sb-chip-o { background: rgba(234,88,12,.1);  border: 1px solid rgba(234,88,12,.25); }
+.sb-chip-b { background: rgba(37,99,235,.1);  border: 1px solid rgba(37,99,235,.25); }
+.sb-chip-count {
+  display: block; font-size: 15px; font-family: var(--serif); font-weight: 700; line-height: 1.2;
+}
+.sc-r { color: #dc2626; } .sc-o { color: #ea580c; } .sc-b { color: #2563eb; }
+.sb-chip-label { font-size: 8px; opacity: .75; }
+.al-group { margin-bottom: 8px; }
+.al-group-label {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 8.5px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; padding: 4px 4px 2px; margin-bottom: 2px;
+}
+.alg-r { color: #dc2626; } .alg-o { color: #ea580c; } .alg-b { color: #2563eb; }
+.alg-line { flex: 1; height: 1px; opacity: .2; }
+.algl-r { background: #dc2626; } .algl-o { background: #ea580c; } .algl-b { background: #2563eb; }
+.al-card {
+  background: var(--g50); border-radius: 5px; padding: 7px 9px; margin-bottom: 4px;
+  border-left: 3px solid transparent; cursor: pointer;
+  transition: background .15s, transform .1s;
+  border-top: 1px solid var(--g100);
+}
+.al-card:hover { background: var(--gold-bg); transform: translateX(2px); }
+.al-card.al-r { border-left-color: #dc2626; }
+.al-card.al-o { border-left-color: #ea580c; }
+.al-card.al-b { border-left-color: #2563eb; }
+.al-row1 { display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-bottom: 2px; }
+.al-reg {
+  font-family: var(--serif); font-size: 11px; font-weight: 600; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px;
+}
+.al-days { font-size: 9px; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+.ald-r { color: #dc2626; } .ald-o { color: #ea580c; } .ald-b { color: #2563eb; }
+.al-analysis { font-size: 8.5px; color: var(--gd); font-style: italic; margin-bottom: 2px; }
+.al-action { font-size: 10px; color: var(--g600); line-height: 1.3; margin-bottom: 4px; }
+.al-meta { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; }
+.al-tag {
+  font-size: 8px; padding: 1px 5px; border-radius: 3px;
+  font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+}
+.alt-r { background: rgba(220,38,38,.1); color: #dc2626; }
+.alt-o { background: rgba(234,88,12,.1); color: #ea580c; }
+.alt-b { background: rgba(37,99,235,.1); color: #2563eb; }
+.al-cub {
+  font-size: 8px; color: var(--gd); background: var(--gds);
+  padding: 1px 6px; border-radius: 3px; font-weight: 600;
+}
+.al-imp {
+  font-size: 8px; color: var(--g400); background: var(--g100);
+  padding: 1px 6px; border-radius: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px;
+}
+.al-esp { font-size: 8px; color: var(--g400); font-style: italic; }
+
+/* ── STAGE ALERTAS (main area) ── */
+#stage-alerts .al-main-header {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 10px; margin-bottom: 14px;
+}
+#stage-alerts .al-filters { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.al-filter-btn {
+  font-size: 10px; padding: 4px 11px; border-radius: 4px;
+  border: 1px solid var(--g200); background: transparent;
+  color: var(--g600); cursor: pointer; font-family: var(--font);
+  transition: all .15s;
+}
+.al-filter-btn:hover, .al-filter-btn.active {
+  background: var(--gold-bg); color: var(--ink); border-color: var(--gd);
+}
+.al-table-wrap {
+  border-radius: 0 0 var(--r) var(--r);
+  border: 1px solid var(--g200); border-top: none; overflow: hidden;
+  box-shadow: var(--sh);
+}
+.al-table-header {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--nv); color: var(--gd);
+  font-family: var(--serif); font-size: 14px;
+  padding: 10px 16px; border-radius: var(--r) var(--r) 0 0;
+  border: 1px solid var(--g200); letter-spacing: .04em;
+}
+.al-table-header small { font-size: 10px; color: rgba(255,255,255,.4); font-family: var(--font); font-weight: 300; }
+.al-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.al-table th {
+  background: var(--g50); color: var(--ink);
+  font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  padding: 8px 12px; text-align: left;
+  border-bottom: 1px solid var(--g200); white-space: nowrap;
+}
+.al-table td {
+  padding: 8px 12px; border-bottom: 1px solid var(--g100); vertical-align: middle;
+}
+.al-table tr:last-child td { border-bottom: none; }
+.al-table tr:nth-child(even) td { background: var(--g50); }
+.al-table tr:hover td { background: var(--gold-bg); cursor: pointer; }
+.al-td-reg { font-family: var(--serif); font-size: 12.5px; font-weight: 600; color: var(--ink); white-space: nowrap; }
+.al-td-imp { font-size: 10.5px; color: var(--g600); max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.al-td-esp { font-style: italic; font-size: 10.5px; color: var(--g600); }
+.al-td-cub { font-size: 11px; font-weight: 700; color: var(--gd); text-align: center; background: var(--gds) !important; white-space: nowrap; }
+.al-badge { display: inline-block; font-size: 9px; padding: 2px 6px; border-radius: 3px; font-weight: 700; white-space: nowrap; }
+.alb-r { background: rgba(220,38,38,.1); color: #dc2626; border: 1px solid rgba(220,38,38,.2); }
+.alb-o { background: rgba(234,88,12,.1);  color: #ea580c; border: 1px solid rgba(234,88,12,.2); }
+.alb-b { background: rgba(37,99,235,.1);  color: #2563eb; border: 1px solid rgba(37,99,235,.2); }
+.al-days-cell { font-weight: 700; font-size: 12px; text-align: center; white-space: nowrap; }
+
+/* incoming grid */
+.al-incoming { border: 1px solid var(--g200); border-radius: var(--r); overflow: hidden; margin-top: 18px; }
+.al-incoming-header {
+  background: var(--nv); padding: 10px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--g200);
+}
+.al-incoming-title { font-family: var(--serif); font-size: 14px; color: var(--gd); letter-spacing: .04em; }
+.al-inc-badge { font-size: 9px; padding: 2px 8px; border-radius: 99px; background: var(--gds); color: var(--gd); font-weight: 600; border: 1px solid var(--gold-bd); }
+.al-incoming-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1px; background: var(--g200); }
+.al-inc-card { background: var(--g50); padding: 11px 13px; cursor: pointer; transition: background .15s; }
+.al-inc-card:hover { background: var(--gold-bg); }
+.al-inc-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.al-inc-reg { font-family: var(--serif); font-size: 12px; font-weight: 600; color: var(--ink); }
+.al-inc-date { font-size: 9px; color: var(--g400); background: var(--g100); padding: 1px 6px; border-radius: 3px; }
+.al-inc-imp { font-size: 10px; color: var(--g600); margin-bottom: 3px; }
+.al-inc-esp { font-size: 10px; color: var(--g400); font-style: italic; margin-bottom: 5px; }
+.al-inc-footer { display: flex; gap: 4px; flex-wrap: wrap; }
+.al-inc-pill     { font-size: 8.5px; padding: 1px 6px; border-radius: 3px; background: var(--gds); color: var(--gd); border: 1px solid var(--gold-bd); white-space: nowrap; }
+.al-inc-pill-g   { font-size: 8.5px; padding: 1px 6px; border-radius: 3px; background: var(--g100); color: var(--g400); white-space: nowrap; }
+.al-empty { padding: 28px; text-align: center; color: var(--g400); font-size: 12px; font-style: italic; }
 </style>
 </head>
 <body>
@@ -333,6 +492,7 @@ input[type=number]{font-family:var(--mono)}
   <div class="sb-sec">Consultar</div>
   <div class="sb-item" id="nav-hist" onclick="goStage('hist')"><span class="sb-num">H</span>Panel de Consulta</div>
   <div class="sb-item" id="nav-panel" onclick="goStage('panel')"><span class="sb-num">P</span>Busqueda</div>
+  <div class="sb-item" id="nav-alerts" onclick="goStage('alerts');buildAlerts();renderAlertsStage()"><span class="sb-num">A</span>Vigilancia<span class="sb-dot empty" id="dot-alerts"></span></div>
   <hr class="sb-divider">
   <div class="sb-sec">Registro</div>
   <div class="sb-item" id="nav-1" onclick="goStage(1)"><span class="sb-num">I</span>Solicitud<span class="sb-dot empty" id="dot-1"></span></div>
@@ -350,11 +510,70 @@ input[type=number]{font-family:var(--mono)}
     <div id="unsaved-banner">⬤ Cambios sin guardar</div>
     <button onclick="guardarTodo()" style="width:100%;padding:10px 0;background:linear-gradient(135deg,var(--nv),var(--nv2));color:var(--gd);border:1.5px solid var(--gd);border-radius:var(--rs);font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;transition:all .15s;font-family:var(--font)" onmouseover="this.style.background='var(--gd)';this.style.color='var(--nv)'" onmouseout="this.style.background='linear-gradient(135deg,var(--nv),var(--nv2))';this.style.color='var(--gd)'">Guardar</button>
   </div>
+
+  <!-- ── PANEL ALERTAS ── -->
+  <div id="sb-alerts-section">
+    <div class="sb-alert-chips" id="sb-alert-chips">
+      <div class="sb-chip sb-chip-r" onclick="filterAlerts('vencido')">
+        <span class="sb-chip-count sc-r" id="al-count-r">0</span>
+        <span class="sb-chip-label sc-r">Vencido</span>
+      </div>
+      <div class="sb-chip sb-chip-o" onclick="filterAlerts('proximo')">
+        <span class="sb-chip-count sc-o" id="al-count-o">0</span>
+        <span class="sb-chip-label sc-o">Próximo</span>
+      </div>
+      <div class="sb-chip sb-chip-b" onclick="filterAlerts('pendiente')">
+        <span class="sb-chip-count sc-b" id="al-count-b">0</span>
+        <span class="sb-chip-label sc-b">Pendiente</span>
+      </div>
+    </div>
+    <div id="sb-alerts-header" onclick="toggleAlertsPanel()">
+      <div class="sb-alerts-title">
+        ⚠ Alertas activas
+        <span id="sb-alerts-badge" class="hidden">0</span>
+      </div>
+      <span id="sb-alerts-toggle">▲</span>
+    </div>
+    <div id="sb-alerts-body"></div>
+  </div>
 </div>
 
 <!-- MAIN CONTENT -->
 <div class="content">
 <div id="status-bar" class="status-bar" style="display:none"></div>
+
+
+<!-- ════════════════════════════════════
+     STAGE ALERTAS — Vigilancia Activa
+════════════════════════════════════ -->
+<div class="stage" id="stage-alerts">
+  <div class="sec-h">
+    <div class="sec-n">⚠</div>
+    <div>
+      <div class="sec-t">Vigilancia Activa</div>
+      <div class="sec-s">Cuarentenas en cubículos — alertas y por ingresar</div>
+    </div>
+    <div class="sec-actions">
+      <button class="btn btn-gh btn-sm" onclick="buildAlerts();renderAlertsStage()">Actualizar</button>
+    </div>
+  </div>
+  <div class="tab-body" style="border-radius:0 0 var(--r) var(--r);padding:14px">
+    <div class="al-main-header">
+      <div class="al-filters" id="al-filters">
+        <span style="font-size:9px;color:var(--g400);letter-spacing:.1em;text-transform:uppercase;">Tipo análisis</span>
+        <button class="al-filter-btn active" data-f="todos" onclick="setAlFilter(this)">Todos</button>
+        <button class="al-filter-btn" data-f="Virologico"     onclick="setAlFilter(this)">Virológico</button>
+        <button class="al-filter-btn" data-f="Micologico"     onclick="setAlFilter(this)">Micológico</button>
+        <button class="al-filter-btn" data-f="Bacteriologico" onclick="setAlFilter(this)">Bacteriológico</button>
+        <button class="al-filter-btn" data-f="Fitoplasma"     onclick="setAlFilter(this)">Fitoplasma</button>
+        <button class="al-filter-btn" data-f="Entomologico"   onclick="setAlFilter(this)">Entomológico</button>
+        <button class="al-filter-btn" data-f="Nematologico"   onclick="setAlFilter(this)">Nematológico</button>
+      </div>
+    </div>
+    <div id="al-table-container"></div>
+    <div id="al-incoming-container"></div>
+  </div>
+</div>
 
 <!-- ════════════════════════════════════
      ETAPA I — SOLICITUD
@@ -1267,6 +1486,7 @@ function goStage(n) {
   document.querySelectorAll('.stage').forEach(e=>e.classList.remove('active'));
   document.querySelectorAll('.sb-item').forEach(e=>e.classList.remove('active'));
   if(n===3) setTimeout(renderEstablecimientoTable, 80);
+  if(n==='alerts') { setTimeout(()=>{ buildAlerts(); renderAlertsStage(); }, 80); }
   if(n===6) setTimeout(()=>{ renderCierreTabs(); renderEstadiaTable(); }, 50);
   const stEl=$('stage-'+n); if(stEl) stEl.classList.add('active');
   const navEl=$('nav-'+n); if(navEl) navEl.classList.add('active');
@@ -1431,6 +1651,7 @@ async function recargar() {
     renderStats();
     renderRecientes();
     initTimeline();
+    buildAlerts();
     setGSDot('ok',`${gsData.length} registros`);
     setS(`${gsData.length} registros cargados desde Google Sheets.`,'ok');
   } catch(e) { setGSDot('err','Error'); setS('Error cargando datos: '+e.message,'err'); }
@@ -4959,6 +5180,545 @@ function limpiarEtapa(n) {
 }
 
 init();
+
+// ══════════════════════════════════════════════════════════════════
+//  SISTEMA DE ALERTAS — buildAlerts()
+// ══════════════════════════════════════════════════════════════════
+let _alerts = [];          // [{severity, reg, imp, cub, esp, analysis, action, tag, days, key}]
+let _alFilter = 'todos';   // current analysis-type filter
+let _alertsPanelOpen = true;
+
+const AN_TYPE_LABEL = { V:'Virológico', H:'Micológico', B:'Bacteriológico', F:'Fitoplasma', E:'Entomológico', N:'Nematológico' };
+
+function daysDiff(dateStr) {
+  // Returns days from today to dateStr (negative = past)
+  if (!dateStr) return null;
+  const d = new Date(dateStr.split('/').reverse().join('-'));
+  if (isNaN(d)) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  return Math.round((d - today) / 86400000);
+}
+
+function parseDate(s) {
+  if (!s) return null;
+  const d = new Date(s.split('/').reverse().join('-'));
+  return isNaN(d) ? null : d;
+}
+
+function addDays(dateStr, n) {
+  const d = parseDate(dateStr);
+  if (!d) return null;
+  d.setDate(d.getDate() + n);
+  return d.toISOString().split('T')[0];
+}
+
+function regLabel(row) {
+  const res = String(row['Res.'] || '').trim();
+  const sol = String(row['Solicitud'] || '').trim();
+  const yr  = String(row['Año de Ingreso'] || row['Año'] || '').trim();
+  if (res) return `Res. ${res}/${yr || ''}`.replace('/','').replace(/\/$/, '');
+  return `|sol:${sol}`;
+}
+
+function isActive(row) {
+  const estado = String(row['Estado'] || '').toLowerCase();
+  const term   = String(row['Terminada'] || '').toLowerCase();
+  const lib    = String(row['Liberada'] || '').toLowerCase();
+  const ent    = String(row['Entregada'] || '').toLowerCase();
+  return !(estado === 'terminada' || term === 'si' || term === 'sí' ||
+           lib === 'si' || lib === 'sí' || ent === 'si' || ent === 'sí');
+}
+
+function getAnalysisLabel(row) {
+  const tipo = String(row['Análisis'] || row['Analisis'] || '').toUpperCase().trim();
+  return AN_TYPE_LABEL[tipo] || tipo || '—';
+}
+
+function pushAlert(severity, reg, imp, cub, esp, analysis, action, tag, days, key) {
+  _alerts.push({ severity, reg, imp, cub, esp, analysis, action, tag, days, key });
+}
+
+function buildAlerts() {
+  _alerts = [];
+  if (!gsData || !gsData.length) return;
+
+  // Deduplicate rows by registration key — only one alert per reg per rule
+  const seen = {};
+
+  gsData.forEach(row => {
+    if (!isActive(row)) return;
+
+    const reg      = regLabel(row);
+    const imp      = String(row['Importador'] || '').trim();
+    const cub      = String(row['Cubículo'] || row['Cubiculo'] || '').trim();
+    const esp      = String(row['Especie'] || '').trim();
+    const analysis = getAnalysisLabel(row);
+    const key      = reg; // unique per registration
+
+    // Helper to add once per rule per reg
+    function once(ruleKey, fn) {
+      const k = key + '|' + ruleKey;
+      if (!seen[k]) { seen[k] = true; fn(); }
+    }
+
+    // ── R1: Muestreo — 7 días antes / 1 día vencido ──
+    once('muestreo', () => {
+      const fechaMuest = String(row['Fecha Estimada Muestreo'] || '').trim();
+      const muestreada = String(row['Muestreada?'] || '').toLowerCase();
+      if (fechaMuest && muestreada !== 'si' && muestreada !== 'sí') {
+        const d = daysDiff(fechaMuest);
+        if (d !== null) {
+          if (d < 0 && Math.abs(d) >= 1) {
+            pushAlert('vencido', reg, imp, cub, esp, analysis, 'Muestreo no realizado', 'MUESTREO', d, key);
+          } else if (d >= 0 && d <= 7) {
+            pushAlert('proximo', reg, imp, cub, esp, analysis, 'Muestreo estimado próximo', 'MUESTREO', d, key);
+          }
+        }
+      }
+    });
+
+    // ── R2: CCAA — 3 días antes / 1 día vencido ──
+    once('ccaa', () => {
+      const fechaCCAA    = String(row['Fecha estimada de CCAA'] || '').trim();
+      const fechaCCAArea = String(row['Fecha Real de CCAA'] || '').trim();
+      if (fechaCCAA && !fechaCCAArea) {
+        const d = daysDiff(fechaCCAA);
+        if (d !== null) {
+          if (d < 0 && Math.abs(d) >= 1) {
+            pushAlert('vencido', reg, imp, cub, esp, analysis, 'CCAA vencida sin registrar', 'CCAA', d, key);
+          } else if (d >= 0 && d <= 3) {
+            pushAlert('proximo', reg, imp, cub, esp, analysis, 'Fecha estimada CCAA próxima', 'CCAA', d, key);
+          }
+        }
+      }
+    });
+
+    // ── R3: Envío a laboratorio — 0 días desde TDM ──
+    once('envio', () => {
+      const tdm   = String(row['TDM'] || '').trim();
+      const envio = String(row['Fecha de envío'] || '').trim();
+      if (tdm && !envio) {
+        pushAlert('pendiente', reg, imp, cub, esp, analysis, 'Envío a laboratorio sin registrar', 'ENVÍO LAB', null, key);
+      }
+    });
+
+    // ── R4: SPS análisis — 0 días desde muestreo ──
+    once('sps-analisis', () => {
+      const muestreada = String(row['Muestreada?'] || '').toLowerCase();
+      const sps        = String(row['SPS análisis'] || '').trim();
+      if ((muestreada === 'si' || muestreada === 'sí') && !sps) {
+        pushAlert('pendiente', reg, imp, cub, esp, analysis, 'SPS análisis sin número', 'SPS ANÁLISIS', null, key);
+      }
+    });
+
+    // ── R5: CORE análisis — 15 días desde Analizada ──
+    once('core-analisis', () => {
+      const estAn = String(row['Estado Análisis'] || '').toLowerCase();
+      const core  = String(row['CORE/Factura'] || '').trim();
+      // Need date when it became "Analizada" — use Fecha muestreo/Indexaje as proxy
+      const fechaRef = String(row['Fecha muestreo/Indexaje'] || row['Fecha Estimada Muestreo'] || '').trim();
+      if ((estAn === 'analizada') && !core) {
+        const d = fechaRef ? daysDiff(addDays(fechaRef, 15)) : null;
+        if (d === null || d <= 0) {
+          pushAlert('vencido', reg, imp, cub, esp, analysis, 'CORE análisis sin registrar', 'CORE', d, key);
+        } else if (d <= 5) {
+          pushAlert('proximo', reg, imp, cub, esp, analysis, 'CORE análisis por vencer', 'CORE', d, key);
+        }
+      }
+    });
+
+    // ── R6: SPS estadía — 355 días desde Fecha Injertación ──
+    once('sps-estadia', () => {
+      const fechaInj = String(row['Fecha Injertación'] || '').trim();
+      const spsEst   = String(row['SPS estadía'] || '').trim();
+      if (fechaInj && !spsEst) {
+        const d = daysDiff(addDays(fechaInj, 355));
+        if (d !== null) {
+          if (d <= 0) {
+            pushAlert('vencido', reg, imp, cub, esp, analysis, 'SPS estadía sin emitir (365 días post-injertación)', 'SPS ESTADÍA', d, key);
+          } else if (d <= 10) {
+            pushAlert('proximo', reg, imp, cub, esp, analysis, `SPS estadía — faltan ${d} día(s)`, 'SPS ESTADÍA', d, key);
+          }
+        }
+      }
+    });
+
+    // ── R7: CORE estadía — 5 días desde ingreso SPS estadía ──
+    once('core-estadia', () => {
+      const spsEst  = String(row['SPS estadía'] || '').trim();
+      const coreEst = String(row['CORE/Factura3'] || '').trim();
+      // Use Fecha Ing. Asignada as proxy date for when SPS estadía was triggered
+      const fechaRef = String(row['Fecha Ing. Asignada'] || '').trim();
+      if (spsEst && !coreEst) {
+        const d = fechaRef ? daysDiff(addDays(fechaRef, 5)) : null;
+        if (d === null || d <= 0) {
+          pushAlert('vencido', reg, imp, cub, esp, analysis, 'CORE estadía sin registrar', 'CORE ESTADÍA', d, key);
+        } else if (d <= 3) {
+          pushAlert('proximo', reg, imp, cub, esp, analysis, `CORE estadía — faltan ${d} día(s)`, 'CORE ESTADÍA', d, key);
+        }
+      }
+    });
+
+    // ── R8: Informe fitosanitario — 25 días desde envío a laboratorio ──
+    once('informe', () => {
+      const envio   = String(row['Fecha de envío'] || '').trim();
+      const informe = String(row['Fecha Informe Fitosanitario'] || '').trim();
+      if (envio && !informe) {
+        const d = daysDiff(addDays(envio, 25));
+        if (d !== null) {
+          if (d <= 0) {
+            pushAlert('vencido', reg, imp, cub, esp, analysis, 'Informe fitosanitario vencido', 'INFORME', d, key);
+          } else if (d <= 7) {
+            pushAlert('proximo', reg, imp, cub, esp, analysis, `Informe fitosanitario — faltan ${d} día(s)`, 'INFORME', d, key);
+          }
+        }
+      }
+    });
+
+    // ── R9: Vigencia resolución — 5 días antes de vencer ──
+    once('vigencia', () => {
+      const vigFin = String(row['Vigencia Final Hasta'] || '').trim();
+      if (vigFin) {
+        const d = daysDiff(vigFin);
+        if (d !== null) {
+          if (d < 0) {
+            pushAlert('vencido', reg, imp, cub, esp, analysis, 'Vigencia resolución vencida', 'VIGENCIA', d, key);
+          } else if (d <= 5) {
+            pushAlert('proximo', reg, imp, cub, esp, analysis, `Vigencia resolución — faltan ${d} día(s)`, 'VIGENCIA', d, key);
+          }
+        }
+      }
+    });
+
+    // ── R10: Resolución de término — 1 día desde Terminada ──
+    once('res-termino', () => {
+      const term    = String(row['Terminada'] || '').toLowerCase();
+      const resT    = String(row['Res. Término'] || '').trim();
+      if ((term === 'si' || term === 'sí') && !resT) {
+        pushAlert('pendiente', reg, imp, cub, esp, analysis, 'Resolución de término pendiente', 'RES. TÉRMINO', null, key);
+      }
+    });
+
+    // ── R11: Recepción material — 5 días antes de Fecha Ing. Asignada ──
+    once('recepcion', () => {
+      const fechaAsig = String(row['Fecha Ing. Asignada'] || '').trim();
+      const recep     = String(row['Fecha Recepcion'] || '').trim();
+      if (fechaAsig && !recep) {
+        const d = daysDiff(fechaAsig);
+        if (d !== null) {
+          if (d < 0) {
+            pushAlert('vencido', reg, imp, cub, esp, analysis, 'Material no recepcionado (fecha de ingreso pasó)', 'RECEPCIÓN', d, key);
+          } else if (d <= 5) {
+            pushAlert('proximo', reg, imp, cub, esp, analysis, `Recepción material — faltan ${d} día(s)`, 'RECEPCIÓN', d, key);
+          }
+        }
+      }
+    });
+
+    // ── R12: Injertación — 1 día desde ingreso ECA ──
+    once('injertacion', () => {
+      const tipoMat   = String(row['Tipo Material'] || '').toLowerCase();
+      const fechaInj  = String(row['Fecha Injertación'] || '').trim();
+      const fechaIng  = String(row['Fecha de Ingreso'] || '').trim();
+      const needsGraft = tipoMat.includes('yema') || tipoMat.includes('estaca') || tipoMat.includes('injert');
+      if (needsGraft && !fechaInj && fechaIng) {
+        const d = daysDiff(addDays(fechaIng, 1));
+        if (d !== null && d <= 0) {
+          pushAlert('vencido', reg, imp, cub, esp, analysis, 'Fecha injertación no registrada', 'INJERTACIÓN', d, key);
+        }
+      }
+    });
+
+    // ── R13: Liberación programada — 355 días desde Fecha Injertación ──
+    once('liberacion', () => {
+      const fechaInj = String(row['Fecha Injertación'] || '').trim();
+      const liberada = String(row['Liberada'] || '').toLowerCase();
+      if (fechaInj && liberada !== 'si' && liberada !== 'sí') {
+        const d = daysDiff(addDays(fechaInj, 355));
+        if (d !== null) {
+          if (d <= 0) {
+            pushAlert('vencido', reg, imp, cub, esp, analysis, 'Liberación programada vencida (365 días post-injertación)', 'LIBERACIÓN', d, key);
+          } else if (d <= 10) {
+            pushAlert('proximo', reg, imp, cub, esp, analysis, `Liberación programada — faltan ${d} día(s)`, 'LIBERACIÓN', d, key);
+          }
+        }
+      }
+    });
+
+    // ── R14: Entrega post-liberación — 15 días desde Liberada ──
+    once('entrega', () => {
+      const liberada  = String(row['Liberada'] || '').toLowerCase();
+      const entregada = String(row['Entregada'] || '').toLowerCase();
+      const fechaRef  = String(row['Fecha Res.4'] || '').trim(); // proxy: fecha res. término
+      if ((liberada === 'si' || liberada === 'sí') &&
+          entregada !== 'si' && entregada !== 'sí') {
+        const d = fechaRef ? daysDiff(addDays(fechaRef, 15)) : null;
+        if (d === null || d <= 0) {
+          pushAlert('vencido', reg, imp, cub, esp, analysis, 'Entrega post-liberación pendiente', 'ENTREGA', d, key);
+        } else if (d <= 5) {
+          pushAlert('proximo', reg, imp, cub, esp, analysis, `Entrega post-liberación — faltan ${d} día(s)`, 'ENTREGA', d, key);
+        }
+      }
+    });
+
+    // ── R15: Recuento final ──
+    once('recuento', () => {
+      const liberada    = String(row['Liberada'] || '').toLowerCase();
+      const plantasFin  = String(row['N° Plantas Finales'] || '').trim();
+      if ((liberada === 'si' || liberada === 'sí') && !plantasFin) {
+        pushAlert('pendiente', reg, imp, cub, esp, analysis, 'N° Plantas Finales sin registrar', 'RECUENTO', null, key);
+      }
+    });
+
+  }); // end gsData.forEach
+
+  // Update sidebar chips
+  const nr = _alerts.filter(a => a.severity === 'vencido').length;
+  const no = _alerts.filter(a => a.severity === 'proximo').length;
+  const nb = _alerts.filter(a => a.severity === 'pendiente').length;
+  const total = nr + no + nb;
+
+  document.getElementById('al-count-r').textContent = nr;
+  document.getElementById('al-count-o').textContent = no;
+  document.getElementById('al-count-b').textContent = nb;
+
+  const badge = document.getElementById('sb-alerts-badge');
+  badge.textContent = total;
+  badge.classList.toggle('hidden', total === 0);
+
+  renderAlertsSidebar();
+}
+
+function toggleAlertsPanel() {
+  _alertsPanelOpen = !_alertsPanelOpen;
+  document.getElementById('sb-alerts-body').style.display = _alertsPanelOpen ? '' : 'none';
+  document.getElementById('sb-alerts-toggle').classList.toggle('open', _alertsPanelOpen);
+}
+
+function setAlFilter(btn) {
+  document.querySelectorAll('.al-filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _alFilter = btn.dataset.f;
+  renderAlertsStage();
+}
+
+function filterAlerts(severity) {
+  goStage('alerts');
+  // highlight corresponding group
+}
+
+function severityOf(a) {
+  return a.severity === 'vencido' ? 0 : a.severity === 'proximo' ? 1 : 2;
+}
+
+function filteredAlerts() {
+  if (_alFilter === 'todos') return _alerts;
+  return _alerts.filter(a => a.analysis === _alFilter);
+}
+
+// ── SIDEBAR render ──
+function renderAlertsSidebar() {
+  const body = document.getElementById('sb-alerts-body');
+  if (!body) return;
+  const venc = _alerts.filter(a => a.severity === 'vencido');
+  const prox = _alerts.filter(a => a.severity === 'proximo');
+  const pend = _alerts.filter(a => a.severity === 'pendiente');
+
+  let html = '';
+
+  function group(items, cls, lcls, linecls, emoji, label) {
+    if (!items.length) return '';
+    let g = `<div class="al-group">
+      <div class="al-group-label ${lcls}">${emoji} ${label}
+        <span class="alg-line ${linecls}"></span>
+      </div>`;
+    items.forEach(a => {
+      const daysStr = a.days !== null ? (a.days <= 0 ? `${a.days} días` : `+${a.days} días`) : '—';
+      const dcls    = cls === 'al-r' ? 'ald-r' : cls === 'al-o' ? 'ald-o' : 'ald-b';
+      const tcls    = cls === 'al-r' ? 'alt-r' : cls === 'al-o' ? 'alt-o' : 'alt-b';
+      g += `<div class="al-card ${cls}" onclick="goStageFromAlert('${a.key}')">
+        <div class="al-row1">
+          <span class="al-reg">${a.reg}</span>
+          <span class="al-days ${dcls}">${daysStr}</span>
+        </div>
+        <div class="al-analysis">${a.analysis}</div>
+        <div class="al-action">${a.action}</div>
+        <div class="al-meta">
+          <span class="al-tag ${tcls}">${a.tag}</span>
+          ${a.cub ? `<span class="al-cub">${a.cub}</span>` : ''}
+          ${a.imp ? `<span class="al-imp">${a.imp}</span>` : ''}
+        </div>
+        <div class="al-meta" style="margin-top:2px">
+          ${a.esp ? `<span class="al-esp">${a.esp}</span>` : ''}
+        </div>
+      </div>`;
+    });
+    g += '</div>';
+    return g;
+  }
+
+  html += group(venc, 'al-r', 'alg-r', 'algl-r', '🔴', 'Vencidos');
+  html += group(prox, 'al-o', 'alg-o', 'algl-o', '🟡', 'Próximos');
+  html += group(pend, 'al-b', 'alg-b', 'algl-b', '🔵', 'Pendientes');
+
+  if (!html) html = '<div class="al-empty">Sin alertas activas ✓</div>';
+  body.innerHTML = html;
+}
+
+// ── MAIN STAGE render ──
+function renderAlertsStage() {
+  const fa = filteredAlerts();
+  const venc = fa.filter(a => a.severity === 'vencido');
+  const prox = fa.filter(a => a.severity === 'proximo');
+  const pend = fa.filter(a => a.severity === 'pendiente');
+  const all  = [...venc, ...prox, ...pend];
+
+  const tc = document.getElementById('al-table-container');
+  if (!tc) return;
+
+  if (!all.length) {
+    tc.innerHTML = '<div class="al-empty" style="padding:40px;text-align:center;color:var(--g400);font-style:italic">Sin alertas activas para el filtro seleccionado ✓</div>';
+    renderIncoming();
+    return;
+  }
+
+  function sevBadge(a) {
+    const cls = a.severity === 'vencido' ? 'alb-r' : a.severity === 'proximo' ? 'alb-o' : 'alb-b';
+    const lbl = a.severity === 'vencido' ? (a.action) : (a.action);
+    return `<span class="al-badge ${cls}">${lbl}</span>`;
+  }
+
+  function daysCell(a) {
+    if (a.days === null) return `<span style="color:var(--g400)">—</span>`;
+    const cls = a.severity === 'vencido' ? 'color:#dc2626' : a.severity === 'proximo' ? 'color:#ea580c' : 'color:#2563eb';
+    const val = a.days <= 0 ? String(a.days) : `+${a.days}`;
+    return `<span style="${cls};font-weight:700">${val}</span>`;
+  }
+
+  let rows = all.map(a => `<tr onclick="goStageFromAlert('${a.key}')">
+    <td class="al-td-reg">${a.reg}</td>
+    <td class="al-td-imp">${a.imp || '—'}</td>
+    <td class="al-td-cub">${a.cub || '—'}</td>
+    <td class="al-td-esp">${a.esp || '—'}</td>
+    <td>${sevBadge(a)}</td>
+    <td style="font-size:10px;color:var(--g600)">${a.tag}</td>
+    <td class="al-days-cell">${daysCell(a)}</td>
+  </tr>`).join('');
+
+  tc.innerHTML = `
+    <div class="al-table-header">
+      Alertas en cuarentenas activas — ${all.length} registro${all.length !== 1 ? 's' : ''}
+      <small>Clic en fila → abre registro</small>
+    </div>
+    <div class="al-table-wrap">
+      <table class="al-table">
+        <thead>
+          <tr>
+            <th>Registro</th>
+            <th>Importador</th>
+            <th>Cubículo</th>
+            <th>Especie</th>
+            <th>Alerta</th>
+            <th>Tipo</th>
+            <th>Días</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+
+  renderIncoming();
+}
+
+function renderIncoming() {
+  const ic = document.getElementById('al-incoming-container');
+  if (!ic) return;
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const limit = new Date(today); limit.setDate(limit.getDate() + 14);
+
+  // Deduplicate by registration key
+  const seen = new Set();
+  const incoming = [];
+
+  gsData.forEach(row => {
+    const fechaAsig = String(row['Fecha Ing. Asignada'] || '').trim();
+    if (!fechaAsig) return;
+    const d = parseDate(fechaAsig);
+    if (!d || d < today || d > limit) return;
+
+    const key = regLabel(row);
+    if (seen.has(key)) return;
+    seen.add(key);
+
+    const cub = String(row['Cubículo'] || row['Cubiculo'] || '').trim();
+    const imp = String(row['Importador'] || '').trim();
+    const esp = String(row['Especie'] || '').trim();
+    const rec = String(row['Fecha Recepcion'] || '').trim();
+
+    // Collect analysis types for this reg
+    const anTypes = new Set();
+    gsData.filter(r => regLabel(r) === key).forEach(r => {
+      const t = String(r['Análisis'] || r['Analisis'] || '').toUpperCase().trim();
+      if (AN_TYPE_LABEL[t]) anTypes.add(AN_TYPE_LABEL[t]);
+    });
+
+    const dateFormatted = d.toLocaleDateString('es-CL', { day:'numeric', month:'short' });
+
+    incoming.push({ key, reg: key, imp, cub, esp, date: dateFormatted, anTypes: [...anTypes], recepcionada: !!rec });
+  });
+
+  if (!incoming.length) { ic.innerHTML = ''; return; }
+
+  const cards = incoming.map(r => `
+    <div class="al-inc-card" onclick="goStageFromAlert('${r.key}')">
+      <div class="al-inc-top">
+        <span class="al-inc-reg">${r.reg}</span>
+        <span class="al-inc-date">Ing. ${r.date}</span>
+      </div>
+      <div class="al-inc-imp">${r.imp || '—'}</div>
+      <div class="al-inc-esp">${r.esp || '—'}</div>
+      <div class="al-inc-footer">
+        ${r.cub ? `<span class="al-inc-pill">Cub. ${r.cub}</span>` : '<span class="al-inc-pill-g">Sin cubículo</span>'}
+        ${r.anTypes.map(t => `<span class="al-inc-pill-g">${t}</span>`).join('')}
+      </div>
+    </div>`).join('');
+
+  ic.innerHTML = `
+    <div class="al-incoming">
+      <div class="al-incoming-header">
+        <span class="al-incoming-title">Por ingresar — próximas 2 semanas</span>
+        <span class="al-inc-badge">${incoming.length} solicitud${incoming.length !== 1 ? 'es' : ''}</span>
+      </div>
+      <div class="al-incoming-grid">${cards}</div>
+    </div>`;
+}
+
+function goStageFromAlert(key) {
+  // key = "Res. XXX/YYYY" or "|sol:NNN"
+  // Find matching record and load it
+  if (!gsData.length) return;
+  let row;
+  if (key.startsWith('|sol:')) {
+    const sol = key.replace('|sol:', '');
+    row = gsData.find(r => String(r['Solicitud'] || '') === sol);
+  } else {
+    const parts = key.replace('Res. ', '').split('/');
+    const res = parts[0];
+    row = gsData.find(r => String(r['Res.'] || '').trim() === res);
+  }
+  if (!row) return;
+  // Load the record — use existing loadRecord if available
+  if (typeof loadRecord === 'function') {
+    const resKey = String(row['Res.'] || '').trim();
+    const solKey = String(row['Solicitud'] || '').trim();
+    if (resKey) loadRecord(resKey, false);
+    else if (solKey) loadRecord(null, solKey);
+  } else {
+    goStage(1);
+  }
+}
+// ══════════════════════════════════════════════════════════════════
 </script>
 </body>
 </html>
