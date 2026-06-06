@@ -62,6 +62,11 @@ body{font-family:var(--font);font-weight:300;background:var(--g100);color:var(--
   letter-spacing:1.2px;color:var(--g400)}
 .sb-item{display:flex;align-items:center;gap:9px;padding:8px 12px;cursor:pointer;
   font-size:12px;font-weight:400;color:var(--g600);border-left:3px solid transparent;transition:all .12s}
+.sb-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-left:auto;
+  background:var(--g200);transition:background .3s}
+.sb-dot.ok{background:var(--ok)}
+.sb-dot.warn{background:#f59e0b}
+.sb-dot.empty{background:var(--g200)}
 .sb-item:hover{background:var(--g50);color:var(--ink)}
 .sb-item.active{background:var(--gold-bg);color:var(--ink);font-weight:600;border-left-color:var(--gd)}
 .sb-num{width:18px;height:18px;border-radius:50%;background:var(--g100);color:var(--g400);
@@ -303,13 +308,13 @@ input[type=number]{font-family:var(--mono)}
   <div class="sb-item" id="nav-panel" onclick="goStage('panel')"><span class="sb-num">P</span>Busqueda</div>
   <hr class="sb-divider">
   <div class="sb-sec">Registro</div>
-  <div class="sb-item" id="nav-1" onclick="goStage(1)"><span class="sb-num">I</span>Solicitud</div>
-  <div class="sb-item" id="nav-2" onclick="goStage(2)"><span class="sb-num">II</span>Resolucion</div>
-  <div class="sb-item" id="nav-3" onclick="goStage(3)"><span class="sb-num">III</span>Ingreso ECA</div>
-  <div class="sb-item" id="nav-4" onclick="goStage(4)"><span class="sb-num">IV</span>Analisis</div>
-  <div class="sb-item" id="nav-5" onclick="goStage(5)"><span class="sb-num">V</span>Cobro</div>
-  <div class="sb-item" id="nav-6" onclick="goStage(6)"><span class="sb-num">VI</span>Recuento</div>
-  <div class="sb-item" id="nav-7" onclick="goStage(7)"><span class="sb-num">VII</span>Término</div>
+  <div class="sb-item" id="nav-1" onclick="goStage(1)"><span class="sb-num">I</span>Solicitud<span class="sb-dot empty" id="dot-1"></span></div>
+  <div class="sb-item" id="nav-2" onclick="goStage(2)"><span class="sb-num">II</span>Resolución<span class="sb-dot empty" id="dot-2"></span></div>
+  <div class="sb-item" id="nav-3" onclick="goStage(3)"><span class="sb-num">III</span>Ingreso ECA<span class="sb-dot empty" id="dot-3"></span></div>
+  <div class="sb-item" id="nav-4" onclick="goStage(4)"><span class="sb-num">IV</span>Análisis<span class="sb-dot empty" id="dot-4"></span></div>
+  <div class="sb-item" id="nav-5" onclick="goStage(5)"><span class="sb-num">V</span>Cobro<span class="sb-dot empty" id="dot-5"></span></div>
+  <div class="sb-item" id="nav-6" onclick="goStage(6)"><span class="sb-num">VI</span>Recuento<span class="sb-dot empty" id="dot-6"></span></div>
+  <div class="sb-item" id="nav-7" onclick="goStage(7)"><span class="sb-num">VII</span>Término<span class="sb-dot empty" id="dot-7"></span></div>
   <hr class="sb-divider">
   <div class="sb-sec">Sistema</div>
   <div class="sb-item" id="nav-config" onclick="goStage('config')"><span class="sb-num">C</span>Configuracion</div>
@@ -1222,6 +1227,7 @@ function init() {
   renderEspTable();
   renderVerifTable();
   goStage('panel');
+  setTimeout(updateSidebarDots, 200);
   $('modal').addEventListener('click', e=>{ if(e.target===$('modal')) closeModal(); });
   const jm=document.querySelectorAll('.modal-overlay')[1];
   if(jm) jm.addEventListener('click', e=>{ if(e.target===jm) cerrarJsonModal(); });
@@ -1244,6 +1250,7 @@ function goStage(n) {
   if(n===7) { showTab(7,0); setTimeout(updateReadonlyRefs, 50); }
   if(n==='panel') { renderStats(); renderRecientes(); }
   window.scrollTo({top:0,behavior:'smooth'});
+  updateSidebarDots();
 }
 
 function showTab(stage, idx) {
@@ -1667,6 +1674,7 @@ async function cargarFilaMulti(rows) {
   _isEditMode=false;
   buildRecordIndex();
   setActiveRecord(res, yr, rows);
+  updateSidebarDots();
   // Navigate to Etapa II if has resolution, otherwise Etapa I
   goStage(res ? 2 : 1);
 }
@@ -3549,6 +3557,56 @@ function replicarCOREFin(val) {
   document.querySelectorAll('[id^="pfin-core-"]').forEach(inp=>{ inp.value=val; });
 }
 
+// ── SIDEBAR STATUS DOTS ──
+function setDot(n, state) {
+  const el = document.getElementById('dot-'+n);
+  if(!el) return;
+  el.className = 'sb-dot ' + state; // 'ok' | 'warn' | 'empty'
+}
+
+function updateSidebarDots() {
+  const val = id => (document.getElementById(id)?.value||'').trim();
+
+  // I — Solicitud
+  const hasNsol = !!val('f1-nsol');
+  const hasImp  = !!val('f1-imp');
+  const hasPais = !!val('f1-pais');
+  setDot(1, (hasNsol && hasImp && hasPais) ? 'ok' : (hasNsol || hasImp) ? 'warn' : 'empty');
+
+  // II — Resolución
+  const hasRes    = !!val('f2-nres');
+  const hasEstado = !!val('f2-estado');
+  setDot(2, hasRes ? 'ok' : hasEstado ? 'warn' : 'empty');
+
+  // III — Ingreso ECA
+  const hasFing = !!val('f3-fing');
+  const hasCub  = !!val('f3-cub');
+  setDot(3, (hasFing && hasCub) ? 'ok' : (hasFing || hasCub) ? 'warn' : 'empty');
+
+  // IV — Análisis: verde si alguna fila tiene folio, naranja si hay filas sin folio
+  const allAn = Object.values(anRows).flat().filter(a => a.patogeno||a.especie);
+  const hasAnalisis = allAn.length > 0;
+  const hasCompleto = allAn.some(a => a.folio || a.resultado);
+  setDot(4, !hasAnalisis ? 'empty' : hasCompleto ? 'ok' : 'warn');
+
+  // V — Cobro: verde si alguna fila cobro tiene SPS+CORE, naranja si hay filas sin SPS
+  const cobroRows = document.querySelectorAll('[id^="cobro-sps-"]');
+  const hasCobro  = cobroRows.length > 0;
+  const cobroPago = [...cobroRows].some(el => el.value?.trim());
+  setDot(5, !hasCobro ? 'empty' : cobroPago ? 'ok' : 'warn');
+
+  // VI — Recuento: verde si hay filas en plantas-body con valor > 0
+  const pfRows = document.querySelectorAll('[id^="pf-"]');
+  const hasPf  = pfRows.length > 0;
+  const pfVal  = [...pfRows].some(el => parseInt(el.value||'0') > 0);
+  setDot(6, !hasPf ? 'empty' : pfVal ? 'ok' : 'warn');
+
+  // VII — Término: verde si tiene N° res. término, naranja si solo fecha
+  const hasNrest  = !!val('f6-nrest');
+  const hasFrterm = !!val('f6-frterm');
+  setDot(7, hasNrest ? 'ok' : hasFrterm ? 'warn' : 'empty');
+}
+
 function calcNplanEstab() {
   let totalNplan = 0, totalVar = 0;
   document.querySelectorAll('[id^="vnplan-"]').forEach(inp => {
@@ -4360,6 +4418,7 @@ async function doSave(rows,isUpdate,res,nsol) {
     throw new Error(`Error guardando (${appendResp.status}): ${errTxt.substring(0,200)}`);
   }
   setS(`Guardado correctamente (${rows.length} filas).`,'ok');
+  updateSidebarDots();
   saveProveedorIfNew(v('f1-prov'));
   // Save material/varieties to dedicated sheet
   try { await saveMaterial(nsol, v('f1-imp'), res||''); } catch(e){ console.warn('saveMaterial error:',e); }
