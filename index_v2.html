@@ -794,28 +794,18 @@ input[type=number]{font-family:var(--mono)}
         <th style="text-align:center">N° CORE Estadía</th>
       </tr></thead>
       <tbody id="estadia-body"></tbody>
+      <tfoot>
+        <tr style="background:var(--nv);color:#fff;font-weight:700">
+          <td style="padding:7px 8px"></td>
+          <td colspan="2" style="padding:7px 8px;font-size:11px;letter-spacing:.4px;text-transform:uppercase;text-align:right;padding-right:16px">TOTAL PLANTAS</td>
+          <td style="font-family:var(--mono);text-align:center;padding:7px 8px;font-size:15px;font-weight:800">
+            <span id="f5-total-plantas">—</span>
+          </td>
+          <td colspan="3"></td>
+        </tr>
+      </tfoot>
     </table>
     </div>
-    <table class="tbl" style="margin-top:0;border-top:2px solid var(--nv)">
-      <colgroup>
-        <col style="width:32px">
-        <col><!-- Especie -->
-        <col><!-- Variedad -->
-        <col style="width:90px"><!-- N°Plantas -->
-        <col style="width:80px"><!-- Meses -->
-        <col><!-- SPS -->
-        <col><!-- CORE -->
-      </colgroup>
-      <tbody><tr style="background:var(--nv);color:#fff;font-weight:700">
-        <td style="padding:7px 8px"></td>
-        <td colspan="2" style="padding:7px 8px;font-size:11px;letter-spacing:.4px;text-transform:uppercase;text-align:right">TOTAL PLANTAS</td>
-        <td style="font-family:var(--mono);text-align:center;padding:7px 8px;font-size:15px;font-weight:800">
-          <input id="f5-total-plantas" readonly style="font-family:var(--mono);font-weight:800;font-size:15px;
-            background:transparent;border:none;color:#fff;width:100%;text-align:center">
-        </td>
-        <td colspan="3"></td>
-      </tr></tbody>
-    </table>
   </div>
   </div>
 
@@ -3436,7 +3426,8 @@ function replicarCOREEst(val) {
 function calcTotalEstadia() {
   let total=0;
   document.querySelectorAll('[id^="est-n-"]').forEach(inp=>{ total+=parseInt(inp.value)||0; });
-  sv('f5-total-plantas', total>0?String(total):'');
+  const el=document.getElementById('f5-total-plantas');
+  if(el) el.textContent = total>0 ? String(total) : '—';
 }
 
 function delEstSelected() {
