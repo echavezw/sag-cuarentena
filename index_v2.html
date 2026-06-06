@@ -1224,7 +1224,7 @@ function goStage(n) {
   document.querySelectorAll('.stage').forEach(e=>e.classList.remove('active'));
   document.querySelectorAll('.sb-item').forEach(e=>e.classList.remove('active'));
   if(n===3) setTimeout(renderEstablecimientoTable, 80);
-  if(n===6) setTimeout(renderEstadiaTable, 80);
+  if(n===6) { renderCierreTabs(); setTimeout(renderEstadiaTable, 80); }
   const stEl=$('stage-'+n); if(stEl) stEl.classList.add('active');
   const navEl=$('nav-'+n); if(navEl) navEl.classList.add('active');
   currentStage=n;
