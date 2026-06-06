@@ -797,12 +797,21 @@ input[type=number]{font-family:var(--mono)}
     </table>
     </div>
     <table class="tbl" style="margin-top:0;border-top:2px solid var(--nv)">
+      <colgroup>
+        <col style="width:32px">
+        <col><!-- Especie -->
+        <col><!-- Variedad -->
+        <col style="width:90px"><!-- N°Plantas -->
+        <col style="width:80px"><!-- Meses -->
+        <col><!-- SPS -->
+        <col><!-- CORE -->
+      </colgroup>
       <tbody><tr style="background:var(--nv);color:#fff;font-weight:700">
-        <td style="width:32px;padding:7px 8px"></td>
-        <td style="padding:7px 8px;font-size:11px;letter-spacing:.4px;text-transform:uppercase;text-align:center" colspan="2">Total Plantas</td>
-        <td style="font-family:var(--mono);text-align:center;padding:7px 8px;font-size:15px;font-weight:800;width:90px">
+        <td style="padding:7px 8px"></td>
+        <td colspan="2" style="padding:7px 8px;font-size:11px;letter-spacing:.4px;text-transform:uppercase;text-align:right">TOTAL PLANTAS</td>
+        <td style="font-family:var(--mono);text-align:center;padding:7px 8px;font-size:15px;font-weight:800">
           <input id="f5-total-plantas" readonly style="font-family:var(--mono);font-weight:800;font-size:15px;
-            background:transparent;border:none;color:#fff;width:70px;text-align:center">
+            background:transparent;border:none;color:#fff;width:100%;text-align:center">
         </td>
         <td colspan="3"></td>
       </tr></tbody>
