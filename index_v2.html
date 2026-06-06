@@ -3519,15 +3519,14 @@ function renderCierreTabs() {
     const nEstab = e.nplanEstab||0;
     const nFin   = e.nplanFin!==undefined ? e.nplanFin : 0;
     const tr = document.createElement('tr');
+    const nFinCell = nEstab===0
+      ? '<span style="font-family:var(--mono);color:var(--g400);font-size:13px">—</span>'
+      : '<input type="number" id="pf-'+i+'" value="'+(nFin||'')+'" placeholder="—" style="font-family:var(--mono);text-align:center;width:80px" oninput="calcPlantasTotal()">';
     tr.innerHTML=`
       <td style="font-style:italic;padding:5px 8px">${esc(e.especie)}</td>
       <td style="padding:5px 8px;text-align:center;font-size:11px;color:var(--g600)">${esc(e.variedad||'—')}</td>
       <td style="font-family:var(--mono);text-align:center;padding:5px 8px">${nEstab||'—'}</td>
-      <td style="padding:4px 6px;text-align:center">
-        ${nEstab===0
-          ? '<span style="font-family:var(--mono);color:var(--g400);font-size:13px">—</span><input type="hidden" id="pf-'+i+'" value="">'
-          : '<input type="number" id="pf-'+i+'" value="'+(nFin||'')+'" placeholder="—" style="font-family:var(--mono);text-align:center;width:80px" oninput="calcPlantasTotal()">'}
-      </td>
+      <td style="padding:4px 6px;text-align:center">${nFinCell}</td>
       <td style="padding:4px 6px"><input id="pf-obs-${i}" placeholder="Observaciones..."></td>`;
     tbody.appendChild(tr);
   });
