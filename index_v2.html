@@ -799,9 +799,9 @@ input[type=number]{font-family:var(--mono)}
     <table class="tbl" style="margin-top:0;border-top:2px solid var(--nv)">
       <tbody><tr style="background:var(--nv);color:#fff;font-weight:700">
         <td style="width:32px;padding:7px 8px"></td>
-        <td style="padding:7px 8px;font-size:11px;letter-spacing:.4px;text-transform:uppercase" colspan="2">Total Plantas</td>
-        <td style="font-family:var(--mono);text-align:center;padding:7px 8px;font-size:14px;width:90px">
-          <input id="f5-total-plantas" readonly style="font-family:var(--mono);font-weight:700;font-size:14px;
+        <td style="padding:7px 8px;font-size:11px;letter-spacing:.4px;text-transform:uppercase;text-align:center" colspan="2">Total Plantas</td>
+        <td style="font-family:var(--mono);text-align:center;padding:7px 8px;font-size:15px;font-weight:800;width:90px">
+          <input id="f5-total-plantas" readonly style="font-family:var(--mono);font-weight:800;font-size:15px;
             background:transparent;border:none;color:#fff;width:70px;text-align:center">
         </td>
         <td colspan="3"></td>
@@ -1242,7 +1242,7 @@ function goStage(n) {
   if(n===4) { updateResBars(); renderAnalisisTabs(); }
   if(n===5) renderCobroTabs();
 
-  if(n===7) setTimeout(updateReadonlyRefs, 50);
+  if(n===7) { showTab(7,0); setTimeout(updateReadonlyRefs, 50); }
   if(n==='panel') { renderStats(); renderRecientes(); }
   window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -3520,13 +3520,13 @@ function renderCierreTabs() {
     const nFin   = e.nplanFin!==undefined ? e.nplanFin : 0;
     const tr = document.createElement('tr');
     const nFinCell = nEstab===0
-      ? '<span style="font-family:var(--mono);color:var(--g400);font-size:13px">—</span>'
+      ? '<span style="font-family:var(--mono);color:var(--g400);font-size:13px;display:block;text-align:center">—</span>'
       : '<input type="number" id="pf-'+i+'" value="'+(nFin||'')+'" placeholder="—" style="font-family:var(--mono);text-align:center;width:80px" oninput="calcPlantasTotal()">';
     tr.innerHTML=`
       <td style="font-style:italic;padding:5px 8px">${esc(e.especie)}</td>
       <td style="padding:5px 8px;text-align:center;font-size:11px;color:var(--g600)">${esc(e.variedad||'—')}</td>
       <td style="font-family:var(--mono);text-align:center;padding:5px 8px">${nEstab||'—'}</td>
-      <td style="padding:4px 6px;text-align:center">${nFinCell}</td>
+      <td style="padding:4px 6px;text-align:center;vertical-align:middle">${nFinCell}</td>
       <td style="padding:4px 6px"><input id="pf-obs-${i}" placeholder="Observaciones..."></td>`;
     tbody.appendChild(tr);
   });
