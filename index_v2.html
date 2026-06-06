@@ -1224,7 +1224,7 @@ function goStage(n) {
   document.querySelectorAll('.stage').forEach(e=>e.classList.remove('active'));
   document.querySelectorAll('.sb-item').forEach(e=>e.classList.remove('active'));
   if(n===3) setTimeout(renderEstablecimientoTable, 80);
-  if(n===6) { renderCierreTabs(); setTimeout(renderEstadiaTable, 80); }
+  if(n===6) setTimeout(()=>{ renderCierreTabs(); renderEstadiaTable(); }, 50);
   const stEl=$('stage-'+n); if(stEl) stEl.classList.add('active');
   const navEl=$('nav-'+n); if(navEl) navEl.classList.add('active');
   currentStage=n;
@@ -1232,7 +1232,7 @@ function goStage(n) {
   if(n===3) updateResBars();
   if(n===4) { updateResBars(); renderAnalisisTabs(); }
   if(n===5) renderCobroTabs();
-  if(n===6) renderCierreTabs();
+
   if(n===7) setTimeout(updateReadonlyRefs, 50);
   if(n==='panel') { renderStats(); renderRecientes(); }
   window.scrollTo({top:0,behavior:'smooth'});
@@ -3458,51 +3458,56 @@ function addEstRow() {
 
 // ── ETAPA VI — CIERRE ──
 function renderCierreTabs() {
-  // Also render estadía table (tab 6.2) if it's visible
-  setTimeout(()=>{ if(document.getElementById('t6-1')?.classList.contains('active')) renderEstadiaTable(); }, 100);
-  // ── Tab 6.1: Plantas finales ──
   const tbody=$('plantas-body'); if(!tbody) return;
   tbody.innerHTML='';
 
-  // Source data: one row per variedad with cantReal >= 1 (same as estadía)
-  // N° Plantas Estab. (Etapa III) = vnplan-i (col N° Plantas Establ. de verificación)
-  // N° Plantas Finales = est-n-i (col N° Plantas estadía, editable)
-  const verifBody = document.getElementById('verif-body');
-  const rows = [];
-  if(verifBody && verifBody.children.length) {
-    let estIdx = 0;
-    [...verifBody.children].forEach((_,i) => {
-      const esp      = document.getElementById('ve-'+i)?.value||'';
-      const vari     = document.getElementById('vv-'+i)?.value||'';
-      const cantReal = parseFloat(document.getElementById('vcr-'+i)?.value||'0')||0;
-      if(!esp) return;
-      // nplanEstab: N° Plantas Establ. from verif column (vnplan-i)
-      const nplanEstab = parseInt(document.getElementById('vnplan-'+i)?.value||'0')||0;
-      // nplanFin: N° Plantas from estadía table (est-n-*), only if cantReal >= 1
-      let nplanFin = 0;
-      if(cantReal >= 1) {
-        nplanFin = parseInt(document.getElementById('est-n-'+estIdx)?.value||'0')||0;
-        estIdx++;
-      }
-      rows.push({especie:esp, variedad:vari, nplanEstab, nplanFin, cantReal});
+  // Build rows from _loadedEspData (most reliable — always set on record load)
+  // Fallback chain: _loadedEspData → verif-body DOM → getEspecies()
+  let rows = [];
+
+  const espData = window._loadedEspData||[];
+  if(espData.length) {
+    // Primary: use loaded data with saved nplanEstab and nplanEstadia
+    espData.forEach(e => {
+      rows.push({
+        especie:    e.especie||'',
+        variedad:   e.variedad||'',
+        nplanEstab: parseInt(e.nplanEstab||e.nplan||'0')||0,
+        nplanFin:   parseInt(e.nplanEstadia||e.nplan||'0')||0,
+      });
     });
+  } else {
+    // Secondary: read from verif-body DOM if rendered
+    const verifBody = document.getElementById('verif-body');
+    if(verifBody && verifBody.children.length) {
+      let estIdx = 0;
+      [...verifBody.children].forEach((_,i) => {
+        const esp  = document.getElementById('ve-'+i)?.value||'';
+        const vari = document.getElementById('vv-'+i)?.value||'';
+        const cantReal = parseFloat(document.getElementById('vcr-'+i)?.value||'0')||0;
+        if(!esp) return;
+        const nplanEstab = parseInt(document.getElementById('vnplan-'+i)?.value||'0')||0;
+        let nplanFin = 0;
+        if(cantReal >= 1) { nplanFin = parseInt(document.getElementById('est-n-'+estIdx)?.value||'0')||0; estIdx++; }
+        rows.push({especie:esp, variedad:vari, nplanEstab, nplanFin});
+      });
+    }
+    // Tertiary: getEspecies()
+    if(!rows.length) {
+      getEspecies().filter(e=>e.especie).forEach(e => rows.push({
+        especie:e.especie||'', variedad:e.variedad||'',
+        nplanEstab:parseInt(e.nplan||'0')||0, nplanFin:parseInt(e.nplan||'0')||0,
+      }));
+    }
   }
 
-  // Fallback: use _loadedEspData or getEspecies()
   if(!rows.length) {
-    const esp = (window._loadedEspData||[]).length ? window._loadedEspData : getEspecies();
-    esp.forEach(e => rows.push({
-      especie: e.especie||'',
-      variedad: e.variedad||'',
-      nplanEstab: parseInt(e.nplanEstab||e.nplanEstab||e.nplan||'0')||0,
-      nplanFin:   parseInt(e.nplanEstadia||e.nplan||'0')||0,
-      cantReal: 1,
-    }));
+    tbody.innerHTML='<tr><td colspan="5" style="color:var(--g400);padding:16px;font-size:12px;text-align:center">Complete la tabla de material en la Etapa I.</td></tr>';
+    return;
   }
 
   rows.forEach((e,i) => {
     const nEstab = e.nplanEstab||0;
-    // N° Plantas Finales: estadía value, fallback 0
     const nFin   = e.nplanFin!==undefined ? e.nplanFin : 0;
     const tr = document.createElement('tr');
     tr.innerHTML=`
@@ -3529,44 +3534,7 @@ function renderCierreTabs() {
     <td></td>`;
   tbody.appendChild(totalTr);
   calcPlantasTotal();
-  if(!esp.length) tbody.innerHTML='<tr><td colspan="6" style="color:var(--g400);padding:16px;font-size:12px;text-align:center">Complete la tabla de material en la Etapa I.</td></tr>';
-
-  // ── Tab 6.2: Cobro estadia final ──
-  const estbody=$('estadia-fin-body'); if(!estbody) return;
-  estbody.innerHTML='';
-  // Use unique species
-  const espSeen=new Set();
-  const uniqueEsp=esp.filter(e=>{ if(!e.especie||espSeen.has(e.especie)) return false; espSeen.add(e.especie); return true; });
-
-  if(!uniqueEsp.length) {
-    estbody.innerHTML='<tr><td colspan="5" style="color:var(--g400);padding:16px;text-align:center;font-size:12px">Complete especies en Etapa I.</td></tr>';
-  } else {
-    uniqueEsp.forEach((e,i)=>{
-      const tr=document.createElement('tr');
-      tr.innerHTML=`
-        <td style="font-style:italic;padding:5px 8px">${esc(e.especie)}</td>
-        <td style="padding:4px 6px">
-          <input type="number" id="pfin-n-${i}" value="${e.nplan||''}"
-            style="font-family:var(--mono);text-align:center;width:80px" oninput="calcTotalFin()">
-        </td>
-        <td style="padding:4px 6px">
-          <input type="number" id="pfin-m-${i}" placeholder="Meses ECA"
-            style="font-family:var(--mono);text-align:center;width:70px">
-        </td>
-        <td style="padding:4px 6px">
-          <input id="pfin-sps-${i}" placeholder="N° SPS"
-            style="font-family:var(--mono)" oninput="replicarSPSFin(this.value)">
-        </td>
-        <td style="padding:4px 6px">
-          <input id="pfin-core-${i}" placeholder="N° CORE"
-            style="font-family:var(--mono)" oninput="replicarCOREFin(this.value)">
-        </td>`;
-      estbody.appendChild(tr);
-    });
-  }
-  calcTotalFin();
 }
-
 function replicarSPSFin(val) {
   document.querySelectorAll('[id^="pfin-sps-"]').forEach(inp=>{ inp.value=val; });
 }
