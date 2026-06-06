@@ -4210,7 +4210,45 @@ function buildRows(nsol,imp) {
   // Sync all analysis from DOM
   Object.values(AN_TYPES).forEach(({key})=>{ if(key) syncAnFromDOM(key); });
   syncCobroFromDOM(); // read SPS/CORE from cobro DOM back into anRows
-  const allAn=Object.values(anRows).flat().filter(a=>a.patogeno||a.especie);
+  let allAn=Object.values(anRows).flat().filter(a=>a.patogeno||a.especie);
+
+  // Safety net: if anRows produced no analysis but gsData has analysis rows
+  // for this record, reload them rather than overwrite with blank
+  if(!allAn.length) {
+    const res = v('f2-nres').trim();
+    const existingWithAn = gsData.filter(r => {
+      const matchRes = res ? String(r['Res.']||'').trim()===res
+                           : String(r['Solicitud']||'').trim()===String(nsol) && !String(r['Res.']||'').trim();
+      return matchRes && (r['Análisis']||r['Patógenos']||r['Estado Análisis']);
+    });
+    if(existingWithAn.length) {
+      // Re-populate anRows from gsData rows and retry
+      const anByType={V:[],H:[],B:[],F:[],E:[],N:[]};
+      existingWithAn.forEach(x => {
+        const tipo=String(x['Análisis']||x['Analisis']||'').toUpperCase();
+        const k=tipo.includes('VIROL')?'V':tipo.includes('MICOL')?'H':tipo.includes('BACTERIOL')?'B':
+                tipo.includes('FITOPLASMA')?'F':tipo.includes('ENTOMOL')?'E':tipo.includes('NEMATOL')?'N':'V';
+        const _f=x['Folio']||'', _cd=x['Corr. Desde']||'', _ch=x['Corr. Hasta']||'';
+        const _r=x['Resultado']||'';
+        const _badRes=['-','—','--'];
+        const _hasFin=!!(x['Fecha Informe Fitosanitario']||'').trim();
+        const _rfix=(!_f&&!_cd&&!_ch&&!_hasFin)?'':(_badRes.includes((_r||'').toLowerCase().trim())?'':(_r||''));
+        anByType[k].push({
+          especie:x['Especie']||'',patogeno:x['Patógenos']||x['Patogenos']||'',
+          estado:x['Estado Análisis']||x['Estado Analisis']||'',resultado:_rfix,
+          tecnica:x['Técnica']||x['Tecnica']||'',folio:_f,corr_desde:_cd,corr_hasta:_ch,
+          n_muestras:x['N° Muestras']||'',obs:x['Obs.']||'',
+          sps:x['SPS análisis']||'',core:x['CORE/Factura']||'',
+          ccaa_est:x['Fecha estimada de CCAA']||'',ccaa_real:x['Fecha Real de CCAA']||'',
+          tdm:x['Fecha muestreo/Indexaje']||'',tdm_est:x['Fecha Estimada Muestreo']||'',
+          fecha_inf:x['Fecha Informe Fitosanitario']||'',
+        });
+      });
+      Object.assign(anRows, anByType);
+      allAn = Object.values(anRows).flat().filter(a=>a.patogeno||a.especie);
+    }
+  }
+
   if(allAn.length) {
     allAn.forEach(a=>rows.push({...base,
       'Especie':a.especie||esp[0]?.especie||'',
