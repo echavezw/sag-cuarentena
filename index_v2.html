@@ -5245,38 +5245,58 @@ let _alerts = [];          // [{severity, reg, imp, cub, esp, analysis, action, 
 let _alertYearFilter = 2024; // only show records from this year onwards
 const AN_TYPE_LABEL = { V:'Virológico', H:'Micológico', B:'Bacteriológico', F:'Fitoplasma', E:'Entomológico', N:'Nematológico' };
 
-// safeAddDays: add n days to a raw date string (any format), return ISO string
+// toSafeDate: parse ANY date format from Sheets into a Date object
+// Handles: ISO, dd-mm-yyyy, dd/mm/yyyy, serial, full Date.toString() strings
+function toSafeDate(dateStr) {
+  if (!dateStr) return null;
+  const s = String(dateStr).trim();
+  if (!s) return null;
+  // Already a full JS date string (e.g. "Thu Sep 07 2017 00:00:45 GMT-0300")
+  if (/^[A-Za-z]{3}\s[A-Za-z]{3}\s\d{1,2}\s\d{4}/.test(s)) {
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  // Try fmtD (handles ISO, serial, dd-mm-yyyy, dd/mm/yyyy)
+  if (typeof fmtD === 'function') {
+    const iso = fmtD(s);
+    if (iso && iso.length >= 10) {
+      const d = new Date(iso + 'T00:00:00');
+      if (!isNaN(d.getTime())) return d;
+    }
+  }
+  // Fallback: native parse
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+// safeAddDays: add n days to any date string format, return YYYY-MM-DD
 function safeAddDays(dateStr, n) {
-  if (!dateStr) return '';
-  const iso = fmtD(dateStr);
-  if (!iso || iso.length < 10) return '';
-  const dt = new Date(iso);
-  if (isNaN(dt.getTime())) return '';
-  dt.setDate(dt.getDate() + n);
-  return dt.toISOString().split('T')[0];
+  const d = toSafeDate(dateStr);
+  if (!d) return '';
+  d.setDate(d.getDate() + n);
+  // Use UTC-safe formatting to avoid timezone shifts
+  const yr  = d.getFullYear();
+  const mo  = String(d.getMonth()+1).padStart(2,'0');
+  const dy  = String(d.getDate()).padStart(2,'0');
+  return `${yr}-${mo}-${dy}`;
 }
 
 // daysDiff: days from today to dateStr (negative=past, positive=future)
 function daysDiff(dateStr) {
-  if (!dateStr) return null;
-  const iso = typeof fmtD === 'function' ? fmtD(dateStr) : dateStr;
-  if (!iso || iso.length < 10) return null;
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return null;
+  const d = toSafeDate(dateStr);
+  if (!d) return null;
   const today = new Date(); today.setHours(0,0,0,0);
+  // Normalize d to midnight local
+  d.setHours(0,0,0,0);
   return Math.round((d - today) / 86400000);
 }
 
-// parseDate: reuse existing fmtD + Date
+// parseDate: wrapper around toSafeDate
 function parseDate(s) {
-  if (!s) return null;
-  const iso = fmtD(s);
-  if (!iso || iso.length < 10) return null;
-  const d = new Date(iso);
-  return isNaN(d) ? null : d;
+  return toSafeDate(s);
 }
 
-// addDays already declared as const in original code — use it directly
+// addDays already declared as const in original code — use safeAddDays instead
 
 function regLabel(row) {
   const res = String(row['Res.'] || '').trim();
@@ -5301,10 +5321,10 @@ function isActive(row) {
       if (v > 2000) { ingYear = v; break; }
     }
     if (!ingYear) {
-      // Extract from Fecha de Ingreso
+      // Extract from Fecha de Ingreso using toSafeDate
       const fechaIng = String(row['Fecha de Ingreso'] || row['Fecha Ing. Asignada'] || '');
-      const isoDate  = fmtD(fechaIng);
-      if (isoDate && isoDate.length >= 4) ingYear = parseInt(isoDate.substring(0,4));
+      const d = toSafeDate(fechaIng);
+      if (d) ingYear = d.getFullYear();
     }
     if (ingYear && ingYear < _alertYearFilter) return false;
   }
