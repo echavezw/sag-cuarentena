@@ -5592,6 +5592,11 @@ function renderAlertsSidebar() {
       const daysStr = a.days !== null ? (a.days <= 0 ? `${a.days} días` : `+${a.days} días`) : '—';
       const dcls    = cls === 'al-r' ? 'ald-r' : cls === 'al-o' ? 'ald-o' : 'ald-b';
       const tcls    = cls === 'al-r' ? 'alt-r' : cls === 'al-o' ? 'alt-o' : 'alt-b';
+      const emailT  = (a.emailTerr||'').replace(/'/g,"\'");
+      const bLabel  = (a.blockerLabel||a.analysis||'').replace(/'/g,"\'");
+      const bPat    = (a.blockerPat||'').replace(/'/g,"\'");
+      const aReg    = (a.reg||'').replace(/'/g,"\'");
+      const aImp    = (a.imp||'').replace(/'/g,"\'");
       g += `<div class="al-card ${cls}" onclick="goStageFromAlert('${a.key}')">
         <div class="al-row1">
           <span class="al-reg">${a.reg}</span>
@@ -5607,7 +5612,7 @@ function renderAlertsSidebar() {
         <div class="al-meta" style="margin-top:2px">
           ${a.esp ? `<span class="al-esp">${a.esp}</span>` : ''}
         </div>
-        ${a.tag === 'CORE BLOQ' ? `<button class="al-send-btn" onclick="event.stopPropagation();sendCoreAviso('${a.emailTerr||''}','${a.reg}','${a.imp}','${a.blockerLabel||a.analysis}','${a.blockerPat||''}')">✉ Enviar aviso a Contraparte Territorial</button>` : ''}
+        ${a.tag === 'CORE BLOQ' ? `<button class="al-send-btn" onclick="event.stopPropagation();sendCoreAviso('${emailT}','${aReg}','${aImp}','${bLabel}','${bPat}')">✉ Enviar aviso a Contraparte Territorial</button>` : ''}
       </div>`;
     });
     g += '</div>';
@@ -5652,7 +5657,13 @@ function renderAlertsStage() {
     return `<span style="${cls};font-weight:700">${val}</span>`;
   }
 
-  let rows = all.map(a => `<tr onclick="goStageFromAlert('${a.key}')">
+  let rows = all.map(a => {
+    const emailT = (a.emailTerr||'').replace(/'/g,"\'");
+    const bLabel = (a.blockerLabel||a.analysis||'').replace(/'/g,"\'");
+    const bPat   = (a.blockerPat||'').replace(/'/g,"\'");
+    const aReg   = (a.reg||'').replace(/'/g,"\'");
+    const aImp   = (a.imp||'').replace(/'/g,"\'");
+    return `<tr onclick="goStageFromAlert('${a.key}')">
     <td class="al-td-reg">${a.reg}</td>
     <td class="al-td-imp">${a.imp || '—'}</td>
     <td class="al-td-cub">${a.cub || '—'}</td>
@@ -5660,8 +5671,9 @@ function renderAlertsStage() {
     <td>${sevBadge(a)}</td>
     <td style="font-size:10px;color:var(--g600)">${a.tag}</td>
     <td class="al-days-cell">${daysCell(a)}</td>
-    <td>${a.tag === 'CORE BLOQ' ? `<button class="al-send-btn" onclick="sendCoreAviso('${a.emailTerr||''}','${a.reg}','${a.imp}','${a.blockerLabel||a.analysis}','${a.blockerPat||''}')">✉ Aviso</button>` : ''}</td>
-  </tr>`).join('');
+    <td>${a.tag === 'CORE BLOQ' ? `<button class="al-send-btn" onclick="event.stopPropagation();sendCoreAviso('${emailT}','${aReg}','${aImp}','${bLabel}','${bPat}')">✉ Aviso</button>` : ''}</td>
+  </tr>`;
+  }).join('');
 
   tc.innerHTML = `
     <div class="al-table-header">
