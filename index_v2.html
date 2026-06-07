@@ -5246,27 +5246,27 @@ let _alertsPanelOpen = true;
 
 const AN_TYPE_LABEL = { V:'Virológico', H:'Micológico', B:'Bacteriológico', F:'Fitoplasma', E:'Entomológico', N:'Nematológico' };
 
+// daysDiff: days from today to dateStr (negative=past, positive=future)
 function daysDiff(dateStr) {
-  // Returns days from today to dateStr (negative = past)
   if (!dateStr) return null;
-  const d = new Date(dateStr.split('/').reverse().join('-'));
+  const iso = fmtD(dateStr); // reuse existing parser
+  if (!iso || iso.length < 10) return null;
+  const d = new Date(iso);
   if (isNaN(d)) return null;
   const today = new Date(); today.setHours(0,0,0,0);
   return Math.round((d - today) / 86400000);
 }
 
+// parseDate: reuse existing fmtD + Date
 function parseDate(s) {
   if (!s) return null;
-  const d = new Date(s.split('/').reverse().join('-'));
+  const iso = fmtD(s);
+  if (!iso || iso.length < 10) return null;
+  const d = new Date(iso);
   return isNaN(d) ? null : d;
 }
 
-function addDays(dateStr, n) {
-  const d = parseDate(dateStr);
-  if (!d) return null;
-  d.setDate(d.getDate() + n);
-  return d.toISOString().split('T')[0];
-}
+// addDays already declared as const in original code — use it directly
 
 function regLabel(row) {
   const res = String(row['Res.'] || '').trim();
