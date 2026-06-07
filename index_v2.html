@@ -5379,8 +5379,6 @@ function regLabel(row) {
 
 function isActive(row) {
   const norm = s => String(s||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-  if (norm(row['Terminada']) === 'si') return false;
-  if (norm(row['Liberada'])  === 'si') return false;
   if (norm(row['Entregada']) === 'si') return false;
   // Year filter — derive from Fecha de Ingreso (most reliable)
   if (_alertYearFilter) {
