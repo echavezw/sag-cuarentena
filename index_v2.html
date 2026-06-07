@@ -5436,7 +5436,7 @@ function buildAlerts() {
     }
 
     // ── R1: Muestreo — 7 días antes / 1 día vencido ──
-    once('muestreo', () => {
+    once('muestreo|'+analysis, () => {
       const fechaMuest = String(row['Fecha Estimada Muestreo'] || '').trim();
       const muestreada = String(row['Muestreada?'] || '').toLowerCase();
       if (fechaMuest && muestreada !== 'si' && muestreada !== 'sí') {
@@ -5468,7 +5468,7 @@ function buildAlerts() {
     });
 
     // ── R3: Envío a laboratorio — 0 días desde TDM ──
-    once('envio', () => {
+    once('envio|'+analysis, () => {
       const tdm   = String(row['TDM'] || '').trim();
       const envio = String(row['Fecha de envío'] || '').trim();
       if (tdm && !envio) {
@@ -5477,7 +5477,7 @@ function buildAlerts() {
     });
 
     // ── R4: SPS análisis — 0 días desde muestreo ──
-    once('sps-analisis', () => {
+    once('sps-analisis|'+analysis, () => {
       const muestreada = String(row['Muestreada?'] || '').toLowerCase();
       const sps        = String(row['SPS análisis'] || '').trim();
       if ((muestreada === 'si' || muestreada === 'sí') && !sps) {
@@ -5486,7 +5486,7 @@ function buildAlerts() {
     });
 
     // ── R5: CORE análisis — 7 días desde muestreo con SPS registrado ──
-    once('core-analisis', () => {
+    once('core-analisis|'+analysis, () => {
       const sps     = String(row['SPS análisis'] || '').trim();
       const core    = String(row['CORE/Factura'] || '').trim();
       const fechaRef = String(row['Fecha muestreo/Indexaje'] || row['Fecha Estimada Muestreo'] || row['TDM'] || '').trim();
@@ -5537,7 +5537,7 @@ function buildAlerts() {
     });
 
     // ── R8: Informe fitosanitario — 25 días desde envío a laboratorio ──
-    once('informe', () => {
+    once('informe|'+analysis, () => {
       const envio   = String(row['Fecha de envío'] || '').trim();
       const informe = String(row['Fecha Informe Fitosanitario'] || '').trim();
       if (envio && !informe) {
