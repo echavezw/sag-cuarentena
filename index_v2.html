@@ -581,14 +581,12 @@ input.field-blocked, select.field-blocked {
         <span class="sb-chip-label sc-b">Pendiente</span>
       </div>
     </div>
-    <div id="sb-alerts-header" onclick="toggleAlertsPanel()">
-      <div class="sb-alerts-title">
-        ⚠ Alertas activas
-        <span id="sb-alerts-badge" class="hidden">0</span>
-      </div>
-      <span id="sb-alerts-toggle">▲</span>
+    <div style="padding:4px 12px 8px;font-size:9px;color:var(--g400);letter-spacing:.05em">
+      <span id="sb-alerts-badge" class="hidden" style="display:none"></span>
+      <a href="#" onclick="goStage('alerts');return false;" style="color:var(--g400);text-decoration:none;font-size:9px;letter-spacing:.08em;text-transform:uppercase">
+        ⚠ Ver alertas →
+      </a>
     </div>
-    <div id="sb-alerts-body"></div>
   </div>
 </div>
 
@@ -613,7 +611,16 @@ input.field-blocked, select.field-blocked {
   </div>
   <div class="tab-body" style="border-radius:0 0 var(--r) var(--r);padding:14px">
     <div class="al-main-header">
-      <div class="al-filters" id="al-filters">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+        <label style="font-size:10px;color:var(--g600);display:flex;align-items:center;gap:6px">
+          Desde año:
+          <input type="number" id="al-year-filter" value="2024" min="2000" max="2099"
+            style="width:70px;font-family:var(--mono);font-size:11px;text-align:center;padding:3px 6px"
+            onchange="_alertYearFilter=parseInt(this.value)||0;buildAlerts();renderAlertsStage()">
+        </label>
+        <span style="font-size:9px;color:var(--g400);font-style:italic">Solo cuarentenas no entregadas / no liberadas / no terminadas</span>
+      </div>
+    <div class="al-filters" id="al-filters">
         <span style="font-size:9px;color:var(--g400);letter-spacing:.1em;text-transform:uppercase;">Tipo análisis</span>
         <button class="al-filter-btn active" data-f="todos" onclick="setAlFilter(this)">Todos</button>
         <button class="al-filter-btn" data-f="Virologico"     onclick="setAlFilter(this)">Virológico</button>
@@ -5241,9 +5248,8 @@ init();
 //  SISTEMA DE ALERTAS — buildAlerts()
 // ══════════════════════════════════════════════════════════════════
 let _alerts = [];          // [{severity, reg, imp, cub, esp, analysis, action, tag, days, key}]
+let _alertYearFilter = 2024; // only show records from this year onwards
 let _alFilter = 'todos';   // current analysis-type filter
-let _alertsPanelOpen = true;
-
 const AN_TYPE_LABEL = { V:'Virológico', H:'Micológico', B:'Bacteriológico', F:'Fitoplasma', E:'Entomológico', N:'Nematológico' };
 
 // daysDiff: days from today to dateStr (negative=past, positive=future)
@@ -5277,12 +5283,14 @@ function regLabel(row) {
 }
 
 function isActive(row) {
-  const estado = String(row['Estado'] || '').toLowerCase();
-  const term   = String(row['Terminada'] || '').toLowerCase();
-  const lib    = String(row['Liberada'] || '').toLowerCase();
-  const ent    = String(row['Entregada'] || '').toLowerCase();
-  return !(estado === 'terminada' || term === 'si' || term === 'sí' ||
-           lib === 'si' || lib === 'sí' || ent === 'si' || ent === 'sí');
+  const norm = s => String(s||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  if (norm(row['Terminada']) === 'si') return false;
+  if (norm(row['Liberada'])  === 'si') return false;
+  if (norm(row['Entregada']) === 'si') return false;
+  // Year filter: only show records from _alertYearFilter onwards
+  const ingYear = parseInt(String(row['Año de Ingreso'] || row['Año'] || '0'));
+  if (_alertYearFilter && ingYear && ingYear < _alertYearFilter) return false;
+  return true;
 }
 
 function getAnalysisLabel(row) {
@@ -5545,12 +5553,6 @@ function buildAlerts() {
   renderAlertsSidebar();
 }
 
-function toggleAlertsPanel() {
-  _alertsPanelOpen = !_alertsPanelOpen;
-  document.getElementById('sb-alerts-body').style.display = _alertsPanelOpen ? '' : 'none';
-  document.getElementById('sb-alerts-toggle').classList.toggle('open', _alertsPanelOpen);
-}
-
 function setAlFilter(btn) {
   document.querySelectorAll('.al-filter-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
@@ -5574,6 +5576,7 @@ function filteredAlerts() {
 
 // ── SIDEBAR render ──
 function renderAlertsSidebar() {
+  return; // sidebar now shows chips only — cards removed
   const body = document.getElementById('sb-alerts-body');
   if (!body) return;
   const venc = _alerts.filter(a => a.severity === 'vencido');
