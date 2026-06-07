@@ -5435,6 +5435,13 @@ function buildAlerts() {
       if (!seen[k]) { seen[k] = true; fn(); }
     }
 
+    // Clean value: treat '""', "''", whitespace-only as empty
+    function clean(v) {
+      const s = String(v || '').trim();
+      if (s === '""' || s === "''" || s === '-' || s === '—') return '';
+      return s;
+    }
+
     // ── R1: Muestreo — 7 días antes / 1 día vencido ──
     once('muestreo|'+analysis, () => {
       const fechaMuest = String(row['Fecha Estimada Muestreo'] || '').trim();
@@ -5479,7 +5486,7 @@ function buildAlerts() {
     // ── R4: SPS análisis — 0 días desde muestreo ──
     once('sps-analisis|'+analysis, () => {
       const muestreada = String(row['Muestreada?'] || '').toLowerCase();
-      const sps        = String(row['SPS análisis'] || '').trim();
+      const sps        = clean(row['SPS análisis']);
       if ((muestreada === 'si' || muestreada === 'sí') && !sps) {
         pushAlert('pendiente', reg, imp, cub, esp, analysis, 'SPS análisis sin número', 'SPS ANÁLISIS', null, key);
       }
@@ -5487,8 +5494,8 @@ function buildAlerts() {
 
     // ── R5: CORE análisis — 7 días desde muestreo con SPS registrado ──
     once('core-analisis|'+analysis, () => {
-      const sps     = String(row['SPS análisis'] || '').trim();
-      const core    = String(row['CORE/Factura'] || '').trim();
+      const sps     = clean(row['SPS análisis']);
+      const core    = clean(row['CORE/Factura']);
       const fechaRef = String(row['Fecha muestreo/Indexaje'] || row['Fecha Estimada Muestreo'] || row['TDM'] || '').trim();
       if (sps && !core && fechaRef) {
         const d = daysDiff(safeAddDays(fechaRef, 7));
@@ -5507,7 +5514,7 @@ function buildAlerts() {
     // ── R6: SPS estadía — 355 días desde Fecha Injertación ──
     once('sps-estadia', () => {
       const fechaInj = String(row['Fecha Injertación'] || '').trim();
-      const spsEst   = String(row['SPS estadía'] || '').trim();
+      const spsEst   = clean(row['SPS estadía']);
       if (fechaInj && !spsEst) {
         const d = daysDiff(safeAddDays(fechaInj, 355));
         if (d !== null) {
@@ -5522,8 +5529,8 @@ function buildAlerts() {
 
     // ── R7: CORE estadía — 5 días desde ingreso SPS estadía ──
     once('core-estadia', () => {
-      const spsEst  = String(row['SPS estadía'] || '').trim();
-      const coreEst = String(row['CORE/Factura3'] || '').trim();
+      const spsEst  = clean(row['SPS estadía']);
+      const coreEst = clean(row['CORE/Factura3']);
       // Use Fecha Ing. Asignada as proxy date for when SPS estadía was triggered
       const fechaRef = String(row['Fecha Ing. Asignada'] || '').trim();
       if (spsEst && !coreEst) {
