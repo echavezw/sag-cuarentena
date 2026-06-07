@@ -5373,7 +5373,7 @@ function regLabel(row) {
   const res = String(row['Res.'] || '').trim();
   const sol = String(row['Solicitud'] || '').trim();
   const yr  = String(row['Año de Ingreso'] || row['Año'] || '').trim();
-  if (res) return `Res. ${res}/${yr || ''}`.replace('/','').replace(/\/$/, '');
+  if (res) return yr ? `Res. ${res} / ${yr}` : `Res. ${res}`;
   return `|sol:${sol}`;
 }
 
