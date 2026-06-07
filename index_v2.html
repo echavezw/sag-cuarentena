@@ -508,6 +508,73 @@ input.field-blocked, select.field-blocked {
   transition: all .12s; margin-top: 3px;
 }
 .al-send-btn:hover { background: var(--gd); color: var(--nv); }
+
+/* ── INVERNADERO GRID ── */
+.inv-section { margin-bottom: 24px; }
+.inv-title {
+  font-family: var(--serif); font-size: 15px; font-weight: 600;
+  color: var(--nv); padding: 8px 0 6px;
+  border-bottom: 2px solid var(--gd); margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.inv-title span {
+  font-family: var(--font); font-size: 9px; font-weight: 400;
+  color: var(--g400); letter-spacing: .08em; text-transform: uppercase;
+}
+.inv-row { display: grid; grid-template-columns: repeat(5,1fr); gap: 8px; margin-bottom: 8px; }
+.cub-card {
+  border-radius: 7px; padding: 9px 10px;
+  border: 1px solid var(--g200);
+  min-height: 110px;
+  display: flex; flex-direction: column; gap: 4px;
+  cursor: default; transition: box-shadow .15s;
+}
+.cub-card:hover { box-shadow: var(--sh2); }
+.cub-card.available {
+  background: var(--g50); border-color: var(--g200);
+}
+.cub-card.occupied {
+  background: #fff; border-color: var(--g200);
+  cursor: pointer;
+}
+.cub-card.has-alert-r { border-left: 3px solid #dc2626; }
+.cub-card.has-alert-o { border-left: 3px solid #ea580c; }
+.cub-card.has-alert-b { border-left: 3px solid #2563eb; }
+.cub-num {
+  font-family: var(--mono); font-size: 11px; font-weight: 700;
+  color: var(--nv); letter-spacing: .04em; margin-bottom: 2px;
+}
+.cub-available-label {
+  font-size: 10px; color: var(--g300); font-style: italic;
+  text-align: center; margin: auto 0;
+}
+.cub-reg {
+  font-family: var(--serif); font-size: 11.5px; font-weight: 600;
+  color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cub-imp {
+  font-size: 9.5px; color: var(--g600);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cub-esp {
+  font-size: 9px; color: var(--g400); font-style: italic;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cub-alerts { display: flex; flex-direction: column; gap: 2px; margin-top: 3px; }
+.cub-alert-pill {
+  font-size: 8.5px; padding: 1px 6px; border-radius: 3px;
+  font-weight: 600; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; display: flex; align-items: center; gap: 4px;
+}
+.cap-r { background: rgba(220,38,38,.1);  color: #dc2626; }
+.cap-o { background: rgba(234,88,12,.1);  color: #ea580c; }
+.cap-b { background: rgba(37,99,235,.1);  color: #2563eb; }
+.cub-sep {
+  border: none; border-top: 1px dashed var(--g200); margin: 4px 0;
+}
+.cub-days {
+  font-size: 8.5px; font-weight: 700; margin-left: auto; flex-shrink: 0;
+}
 </style>
 </head>
 <body>
@@ -610,15 +677,15 @@ input.field-blocked, select.field-blocked {
 
     <!-- Chips de conteo -->
     <div class="sb-alert-chips" id="sb-alert-chips" style="margin-bottom:18px;max-width:380px">
-      <div class="sb-chip sb-chip-r" onclick="scrollToGroup('al-group-vencido')">
+      <div class="sb-chip sb-chip-r" onclick="document.getElementById('al-cards-container').scrollIntoView({behavior:'smooth'})">
         <span class="sb-chip-count sc-r" id="al-count-r">0</span>
         <span class="sb-chip-label sc-r">Vencido</span>
       </div>
-      <div class="sb-chip sb-chip-o" onclick="scrollToGroup('al-group-proximo')">
+      <div class="sb-chip sb-chip-o" onclick="document.getElementById('al-cards-container').scrollIntoView({behavior:'smooth'})">
         <span class="sb-chip-count sc-o" id="al-count-o">0</span>
         <span class="sb-chip-label sc-o">Próximo</span>
       </div>
-      <div class="sb-chip sb-chip-b" onclick="scrollToGroup('al-group-pendiente')">
+      <div class="sb-chip sb-chip-b" onclick="document.getElementById('al-cards-container').scrollIntoView({behavior:'smooth'})">
         <span class="sb-chip-count sc-b" id="al-count-b">0</span>
         <span class="sb-chip-label sc-b">Pendiente</span>
       </div>
@@ -5676,56 +5743,15 @@ function renderAlertsStage() {
   const cc = document.getElementById('al-cards-container');
   if (!cc) return;
 
+  // Always render the full grid (shows available cubículos even if no alerts)
+  renderInvernaderoGrid();
   if (!all.length) {
-    cc.innerHTML = '<div class="al-empty" style="padding:40px;text-align:center;color:var(--g400);font-style:italic">Sin alertas activas para el filtro seleccionado ✓</div>';
     renderIncoming();
     return;
   }
 
-  // ── Cards ──
-  function buildCardGroup(items, cls, lcls, linecls, emoji, label, groupId) {
-    if (!items.length) return '';
-    let g = `<div class="al-group" id="${groupId}">
-      <div class="al-group-label ${lcls}">${emoji} ${label} (${items.length})
-        <span class="alg-line ${linecls}"></span>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;margin-bottom:16px">`;
-    items.forEach(a => {
-      const daysStr = a.days !== null ? (a.days <= 0 ? `${a.days} días` : `+${a.days} días`) : '—';
-      const dcls  = cls === 'al-r' ? 'ald-r' : cls === 'al-o' ? 'ald-o' : 'ald-b';
-      const tcls  = cls === 'al-r' ? 'alt-r' : cls === 'al-o' ? 'alt-o' : 'alt-b';
-      const emailT = (a.emailTerr||'').replace(/'/g,"\'");
-      const bLabel = (a.blockerLabel||a.analysis||'').replace(/'/g,"\'");
-      const bPat   = (a.blockerPat||'').replace(/'/g,"\'");
-      const aReg   = (a.reg||'').replace(/'/g,"\'");
-      const aImp   = (a.imp||'').replace(/'/g,"\'");
-      g += `<div class="al-card ${cls}" onclick="goStageFromAlert('${a.key}')">
-        <div class="al-row1">
-          <span class="al-reg">${a.reg}</span>
-          <span class="al-days ${dcls}">${daysStr}</span>
-        </div>
-        <div class="al-analysis">${a.analysis}</div>
-        <div class="al-action">${a.action}</div>
-        <div class="al-meta">
-          <span class="al-tag ${tcls}">${a.tag}</span>
-          ${a.cub ? `<span class="al-cub">${a.cub}</span>` : ''}
-          ${a.imp ? `<span class="al-imp">${a.imp}</span>` : ''}
-        </div>
-        <div class="al-meta" style="margin-top:2px">
-          ${a.esp ? `<span class="al-esp">${a.esp}</span>` : ''}
-        </div>
-        ${a.tag === 'CORE BLOQ' ? `<button class="al-send-btn" onclick="event.stopPropagation();sendCoreAviso('${emailT}','${aReg}','${aImp}','${bLabel}','${bPat}')">✉ Enviar aviso a Contraparte Territorial</button>` : ''}
-      </div>`;
-    });
-    g += '</div></div>';
-    return g;
-  }
-
-  let html = '';
-  html += buildCardGroup(venc, 'al-r', 'alg-r', 'algl-r', '🔴', 'Vencidos',   'al-group-vencido');
-  html += buildCardGroup(prox, 'al-o', 'alg-o', 'algl-o', '🟡', 'Próximos',   'al-group-proximo');
-  html += buildCardGroup(pend, 'al-b', 'alg-b', 'algl-b', '🔵', 'Pendientes', 'al-group-pendiente');
-  cc.innerHTML = html;
+  // ── Cards: invernadero grid ──
+  renderInvernaderoGrid();
 
   renderIncoming();
 }
@@ -5994,6 +6020,136 @@ function sendCoreAvisoFromAlert(alertIdx) {
   const a = _alerts[alertIdx];
   if (!a) return;
   sendCoreAviso(a.emailTerr || '', a.reg, a.imp, a.blockerLabel || a.analysis, a.blockerPat || '');
+}
+// ══════════════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════════════
+//  INVERNADERO GRID — renderInvernaderoGrid()
+// ══════════════════════════════════════════════════════════════════
+function renderInvernaderoGrid() {
+  const cc = document.getElementById('al-cards-container');
+  if (!cc) return;
+
+  // Build map: cubículo → [{ reg, imp, esp, alerts[] }]
+  // First collect all active records grouped by cubículo
+  const cubMap = {}; // key: "1.1" → [{reg,imp,esp,key}]
+
+  // Deduplicate: one entry per unique reg+cub combination
+  const seen = new Set();
+  gsData.forEach(row => {
+    if (!isActive(row)) return;
+    const cub = String(row['Cubículo'] || row['Cubiculo'] || '').trim();
+    if (!cub) return;
+    const key = regLabel(row);
+    const dedupKey = cub + '|' + key;
+    if (seen.has(dedupKey)) return;
+    seen.add(dedupKey);
+    if (!cubMap[cub]) cubMap[cub] = [];
+    // Check if this reg already in this cub
+    const existing = cubMap[cub].find(e => e.key === key);
+    if (!existing) {
+      cubMap[cub].push({
+        key,
+        reg: key,
+        imp: String(row['Importador'] || '').trim(),
+        esp: String(row['Especie'] || '').trim(),
+        alerts: []
+      });
+    }
+  });
+
+  // Attach alerts to each cubículo entry
+  _alerts.forEach(a => {
+    if (!a.cub) return;
+    const entries = cubMap[a.cub];
+    if (!entries) return;
+    const entry = entries.find(e => e.key === a.key) || entries[0];
+    if (entry) entry.alerts.push(a);
+  });
+
+  // Determine worst severity per cubículo entry
+  function worstSev(alerts) {
+    if (alerts.some(a => a.severity === 'vencido'))   return 'r';
+    if (alerts.some(a => a.severity === 'proximo'))   return 'o';
+    if (alerts.some(a => a.severity === 'pendiente')) return 'b';
+    return '';
+  }
+
+  // Build HTML
+  let html = '';
+  const currentYear = new Date().getFullYear();
+
+  for (let inv = 1; inv <= 7; inv++) {
+    // Check if this invernadero has any data
+    const allCubs = [];
+    for (let n = 1; n <= 10; n++) {
+      allCubs.push(`${inv}.${n}`);
+    }
+    const hasData = allCubs.some(c => cubMap[c] && cubMap[c].length);
+
+    html += `<div class="inv-section">
+      <div class="inv-title">
+        Invernadero ${inv}
+        <span>${allCubs.filter(c => cubMap[c] && cubMap[c].length).length} cubículos ocupados</span>
+      </div>`;
+
+    // Row 1: odd (1,3,5,7,9)
+    // Row 2: even (2,4,6,8,10)
+    for (const rowNums of [[1,3,5,7,9],[2,4,6,8,10]]) {
+      html += `<div class="inv-row">`;
+      rowNums.forEach(n => {
+        const cubId = `${inv}.${n}`;
+        const entries = cubMap[cubId] || [];
+
+        if (!entries.length) {
+          html += `<div class="cub-card available">
+            <div class="cub-num">${cubId}</div>
+            <div class="cub-available-label">Disponible</div>
+          </div>`;
+          return;
+        }
+
+        // Occupied — may have multiple registros
+        const sev = worstSev(entries.flatMap(e => e.alerts));
+        const borderCls = sev ? `has-alert-${sev}` : '';
+
+        let inner = '';
+        entries.forEach((entry, ei) => {
+          if (ei > 0) inner += `<hr class="cub-sep">`;
+          const es = worstSev(entry.alerts);
+          inner += `<div onclick="goStageFromAlert('${entry.key.replace(/'/g,"\'")}')">
+            <div class="cub-reg">${entry.reg}</div>
+            <div class="cub-imp">${entry.imp || '—'}</div>
+            <div class="cub-esp">${entry.esp || '—'}</div>`;
+
+          if (entry.alerts.length) {
+            inner += `<div class="cub-alerts">`;
+            entry.alerts.forEach(a => {
+              const ac = a.severity === 'vencido' ? 'cap-r' : a.severity === 'proximo' ? 'cap-o' : 'cap-b';
+              const dstr = a.days !== null ? (a.days <= 0 ? `${a.days}d` : `+${a.days}d`) : '';
+              inner += `<div class="cub-alert-pill ${ac}">
+                <span style="overflow:hidden;text-overflow:ellipsis">${a.tag}</span>
+                ${dstr ? `<span class="cub-days">${dstr}</span>` : ''}
+              </div>`;
+            });
+            inner += `</div>`;
+          } else {
+            inner += `<div style="font-size:9px;color:var(--g300);margin-top:4px;font-style:italic">Sin alertas</div>`;
+          }
+          inner += `</div>`;
+        });
+
+        html += `<div class="cub-card occupied ${borderCls}"">
+          <div class="cub-num">${cubId}</div>
+          ${inner}
+        </div>`;
+      });
+      html += `</div>`; // inv-row
+    }
+    html += `</div>`; // inv-section
+  }
+
+  cc.innerHTML = html;
 }
 // ══════════════════════════════════════════════════════════════════
 </script>
