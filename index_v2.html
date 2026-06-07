@@ -597,28 +597,19 @@ input.field-blocked, select.field-blocked {
   </div>
   <div class="tab-body" style="border-radius:0 0 var(--r) var(--r);padding:14px">
 
-    <!-- Fila superior: filtro año + tipo análisis -->
-    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
-      <label style="font-size:10px;color:var(--g600);display:flex;align-items:center;gap:6px;flex-shrink:0">
-        Desde año:
+    <!-- Filtro año -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+      <label style="font-size:10px;color:var(--g600);display:flex;align-items:center;gap:6px">
+        Mostrar desde año:
         <input type="number" id="al-year-filter" value="2024" min="2000" max="2099"
-          style="width:70px;font-family:var(--mono);font-size:11px;text-align:center;padding:3px 6px"
-          onchange="_alertYearFilter=parseInt(this.value)||0;buildAlerts();renderAlertsStage()">
+          style="width:72px;font-family:var(--mono);font-size:12px;text-align:center;padding:4px 6px"
+          oninput="applyYearFilter()">
       </label>
-      <div class="al-filters" id="al-filters">
-        <span style="font-size:9px;color:var(--g400);letter-spacing:.1em;text-transform:uppercase;">Tipo</span>
-        <button class="al-filter-btn active" data-f="todos" onclick="setAlFilter(this)">Todos</button>
-        <button class="al-filter-btn" data-f="Virologico"     onclick="setAlFilter(this)">Virológico</button>
-        <button class="al-filter-btn" data-f="Micologico"     onclick="setAlFilter(this)">Micológico</button>
-        <button class="al-filter-btn" data-f="Bacteriologico" onclick="setAlFilter(this)">Bacteriológico</button>
-        <button class="al-filter-btn" data-f="Fitoplasma"     onclick="setAlFilter(this)">Fitoplasma</button>
-        <button class="al-filter-btn" data-f="Entomologico"   onclick="setAlFilter(this)">Entomológico</button>
-        <button class="al-filter-btn" data-f="Nematologico"   onclick="setAlFilter(this)">Nematológico</button>
-      </div>
+      <span style="font-size:9px;color:var(--g400);font-style:italic">Solo cuarentenas no entregadas · no liberadas · no terminadas</span>
     </div>
 
     <!-- Chips de conteo -->
-    <div class="sb-alert-chips" id="sb-alert-chips" style="margin-bottom:16px;max-width:360px">
+    <div class="sb-alert-chips" id="sb-alert-chips" style="margin-bottom:18px;max-width:380px">
       <div class="sb-chip sb-chip-r" onclick="scrollToGroup('al-group-vencido')">
         <span class="sb-chip-count sc-r" id="al-count-r">0</span>
         <span class="sb-chip-label sc-r">Vencido</span>
@@ -635,10 +626,7 @@ input.field-blocked, select.field-blocked {
 
     <!-- Tarjetas agrupadas por severidad -->
     <div id="al-cards-container"></div>
-
-    <!-- Tabla expandida -->
-    <div id="al-table-container" style="margin-top:20px"></div>
-    <div id="al-incoming-container"></div>
+    <div id="al-incoming-container" style="margin-top:16px"></div>
   </div>
 </div>
 
@@ -5255,7 +5243,6 @@ init();
 // ══════════════════════════════════════════════════════════════════
 let _alerts = [];          // [{severity, reg, imp, cub, esp, analysis, action, tag, days, key}]
 let _alertYearFilter = 2024; // only show records from this year onwards
-let _alFilter = 'todos';   // current analysis-type filter
 const AN_TYPE_LABEL = { V:'Virológico', H:'Micológico', B:'Bacteriológico', F:'Fitoplasma', E:'Entomológico', N:'Nematológico' };
 
 // daysDiff: days from today to dateStr (negative=past, positive=future)
@@ -5293,9 +5280,23 @@ function isActive(row) {
   if (norm(row['Terminada']) === 'si') return false;
   if (norm(row['Liberada'])  === 'si') return false;
   if (norm(row['Entregada']) === 'si') return false;
-  // Year filter: only show records from _alertYearFilter onwards
-  const ingYear = parseInt(String(row['Año de Ingreso'] || row['Año'] || '0'));
-  if (_alertYearFilter && ingYear && ingYear < _alertYearFilter) return false;
+  // Year filter — derive from Fecha de Ingreso (most reliable)
+  if (_alertYearFilter) {
+    // Try explicit year columns first, then parse from date
+    let ingYear = 0;
+    const yrCols = ['Año de Ingreso','Año de ingreso','Ano de Ingreso','Año'];
+    for (const col of yrCols) {
+      const v = parseInt(String(row[col]||''));
+      if (v > 2000) { ingYear = v; break; }
+    }
+    if (!ingYear) {
+      // Extract from Fecha de Ingreso
+      const fechaIng = String(row['Fecha de Ingreso'] || row['Fecha Ing. Asignada'] || '');
+      const isoDate  = fmtD(fechaIng);
+      if (isoDate && isoDate.length >= 4) ingYear = parseInt(isoDate.substring(0,4));
+    }
+    if (ingYear && ingYear < _alertYearFilter) return false;
+  }
   return true;
 }
 
@@ -5559,25 +5560,19 @@ function buildAlerts() {
   if(lbl) lbl.textContent = total > 0 ? `Vigilancia (${total})` : 'Vigilancia';
 }
 
-function setAlFilter(btn) {
-  document.querySelectorAll('.al-filter-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  _alFilter = btn.dataset.f;
+function applyYearFilter() {
+  const el = document.getElementById('al-year-filter');
+  _alertYearFilter = el ? (parseInt(el.value) || 0) : 2024;
+  buildAlerts();
   renderAlertsStage();
 }
 
 function filterAlerts(severity) {
   goStage('alerts');
-  // highlight corresponding group
-}
-
-function severityOf(a) {
-  return a.severity === 'vencido' ? 0 : a.severity === 'proximo' ? 1 : 2;
 }
 
 function filteredAlerts() {
-  if (_alFilter === 'todos') return _alerts;
-  return _alerts.filter(a => a.analysis === _alFilter);
+  return _alerts; // no type filter — show all
 }
 
 // ── SIDEBAR render ──
@@ -5645,12 +5640,10 @@ function renderAlertsStage() {
   const all  = [...venc, ...prox, ...pend];
 
   const cc = document.getElementById('al-cards-container');
-  const tc = document.getElementById('al-table-container');
-  if (!cc || !tc) return;
+  if (!cc) return;
 
   if (!all.length) {
     cc.innerHTML = '<div class="al-empty" style="padding:40px;text-align:center;color:var(--g400);font-style:italic">Sin alertas activas para el filtro seleccionado ✓</div>';
-    tc.innerHTML = '';
     renderIncoming();
     return;
   }
@@ -5699,52 +5692,6 @@ function renderAlertsStage() {
   html += buildCardGroup(prox, 'al-o', 'alg-o', 'algl-o', '🟡', 'Próximos',   'al-group-proximo');
   html += buildCardGroup(pend, 'al-b', 'alg-b', 'algl-b', '🔵', 'Pendientes', 'al-group-pendiente');
   cc.innerHTML = html;
-
-  // ── Table ──
-  function daysCell(a) {
-    if (a.days === null) return `<span style="color:var(--g400)">—</span>`;
-    const cls = a.severity === 'vencido' ? 'color:#dc2626' : a.severity === 'proximo' ? 'color:#ea580c' : 'color:#2563eb';
-    const val = a.days <= 0 ? String(a.days) : `+${a.days}`;
-    return `<span style="${cls};font-weight:700">${val}</span>`;
-  }
-
-  function sevBadge(a) {
-    const cls = a.severity === 'vencido' ? 'alb-r' : a.severity === 'proximo' ? 'alb-o' : 'alb-b';
-    return `<span class="al-badge ${cls}">${a.action}</span>`;
-  }
-
-  const rows = all.map(a => {
-    const emailT = (a.emailTerr||'').replace(/'/g,"\'");
-    const bLabel = (a.blockerLabel||a.analysis||'').replace(/'/g,"\'");
-    const bPat   = (a.blockerPat||'').replace(/'/g,"\'");
-    const aReg   = (a.reg||'').replace(/'/g,"\'");
-    const aImp   = (a.imp||'').replace(/'/g,"\'");
-    return `<tr onclick="goStageFromAlert('${a.key}')">
-      <td class="al-td-reg">${a.reg}</td>
-      <td class="al-td-imp">${a.imp||'—'}</td>
-      <td class="al-td-cub">${a.cub||'—'}</td>
-      <td class="al-td-esp">${a.esp||'—'}</td>
-      <td>${sevBadge(a)}</td>
-      <td style="font-size:10px;color:var(--g600)">${a.tag}</td>
-      <td class="al-days-cell">${daysCell(a)}</td>
-      <td>${a.tag==='CORE BLOQ'?`<button class="al-send-btn" onclick="event.stopPropagation();sendCoreAviso('${emailT}','${aReg}','${aImp}','${bLabel}','${bPat}')">✉ Aviso</button>`:''}</td>
-    </tr>`;
-  }).join('');
-
-  tc.innerHTML = `
-    <div class="al-table-header">
-      Tabla resumen — ${all.length} alerta${all.length!==1?'s':''}
-      <small>Clic en fila → abre registro</small>
-    </div>
-    <div class="al-table-wrap">
-      <table class="al-table">
-        <thead><tr>
-          <th>Registro</th><th>Importador</th><th>Cubículo</th>
-          <th>Especie</th><th>Alerta</th><th>Tipo</th><th>Días</th><th></th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>`;
 
   renderIncoming();
 }
