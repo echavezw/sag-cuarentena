@@ -5245,13 +5245,24 @@ let _alerts = [];          // [{severity, reg, imp, cub, esp, analysis, action, 
 let _alertYearFilter = 2024; // only show records from this year onwards
 const AN_TYPE_LABEL = { V:'Virológico', H:'Micológico', B:'Bacteriológico', F:'Fitoplasma', E:'Entomológico', N:'Nematológico' };
 
+// safeAddDays: add n days to a raw date string (any format), return ISO string
+function safeAddDays(dateStr, n) {
+  if (!dateStr) return '';
+  const iso = fmtD(dateStr);
+  if (!iso || iso.length < 10) return '';
+  const dt = new Date(iso);
+  if (isNaN(dt.getTime())) return '';
+  dt.setDate(dt.getDate() + n);
+  return dt.toISOString().split('T')[0];
+}
+
 // daysDiff: days from today to dateStr (negative=past, positive=future)
 function daysDiff(dateStr) {
   if (!dateStr) return null;
-  const iso = fmtD(dateStr); // reuse existing parser
+  const iso = typeof fmtD === 'function' ? fmtD(dateStr) : dateStr;
   if (!iso || iso.length < 10) return null;
   const d = new Date(iso);
-  if (isNaN(d)) return null;
+  if (isNaN(d.getTime())) return null;
   const today = new Date(); today.setHours(0,0,0,0);
   return Math.round((d - today) / 86400000);
 }
@@ -5317,6 +5328,7 @@ function buildAlerts() {
   const seen = {};
 
   gsData.forEach(row => {
+    try {
     if (!isActive(row)) return;
 
     const reg      = regLabel(row);
@@ -5389,7 +5401,7 @@ function buildAlerts() {
       // Need date when it became "Analizada" — use Fecha muestreo/Indexaje as proxy
       const fechaRef = String(row['Fecha muestreo/Indexaje'] || row['Fecha Estimada Muestreo'] || '').trim();
       if ((estAn === 'analizada') && !core) {
-        const d = fechaRef ? daysDiff(addDays(fechaRef, 15)) : null;
+        const d = fechaRef ? daysDiff(safeAddDays(fechaRef, 15)) : null;
         if (d === null || d <= 0) {
           pushAlert('vencido', reg, imp, cub, esp, analysis, 'CORE análisis sin registrar', 'CORE', d, key);
         } else if (d <= 5) {
@@ -5403,7 +5415,7 @@ function buildAlerts() {
       const fechaInj = String(row['Fecha Injertación'] || '').trim();
       const spsEst   = String(row['SPS estadía'] || '').trim();
       if (fechaInj && !spsEst) {
-        const d = daysDiff(addDays(fechaInj, 355));
+        const d = daysDiff(safeAddDays(fechaInj, 355));
         if (d !== null) {
           if (d <= 0) {
             pushAlert('vencido', reg, imp, cub, esp, analysis, 'SPS estadía sin emitir (365 días post-injertación)', 'SPS ESTADÍA', d, key);
@@ -5421,7 +5433,7 @@ function buildAlerts() {
       // Use Fecha Ing. Asignada as proxy date for when SPS estadía was triggered
       const fechaRef = String(row['Fecha Ing. Asignada'] || '').trim();
       if (spsEst && !coreEst) {
-        const d = fechaRef ? daysDiff(addDays(fechaRef, 5)) : null;
+        const d = fechaRef ? daysDiff(safeAddDays(fechaRef, 5)) : null;
         if (d === null || d <= 0) {
           pushAlert('vencido', reg, imp, cub, esp, analysis, 'CORE estadía sin registrar', 'CORE ESTADÍA', d, key);
         } else if (d <= 3) {
@@ -5435,7 +5447,7 @@ function buildAlerts() {
       const envio   = String(row['Fecha de envío'] || '').trim();
       const informe = String(row['Fecha Informe Fitosanitario'] || '').trim();
       if (envio && !informe) {
-        const d = daysDiff(addDays(envio, 25));
+        const d = daysDiff(safeAddDays(envio, 25));
         if (d !== null) {
           if (d <= 0) {
             pushAlert('vencido', reg, imp, cub, esp, analysis, 'Informe fitosanitario vencido', 'INFORME', d, key);
@@ -5493,7 +5505,7 @@ function buildAlerts() {
       const fechaIng  = String(row['Fecha de Ingreso'] || '').trim();
       const needsGraft = tipoMat.includes('yema') || tipoMat.includes('estaca') || tipoMat.includes('injert');
       if (needsGraft && !fechaInj && fechaIng) {
-        const d = daysDiff(addDays(fechaIng, 1));
+        const d = daysDiff(safeAddDays(fechaIng, 1));
         if (d !== null && d <= 0) {
           pushAlert('vencido', reg, imp, cub, esp, analysis, 'Fecha injertación no registrada', 'INJERTACIÓN', d, key);
         }
@@ -5505,7 +5517,7 @@ function buildAlerts() {
       const fechaInj = String(row['Fecha Injertación'] || '').trim();
       const liberada = String(row['Liberada'] || '').toLowerCase();
       if (fechaInj && liberada !== 'si' && liberada !== 'sí') {
-        const d = daysDiff(addDays(fechaInj, 355));
+        const d = daysDiff(safeAddDays(fechaInj, 355));
         if (d !== null) {
           if (d <= 0) {
             pushAlert('vencido', reg, imp, cub, esp, analysis, 'Liberación programada vencida (365 días post-injertación)', 'LIBERACIÓN', d, key);
@@ -5523,7 +5535,7 @@ function buildAlerts() {
       const fechaRef  = String(row['Fecha Res.4'] || '').trim(); // proxy: fecha res. término
       if ((liberada === 'si' || liberada === 'sí') &&
           entregada !== 'si' && entregada !== 'sí') {
-        const d = fechaRef ? daysDiff(addDays(fechaRef, 15)) : null;
+        const d = fechaRef ? daysDiff(safeAddDays(fechaRef, 15)) : null;
         if (d === null || d <= 0) {
           pushAlert('vencido', reg, imp, cub, esp, analysis, 'Entrega post-liberación pendiente', 'ENTREGA', d, key);
         } else if (d <= 5) {
@@ -5541,6 +5553,7 @@ function buildAlerts() {
       }
     });
 
+    } catch(e) { console.warn('buildAlerts row error:', e, row); }
   }); // end gsData.forEach
 
   // Update sidebar chips
