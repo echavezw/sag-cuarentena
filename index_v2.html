@@ -344,10 +344,11 @@ input[type=number]{font-family:var(--mono)}
 .alg-line { flex: 1; height: 1px; opacity: .2; }
 .algl-r { background: #dc2626; } .algl-o { background: #ea580c; } .algl-b { background: #2563eb; }
 .al-card {
-  background: var(--g50); border-radius: 5px; padding: 7px 9px; margin-bottom: 4px;
+  background: var(--g50); border-radius: 5px; padding: 9px 11px;
   border-left: 3px solid transparent; cursor: pointer;
   transition: background .15s, transform .1s;
-  border-top: 1px solid var(--g100);
+  border: 1px solid var(--g100);
+  border-left-width: 3px;
 }
 .al-card:hover { background: var(--gold-bg); transform: translateX(2px); }
 .al-card.al-r { border-left-color: #dc2626; }
@@ -565,28 +566,13 @@ input.field-blocked, select.field-blocked {
     <button onclick="guardarTodo()" style="width:100%;padding:10px 0;background:linear-gradient(135deg,var(--nv),var(--nv2));color:var(--gd);border:1.5px solid var(--gd);border-radius:var(--rs);font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;transition:all .15s;font-family:var(--font)" onmouseover="this.style.background='var(--gd)';this.style.color='var(--nv)'" onmouseout="this.style.background='linear-gradient(135deg,var(--nv),var(--nv2))';this.style.color='var(--gd)'">Guardar</button>
   </div>
 
-  <!-- ── PANEL ALERTAS ── -->
-  <div id="sb-alerts-section">
-    <div class="sb-alert-chips" id="sb-alert-chips">
-      <div class="sb-chip sb-chip-r" onclick="filterAlerts('vencido')">
-        <span class="sb-chip-count sc-r" id="al-count-r">0</span>
-        <span class="sb-chip-label sc-r">Vencido</span>
-      </div>
-      <div class="sb-chip sb-chip-o" onclick="filterAlerts('proximo')">
-        <span class="sb-chip-count sc-o" id="al-count-o">0</span>
-        <span class="sb-chip-label sc-o">Próximo</span>
-      </div>
-      <div class="sb-chip sb-chip-b" onclick="filterAlerts('pendiente')">
-        <span class="sb-chip-count sc-b" id="al-count-b">0</span>
-        <span class="sb-chip-label sc-b">Pendiente</span>
-      </div>
-    </div>
-    <div style="padding:4px 12px 8px;font-size:9px;color:var(--g400);letter-spacing:.05em">
-      <span id="sb-alerts-badge" class="hidden" style="display:none"></span>
-      <a href="#" onclick="goStage('alerts');return false;" style="color:var(--g400);text-decoration:none;font-size:9px;letter-spacing:.08em;text-transform:uppercase">
-        ⚠ Ver alertas →
-      </a>
-    </div>
+  <!-- PANEL ALERTAS: chips y tarjetas trasladados al main stage-alerts -->
+  <div id="sb-alerts-section" style="padding:8px 12px 4px;border-top:1px solid var(--g200)">
+    <span id="sb-alerts-badge" class="hidden" style="display:none"></span>
+    <a href="#" onclick="goStage('alerts');return false;"
+       style="font-size:9px;color:var(--g400);text-decoration:none;letter-spacing:.08em;text-transform:uppercase;display:flex;align-items:center;gap:5px">
+      ⚠ <span id="sb-alerts-count-label">Vigilancia</span>
+    </a>
   </div>
 </div>
 
@@ -610,18 +596,17 @@ input.field-blocked, select.field-blocked {
     </div>
   </div>
   <div class="tab-body" style="border-radius:0 0 var(--r) var(--r);padding:14px">
-    <div class="al-main-header">
-      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px">
-        <label style="font-size:10px;color:var(--g600);display:flex;align-items:center;gap:6px">
-          Desde año:
-          <input type="number" id="al-year-filter" value="2024" min="2000" max="2099"
-            style="width:70px;font-family:var(--mono);font-size:11px;text-align:center;padding:3px 6px"
-            onchange="_alertYearFilter=parseInt(this.value)||0;buildAlerts();renderAlertsStage()">
-        </label>
-        <span style="font-size:9px;color:var(--g400);font-style:italic">Solo cuarentenas no entregadas / no liberadas / no terminadas</span>
-      </div>
-    <div class="al-filters" id="al-filters">
-        <span style="font-size:9px;color:var(--g400);letter-spacing:.1em;text-transform:uppercase;">Tipo análisis</span>
+
+    <!-- Fila superior: filtro año + tipo análisis -->
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+      <label style="font-size:10px;color:var(--g600);display:flex;align-items:center;gap:6px;flex-shrink:0">
+        Desde año:
+        <input type="number" id="al-year-filter" value="2024" min="2000" max="2099"
+          style="width:70px;font-family:var(--mono);font-size:11px;text-align:center;padding:3px 6px"
+          onchange="_alertYearFilter=parseInt(this.value)||0;buildAlerts();renderAlertsStage()">
+      </label>
+      <div class="al-filters" id="al-filters">
+        <span style="font-size:9px;color:var(--g400);letter-spacing:.1em;text-transform:uppercase;">Tipo</span>
         <button class="al-filter-btn active" data-f="todos" onclick="setAlFilter(this)">Todos</button>
         <button class="al-filter-btn" data-f="Virologico"     onclick="setAlFilter(this)">Virológico</button>
         <button class="al-filter-btn" data-f="Micologico"     onclick="setAlFilter(this)">Micológico</button>
@@ -631,7 +616,28 @@ input.field-blocked, select.field-blocked {
         <button class="al-filter-btn" data-f="Nematologico"   onclick="setAlFilter(this)">Nematológico</button>
       </div>
     </div>
-    <div id="al-table-container"></div>
+
+    <!-- Chips de conteo -->
+    <div class="sb-alert-chips" id="sb-alert-chips" style="margin-bottom:16px;max-width:360px">
+      <div class="sb-chip sb-chip-r" onclick="scrollToGroup('al-group-vencido')">
+        <span class="sb-chip-count sc-r" id="al-count-r">0</span>
+        <span class="sb-chip-label sc-r">Vencido</span>
+      </div>
+      <div class="sb-chip sb-chip-o" onclick="scrollToGroup('al-group-proximo')">
+        <span class="sb-chip-count sc-o" id="al-count-o">0</span>
+        <span class="sb-chip-label sc-o">Próximo</span>
+      </div>
+      <div class="sb-chip sb-chip-b" onclick="scrollToGroup('al-group-pendiente')">
+        <span class="sb-chip-count sc-b" id="al-count-b">0</span>
+        <span class="sb-chip-label sc-b">Pendiente</span>
+      </div>
+    </div>
+
+    <!-- Tarjetas agrupadas por severidad -->
+    <div id="al-cards-container"></div>
+
+    <!-- Tabla expandida -->
+    <div id="al-table-container" style="margin-top:20px"></div>
     <div id="al-incoming-container"></div>
   </div>
 </div>
@@ -5542,15 +5548,15 @@ function buildAlerts() {
   const nb = _alerts.filter(a => a.severity === 'pendiente').length;
   const total = nr + no + nb;
 
-  document.getElementById('al-count-r').textContent = nr;
-  document.getElementById('al-count-o').textContent = no;
-  document.getElementById('al-count-b').textContent = nb;
+  const elR = document.getElementById('al-count-r'); if(elR) elR.textContent = nr;
+  const elO = document.getElementById('al-count-o'); if(elO) elO.textContent = no;
+  const elB = document.getElementById('al-count-b'); if(elB) elB.textContent = nb;
 
   const badge = document.getElementById('sb-alerts-badge');
-  badge.textContent = total;
-  badge.classList.toggle('hidden', total === 0);
+  if(badge) { badge.textContent = total; badge.classList.toggle('hidden', total === 0); }
 
-  renderAlertsSidebar();
+  const lbl = document.getElementById('sb-alerts-count-label');
+  if(lbl) lbl.textContent = total > 0 ? `Vigilancia (${total})` : 'Vigilancia';
 }
 
 function setAlFilter(btn) {
@@ -5632,27 +5638,69 @@ function renderAlertsSidebar() {
 
 // ── MAIN STAGE render ──
 function renderAlertsStage() {
-  const fa = filteredAlerts();
+  const fa   = filteredAlerts();
   const venc = fa.filter(a => a.severity === 'vencido');
   const prox = fa.filter(a => a.severity === 'proximo');
   const pend = fa.filter(a => a.severity === 'pendiente');
   const all  = [...venc, ...prox, ...pend];
 
+  const cc = document.getElementById('al-cards-container');
   const tc = document.getElementById('al-table-container');
-  if (!tc) return;
+  if (!cc || !tc) return;
 
   if (!all.length) {
-    tc.innerHTML = '<div class="al-empty" style="padding:40px;text-align:center;color:var(--g400);font-style:italic">Sin alertas activas para el filtro seleccionado ✓</div>';
+    cc.innerHTML = '<div class="al-empty" style="padding:40px;text-align:center;color:var(--g400);font-style:italic">Sin alertas activas para el filtro seleccionado ✓</div>';
+    tc.innerHTML = '';
     renderIncoming();
     return;
   }
 
-  function sevBadge(a) {
-    const cls = a.severity === 'vencido' ? 'alb-r' : a.severity === 'proximo' ? 'alb-o' : 'alb-b';
-    const lbl = a.severity === 'vencido' ? (a.action) : (a.action);
-    return `<span class="al-badge ${cls}">${lbl}</span>`;
+  // ── Cards ──
+  function buildCardGroup(items, cls, lcls, linecls, emoji, label, groupId) {
+    if (!items.length) return '';
+    let g = `<div class="al-group" id="${groupId}">
+      <div class="al-group-label ${lcls}">${emoji} ${label} (${items.length})
+        <span class="alg-line ${linecls}"></span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;margin-bottom:16px">`;
+    items.forEach(a => {
+      const daysStr = a.days !== null ? (a.days <= 0 ? `${a.days} días` : `+${a.days} días`) : '—';
+      const dcls  = cls === 'al-r' ? 'ald-r' : cls === 'al-o' ? 'ald-o' : 'ald-b';
+      const tcls  = cls === 'al-r' ? 'alt-r' : cls === 'al-o' ? 'alt-o' : 'alt-b';
+      const emailT = (a.emailTerr||'').replace(/'/g,"\'");
+      const bLabel = (a.blockerLabel||a.analysis||'').replace(/'/g,"\'");
+      const bPat   = (a.blockerPat||'').replace(/'/g,"\'");
+      const aReg   = (a.reg||'').replace(/'/g,"\'");
+      const aImp   = (a.imp||'').replace(/'/g,"\'");
+      g += `<div class="al-card ${cls}" onclick="goStageFromAlert('${a.key}')">
+        <div class="al-row1">
+          <span class="al-reg">${a.reg}</span>
+          <span class="al-days ${dcls}">${daysStr}</span>
+        </div>
+        <div class="al-analysis">${a.analysis}</div>
+        <div class="al-action">${a.action}</div>
+        <div class="al-meta">
+          <span class="al-tag ${tcls}">${a.tag}</span>
+          ${a.cub ? `<span class="al-cub">${a.cub}</span>` : ''}
+          ${a.imp ? `<span class="al-imp">${a.imp}</span>` : ''}
+        </div>
+        <div class="al-meta" style="margin-top:2px">
+          ${a.esp ? `<span class="al-esp">${a.esp}</span>` : ''}
+        </div>
+        ${a.tag === 'CORE BLOQ' ? `<button class="al-send-btn" onclick="event.stopPropagation();sendCoreAviso('${emailT}','${aReg}','${aImp}','${bLabel}','${bPat}')">✉ Enviar aviso a Contraparte Territorial</button>` : ''}
+      </div>`;
+    });
+    g += '</div></div>';
+    return g;
   }
 
+  let html = '';
+  html += buildCardGroup(venc, 'al-r', 'alg-r', 'algl-r', '🔴', 'Vencidos',   'al-group-vencido');
+  html += buildCardGroup(prox, 'al-o', 'alg-o', 'algl-o', '🟡', 'Próximos',   'al-group-proximo');
+  html += buildCardGroup(pend, 'al-b', 'alg-b', 'algl-b', '🔵', 'Pendientes', 'al-group-pendiente');
+  cc.innerHTML = html;
+
+  // ── Table ──
   function daysCell(a) {
     if (a.days === null) return `<span style="color:var(--g400)">—</span>`;
     const cls = a.severity === 'vencido' ? 'color:#dc2626' : a.severity === 'proximo' ? 'color:#ea580c' : 'color:#2563eb';
@@ -5660,48 +5708,50 @@ function renderAlertsStage() {
     return `<span style="${cls};font-weight:700">${val}</span>`;
   }
 
-  let rows = all.map(a => {
+  function sevBadge(a) {
+    const cls = a.severity === 'vencido' ? 'alb-r' : a.severity === 'proximo' ? 'alb-o' : 'alb-b';
+    return `<span class="al-badge ${cls}">${a.action}</span>`;
+  }
+
+  const rows = all.map(a => {
     const emailT = (a.emailTerr||'').replace(/'/g,"\'");
     const bLabel = (a.blockerLabel||a.analysis||'').replace(/'/g,"\'");
     const bPat   = (a.blockerPat||'').replace(/'/g,"\'");
     const aReg   = (a.reg||'').replace(/'/g,"\'");
     const aImp   = (a.imp||'').replace(/'/g,"\'");
     return `<tr onclick="goStageFromAlert('${a.key}')">
-    <td class="al-td-reg">${a.reg}</td>
-    <td class="al-td-imp">${a.imp || '—'}</td>
-    <td class="al-td-cub">${a.cub || '—'}</td>
-    <td class="al-td-esp">${a.esp || '—'}</td>
-    <td>${sevBadge(a)}</td>
-    <td style="font-size:10px;color:var(--g600)">${a.tag}</td>
-    <td class="al-days-cell">${daysCell(a)}</td>
-    <td>${a.tag === 'CORE BLOQ' ? `<button class="al-send-btn" onclick="event.stopPropagation();sendCoreAviso('${emailT}','${aReg}','${aImp}','${bLabel}','${bPat}')">✉ Aviso</button>` : ''}</td>
-  </tr>`;
+      <td class="al-td-reg">${a.reg}</td>
+      <td class="al-td-imp">${a.imp||'—'}</td>
+      <td class="al-td-cub">${a.cub||'—'}</td>
+      <td class="al-td-esp">${a.esp||'—'}</td>
+      <td>${sevBadge(a)}</td>
+      <td style="font-size:10px;color:var(--g600)">${a.tag}</td>
+      <td class="al-days-cell">${daysCell(a)}</td>
+      <td>${a.tag==='CORE BLOQ'?`<button class="al-send-btn" onclick="event.stopPropagation();sendCoreAviso('${emailT}','${aReg}','${aImp}','${bLabel}','${bPat}')">✉ Aviso</button>`:''}</td>
+    </tr>`;
   }).join('');
 
   tc.innerHTML = `
     <div class="al-table-header">
-      Alertas en cuarentenas activas — ${all.length} registro${all.length !== 1 ? 's' : ''}
+      Tabla resumen — ${all.length} alerta${all.length!==1?'s':''}
       <small>Clic en fila → abre registro</small>
     </div>
     <div class="al-table-wrap">
       <table class="al-table">
-        <thead>
-          <tr>
-            <th>Registro</th>
-            <th>Importador</th>
-            <th>Cubículo</th>
-            <th>Especie</th>
-            <th>Alerta</th>
-            <th>Tipo</th>
-            <th>Días</th>
-            <th></th>
-          </tr>
-        </thead>
+        <thead><tr>
+          <th>Registro</th><th>Importador</th><th>Cubículo</th>
+          <th>Especie</th><th>Alerta</th><th>Tipo</th><th>Días</th><th></th>
+        </tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>`;
 
   renderIncoming();
+}
+
+function scrollToGroup(id) {
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
 }
 
 function renderIncoming() {
