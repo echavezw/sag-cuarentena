@@ -1486,6 +1486,59 @@ const setS = (msg,cls) => {
   bar.className = 'status-bar' + (cls?' '+cls:'');
   bar.style.display = msg ? 'flex' : 'none';
 };
+// toSafeDate: parse ANY date format from Sheets into a Date object
+// Handles: ISO, dd-mm-yyyy, dd/mm/yyyy, serial, full Date.toString() strings
+function toSafeDate(dateStr) {
+  if (!dateStr) return null;
+  const s = String(dateStr).trim();
+  if (!s) return null;
+  // Already a full JS date string (e.g. "Thu Sep 07 2017 00:00:45 GMT-0300")
+  if (/^[A-Za-z]{3}\s[A-Za-z]{3}\s\d{1,2}\s\d{4}/.test(s)) {
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  // Try fmtD (handles ISO, serial, dd-mm-yyyy, dd/mm/yyyy)
+  if (typeof fmtD === 'function') {
+    const iso = fmtD(s);
+    if (iso && iso.length >= 10) {
+      const d = new Date(iso + 'T00:00:00');
+      if (!isNaN(d.getTime())) return d;
+    }
+  }
+  // Fallback: native parse
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+// safeAddDays: add n days to any date string format, return YYYY-MM-DD
+function safeAddDays(dateStr, n) {
+  const d = toSafeDate(dateStr);
+  if (!d) return '';
+  d.setDate(d.getDate() + n);
+  // Use UTC-safe formatting to avoid timezone shifts
+  const yr  = d.getFullYear();
+  const mo  = String(d.getMonth()+1).padStart(2,'0');
+  const dy  = String(d.getDate()).padStart(2,'0');
+  return `${yr}-${mo}-${dy}`;
+}
+
+// daysDiff: days from today to dateStr (negative=past, positive=future)
+function daysDiff(dateStr) {
+  const d = toSafeDate(dateStr);
+  if (!d) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  // Normalize d to midnight local
+  d.setHours(0,0,0,0);
+  return Math.round((d - today) / 86400000);
+}
+
+// parseDate: wrapper around toSafeDate
+function parseDate(s) {
+  return toSafeDate(s);
+}
+
+// addDays already declared as const in original code — use safeAddDays instead
+
 const addDays = (d,n) => { if(!d) return ''; const dt=new Date(d); dt.setDate(dt.getDate()+n); return dt.toISOString().split('T')[0]; };
 // Format to YYYY-MM-DD for input[type=date] (HTML requirement)
 // Display as dd-mm-yyyy for user
@@ -5245,58 +5298,6 @@ let _alerts = [];          // [{severity, reg, imp, cub, esp, analysis, action, 
 let _alertYearFilter = 2024; // only show records from this year onwards
 const AN_TYPE_LABEL = { V:'Virológico', H:'Micológico', B:'Bacteriológico', F:'Fitoplasma', E:'Entomológico', N:'Nematológico' };
 
-// toSafeDate: parse ANY date format from Sheets into a Date object
-// Handles: ISO, dd-mm-yyyy, dd/mm/yyyy, serial, full Date.toString() strings
-function toSafeDate(dateStr) {
-  if (!dateStr) return null;
-  const s = String(dateStr).trim();
-  if (!s) return null;
-  // Already a full JS date string (e.g. "Thu Sep 07 2017 00:00:45 GMT-0300")
-  if (/^[A-Za-z]{3}\s[A-Za-z]{3}\s\d{1,2}\s\d{4}/.test(s)) {
-    const d = new Date(s);
-    return isNaN(d.getTime()) ? null : d;
-  }
-  // Try fmtD (handles ISO, serial, dd-mm-yyyy, dd/mm/yyyy)
-  if (typeof fmtD === 'function') {
-    const iso = fmtD(s);
-    if (iso && iso.length >= 10) {
-      const d = new Date(iso + 'T00:00:00');
-      if (!isNaN(d.getTime())) return d;
-    }
-  }
-  // Fallback: native parse
-  const d = new Date(s);
-  return isNaN(d.getTime()) ? null : d;
-}
-
-// safeAddDays: add n days to any date string format, return YYYY-MM-DD
-function safeAddDays(dateStr, n) {
-  const d = toSafeDate(dateStr);
-  if (!d) return '';
-  d.setDate(d.getDate() + n);
-  // Use UTC-safe formatting to avoid timezone shifts
-  const yr  = d.getFullYear();
-  const mo  = String(d.getMonth()+1).padStart(2,'0');
-  const dy  = String(d.getDate()).padStart(2,'0');
-  return `${yr}-${mo}-${dy}`;
-}
-
-// daysDiff: days from today to dateStr (negative=past, positive=future)
-function daysDiff(dateStr) {
-  const d = toSafeDate(dateStr);
-  if (!d) return null;
-  const today = new Date(); today.setHours(0,0,0,0);
-  // Normalize d to midnight local
-  d.setHours(0,0,0,0);
-  return Math.round((d - today) / 86400000);
-}
-
-// parseDate: wrapper around toSafeDate
-function parseDate(s) {
-  return toSafeDate(s);
-}
-
-// addDays already declared as const in original code — use safeAddDays instead
 
 function regLabel(row) {
   const res = String(row['Res.'] || '').trim();
