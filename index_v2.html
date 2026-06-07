@@ -5485,19 +5485,22 @@ function buildAlerts() {
       }
     });
 
-    // ── R5: CORE análisis — 15 días desde Analizada ──
+    // ── R5: CORE análisis — 7 días desde muestreo con SPS registrado ──
     once('core-analisis', () => {
-      const estAn = String(row['Estado Análisis'] || '').toLowerCase();
-      const core  = String(row['CORE/Factura'] || '').trim();
-      // Need date when it became "Analizada" — use Fecha muestreo/Indexaje as proxy
-      const fechaRef = String(row['Fecha muestreo/Indexaje'] || row['Fecha Estimada Muestreo'] || '').trim();
-      if ((estAn === 'analizada') && !core) {
-        const d = fechaRef ? daysDiff(safeAddDays(fechaRef, 15)) : null;
-        if (d === null || d <= 0) {
+      const sps     = String(row['SPS análisis'] || '').trim();
+      const core    = String(row['CORE/Factura'] || '').trim();
+      const fechaRef = String(row['Fecha muestreo/Indexaje'] || row['Fecha Estimada Muestreo'] || row['TDM'] || '').trim();
+      if (sps && !core && fechaRef) {
+        const d = daysDiff(safeAddDays(fechaRef, 7));
+        if (d === null) return;
+        if (d <= 0) {
           pushAlert('vencido', reg, imp, cub, esp, analysis, 'CORE análisis sin registrar', 'CORE', d, key);
-        } else if (d <= 5) {
-          pushAlert('proximo', reg, imp, cub, esp, analysis, 'CORE análisis por vencer', 'CORE', d, key);
+        } else if (d <= 3) {
+          pushAlert('proximo', reg, imp, cub, esp, analysis, `CORE análisis — faltan ${d} día(s)`, 'CORE', d, key);
         }
+      } else if (sps && !core && !fechaRef) {
+        // SPS registrado pero sin fecha de muestreo — alerta pendiente directa
+        pushAlert('pendiente', reg, imp, cub, esp, analysis, 'CORE análisis sin registrar', 'CORE', null, key);
       }
     });
 
