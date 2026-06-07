@@ -5828,29 +5828,49 @@ function renderIncoming() {
     </div>`;
 }
 
-function goStageFromAlert(key) {
-  // key = "Res. XXX/YYYY" or "|sol:NNN"
-  // Find matching record and load it
+
+// Tag → target stage mapping
+const ALERT_TAG_STAGE = {
+  'MUESTREO':    4,
+  'CCAA':        4,
+  'ENVÍO LAB':   4,
+  'INFORME':     4,
+  'SPS ANÁLISIS':5,
+  'CORE':        5,
+  'SPS ESTADÍA': 5,
+  'CORE ESTADÍA':5,
+  'CORE BLOQ':   5,
+  'VIGENCIA':    7,
+  'RES. TÉRMINO':7,
+  'RECEPCIÓN':   3,
+  'INJERTACIÓN': 3,
+  'LIBERACIÓN':  6,
+  'ENTREGA':     6,
+  'RECUENTO':    6,
+};
+
+function goStageFromAlert(key, tag) {
   if (!gsData.length) return;
-  let row;
+
+  // Find rows for this registration key
+  let rows;
   if (key.startsWith('|sol:')) {
     const sol = key.replace('|sol:', '');
-    row = gsData.find(r => String(r['Solicitud'] || '') === sol);
+    rows = gsData.filter(r => String(r['Solicitud'] || '').trim() === sol);
   } else {
-    const parts = key.replace('Res. ', '').split('/');
-    const res = parts[0];
-    row = gsData.find(r => String(r['Res.'] || '').trim() === res);
+    // key format: "Res. NNN / YYYY" — extract just the res number
+    const resNum = key.replace('Res.', '').split('/')[0].trim();
+    rows = gsData.filter(r => String(r['Res.'] || '').trim() === resNum);
   }
-  if (!row) return;
-  // Load the record — use existing loadRecord if available
-  if (typeof loadRecord === 'function') {
-    const resKey = String(row['Res.'] || '').trim();
-    const solKey = String(row['Solicitud'] || '').trim();
-    if (resKey) loadRecord(resKey, false);
-    else if (solKey) loadRecord(null, solKey);
-  } else {
-    goStage(1);
-  }
+  if (!rows.length) return;
+
+  // Determine target stage
+  const targetStage = (tag && ALERT_TAG_STAGE[tag]) || 2;
+
+  // Load record then navigate to target stage
+  cargarFilaMulti(rows).then(() => {
+    setTimeout(() => goStage(targetStage), 120);
+  }).catch(() => goStage(targetStage));
 }
 // ══════════════════════════════════════════════════════════════════
 
@@ -6140,7 +6160,11 @@ function renderInvernaderoGrid() {
             espHtml = `<div class="cub-esp" style="color:var(--g300)">—</div>`;
           }
 
-          inner += `<div onclick="goStageFromAlert('${entry.key.replace(/'/g,"\'")}')">
+          const worstTag = entry.alerts.length ? 
+            (entry.alerts.find(a=>a.severity==='vencido') || 
+             entry.alerts.find(a=>a.severity==='proximo') || 
+             entry.alerts[0]).tag : '';
+          inner += `<div onclick="goStageFromAlert('${entry.key.replace(/'/g,"\'")}','${worstTag}')">
             <div class="cub-reg">${entry.reg}</div>
             <div class="cub-imp">${entry.imp || '—'}</div>
             ${espHtml}`;
