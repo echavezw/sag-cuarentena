@@ -3706,6 +3706,8 @@ function renderCobroTabs() {
 
   if(!totalRows) tbody.innerHTML='<tr><td colspan="6" style="color:var(--g400);padding:16px;font-size:12px;text-align:center">Complete analisis en la Etapa IV.</td></tr>';
 
+  // Sync N° Plantas Finales → N° Plantas Estadía after render
+  setTimeout(syncPfToEstadia, 50);
   // Check core blocks after cobro renders
   setTimeout(checkCoreBlocks, 100);
 }  // renderEstadiaTable now in stage 6 tab 2
@@ -4048,7 +4050,7 @@ function renderCierreTabs() {
     const tr = document.createElement('tr');
     const nFinCell = nEstab===0
       ? '<span style="font-family:var(--mono);color:var(--g400);font-size:13px;display:block;text-align:center">—</span>'
-      : '<input type="number" id="pf-'+i+'" value="'+(nFin||'')+'" placeholder="—" style="font-family:var(--mono);text-align:center;width:80px" oninput="calcPlantasTotal()">';
+      : '<input type="number" id="pf-'+i+'" value="'+(nFin||'')+'" placeholder="—" style="font-family:var(--mono);text-align:center;width:80px" oninput="calcPlantasTotal();syncPfToEstadia()">';
     tr.innerHTML=`
       <td style="font-style:italic;padding:5px 8px">${esc(e.especie)}</td>
       <td style="padding:5px 8px;text-align:center;font-size:11px;color:var(--g600)">${esc(e.variedad||'—')}</td>
@@ -4201,6 +4203,15 @@ function calcPlantasTotal() {
 function calcDiff(i,estab) {
   calcPlantasTotal();
 }
+
+function syncPfToEstadia() {
+  document.querySelectorAll('[id^="pf-"]').forEach(pfInp => {
+    if (pfInp.id === 'pf-total' || pfInp.id.startsWith('pf-obs')) return;
+    const i = pfInp.id.replace('pf-', '');
+    const estEl = document.getElementById('est-n-' + i);
+    if (estEl && pfInp.value) estEl.value = pfInp.value;
+  });
+}
 function calcTotalFin() {
   let total=0;
   document.querySelectorAll('[id^="pfin-n-"]').forEach(inp=>{ total+=parseInt(inp.value)||0; });
@@ -4212,9 +4223,19 @@ function updateStatusBadge() {
   const badge=$('status-badge-display'); if(!badge) return;
   if(!stat){ badge.style.display='none'; return; }
   badge.style.display='inline-block';
-  const map={'Entregada':'badge-ok','No Recibida':'badge-err','A destruir':'badge-warn','Destruida':'badge-err','Perdida':'badge-err'};
-  badge.className='badge '+(map[stat]||'badge-nv');
-  badge.textContent=stat;
+  const colorMap = {
+    'Entregada':   'background:#dcfce7;color:#166534;border:1px solid #86efac',
+    'Terminada':   'background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd',
+    'Liberada':    'background:#e0f2fe;color:#0369a1;border:1px solid #7dd3fc',
+    'A destruir':  'background:#fef9c3;color:#854d0e;border:1px solid #fde047',
+    'Destruida':   'background:#fee2e2;color:#991b1b;border:1px solid #fca5a5',
+    'No Recibida': 'background:#fee2e2;color:#991b1b;border:1px solid #fca5a5',
+    'Perdida':     'background:#f3f4f6;color:#374151;border:1px solid #d1d5db',
+  };
+  badge.className = 'badge';
+  badge.style.cssText = (colorMap[stat] || 'background:var(--nv);color:var(--gd);border:1px solid var(--gd)')
+    + ';padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600;display:inline-block';
+  badge.textContent = stat;
 }
 
 // ── TIMELINE ──
@@ -4438,7 +4459,19 @@ function renderHist(rows) {
 
 function statBadge(v){const m={'Analizada':'badge-ok','Pendiente':'badge-warn','En analisis':'badge-warn','Sin sintomas':'badge-gd'};return`<span class="badge ${m[v]||'badge-nv'}">${v||'—'}</span>`;}
 function resBadge(v){const m={'Negativo':'badge-ok','Positivo':'badge-err','N/A':'badge-gd'};return`<span class="badge ${m[v]||''}">${v||'—'}</span>`;}
-function statusBadge(v){const m={'Entregada':'badge-ok','A destruir':'badge-err','No Recibida':'badge-warn'};return`<span class="badge ${m[v]||'badge-nv'}">${v||'En proceso'}</span>`;}
+function statusBadge(s){
+  const cm={
+    'Entregada':  'background:#dcfce7;color:#166534;border:1px solid #86efac',
+    'Terminada':  'background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd',
+    'Liberada':   'background:#e0f2fe;color:#0369a1;border:1px solid #7dd3fc',
+    'A destruir': 'background:#fef9c3;color:#854d0e;border:1px solid #fde047',
+    'Destruida':  'background:#fee2e2;color:#991b1b;border:1px solid #fca5a5',
+    'No Recibida':'background:#fee2e2;color:#991b1b;border:1px solid #fca5a5',
+    'Perdida':    'background:#f3f4f6;color:#374151;border:1px solid #d1d5db',
+  };
+  const style=cm[s]||'background:var(--nv-badge,#1a2f50);color:#fff;border:1px solid transparent';
+  return`<span class="badge" style="${style};padding:2px 8px;border-radius:3px;font-size:10px;font-weight:600">${s||'En proceso'}</span>`;
+}
 
 let _histHeadersBuilt=false;
 const HIST_COLS=[
