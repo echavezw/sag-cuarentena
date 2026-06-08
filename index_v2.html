@@ -5475,6 +5475,9 @@ function buildAlerts() {
   gsData.forEach(row => {
     try {
     if (!isActive(row)) return;
+    // Skip alert generation for delivered records (grace period only — show card, no alerts)
+    const entStr = String(row['Entregada'] || '').trim();
+    if (entStr && toSafeDate(entStr)) return;
 
     const reg      = regLabel(row);
     const imp      = String(row['Importador'] || '').trim();
