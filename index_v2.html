@@ -6308,7 +6308,8 @@ function renderInvernaderoGrid() {
               const dstr = a.days !== null
                 ? (a.days <= 0 ? `+${Math.abs(a.days)}d` : `-${a.days}d`)
                 : '';
-              inner += `<div class="cub-alert-pill ${ac}">
+              const blinkCls = (a.severity === 'vencido' && a.days !== null && Math.abs(a.days) > 30) ? ' pill-blink' : '';
+              inner += `<div class="cub-alert-pill ${ac}${blinkCls}">
                 <span style="overflow:hidden;text-overflow:ellipsis">${a.tag}</span>
                 ${dstr ? `<span class="cub-days">${dstr}</span>` : ''}
               </div>`;
