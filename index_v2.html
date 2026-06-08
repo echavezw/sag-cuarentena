@@ -455,6 +455,22 @@ input[type=number]{font-family:var(--mono)}
 .al-inc-pill-g   { font-size: 8.5px; padding: 1px 6px; border-radius: 3px; background: var(--g100); color: var(--g400); white-space: nowrap; }
 .al-empty { padding: 28px; text-align: center; color: var(--g400); font-size: 12px; font-style: italic; }
 
+/* ── TITILANTE — alertas críticas >30 días ── */
+@keyframes cub-blink {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(220,38,38,0); }
+  50%       { opacity: .85; box-shadow: 0 0 0 4px rgba(220,38,38,.25); }
+}
+.cub-card.critical-blink {
+  animation: cub-blink 1.4s ease-in-out infinite;
+}
+@keyframes pill-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: .45; }
+}
+.cub-alert-pill.pill-blink {
+  animation: pill-blink 1.2s ease-in-out infinite;
+}
+
 /* ── CORE BLOQUEANTE ── */
 .an-blocked-overlay {
   position:relative;
@@ -6239,6 +6255,7 @@ function renderInvernaderoGrid() {
             (entry.alerts.find(a=>a.severity==='vencido') || 
              entry.alerts.find(a=>a.severity==='proximo') || 
              entry.alerts[0]).tag : '';
+          const isCritical = entry.alerts.some(a => a.severity === 'vencido' && a.days !== null && Math.abs(a.days) > 30);
           // Format dates
           const fmtDate = s => {
             const d = toSafeDate(s);
@@ -6304,7 +6321,8 @@ function renderInvernaderoGrid() {
         });
 
         const isAnyDelivered = entries.some(e => e.entregada && toSafeDate(e.entregada));
-        const cardExtraCls = sev ? `occupied ${borderCls}` : isAnyDelivered ? 'occupied delivered' : 'occupied';
+        const isAnyCritical  = entries.some(e => e.alerts.some(a => a.severity === 'vencido' && a.days !== null && Math.abs(a.days) > 30));
+        const cardExtraCls = sev ? `occupied ${borderCls}${isAnyCritical ? ' critical-blink' : ''}` : isAnyDelivered ? 'occupied delivered' : 'occupied';
         const delivBadgeHtml = isAnyDelivered ? '<span class="cub-delivered-badge">✓ Entregada</span>' : '';
         html += `<div class="cub-card ${cardExtraCls}">
           <div class="cub-top-right">
