@@ -523,7 +523,7 @@ input.field-blocked, select.field-blocked {
 }
 .inv-row { display: grid; grid-template-columns: repeat(5,1fr); gap: 8px; margin-bottom: 8px; }
 .cub-card {
-  border-radius: 7px; padding: 10px 11px;
+  border-radius: 7px; padding: 6px 11px 10px;
   border: 1px solid var(--g200);
   min-height: 130px;
   display: flex; flex-direction: column; gap: 3px;
@@ -535,20 +535,19 @@ input.field-blocked, select.field-blocked {
   background: var(--g50); border-color: var(--g200);
 }
 .cub-card.occupied {
-  background: #fff; border-color: var(--g200);
+  background: #fff;
   cursor: pointer;
 }
-/* delivered must come AFTER occupied to win specificity */
 .cub-card.occupied.delivered {
-  background: #f0fdf4 !important;
-  border: 1px solid #22c55e !important;
-  border-top: 3px solid #22c55e !important;
+  background: #f0fdf4;
+  border-color: #22c55e;
+  border-top: 3px solid #22c55e;
 }
 .cub-card.has-alert-r, .cub-card.occupied.has-alert-r { border: 1px solid #fca5a5 !important; border-top: 3px solid #dc2626 !important; }
 .cub-card.has-alert-o, .cub-card.occupied.has-alert-o { border: 1px solid #fdba74 !important; border-top: 3px solid #ea580c !important; }
 .cub-card.has-alert-b, .cub-card.occupied.has-alert-b { border: 1px solid #93c5fd !important; border-top: 3px solid #2563eb !important; }
 .cub-top-right {
-  position: absolute; top: 8px; right: 9px;
+  position: absolute; top: 6px; right: 8px;
   display: flex; flex-direction: row; align-items: center; gap: 5px;
 }
 .cub-num {
@@ -581,12 +580,6 @@ input.field-blocked, select.field-blocked {
 }
 .cub-esp-var {
   font-size: 9.5px; color: var(--g400);
-}
-.cub-card.delivered {
-  background: #f0fdf4;
-  border: 1px solid #22c55e;
-  border-top: 3px solid #22c55e;
-  cursor: pointer;
 }
 .cub-card.delivered .cub-num { background: #dcfce7; color: #166534; }
 .cub-delivered-badge {
@@ -6309,8 +6302,8 @@ function renderInvernaderoGrid() {
         const delivBadgeHtml = isAnyDelivered ? '<span class="cub-delivered-badge">✓ Entregada</span>' : '';
         html += `<div class="cub-card ${cardExtraCls}">
           <div class="cub-top-right">
-            <span class="cub-num">${cubId}</span>
             ${delivBadgeHtml}
+            <span class="cub-num">${cubId}</span>
           </div>
           ${inner}
         </div>`;
