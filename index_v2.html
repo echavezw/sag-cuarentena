@@ -6284,7 +6284,10 @@ function renderInvernaderoGrid() {
             inner += `<div class="cub-alerts">`;
             entry.alerts.forEach(a => {
               const ac = a.severity === 'vencido' ? 'cap-r' : a.severity === 'proximo' ? 'cap-o' : 'cap-b';
-              const dstr = a.days !== null ? (a.days <= 0 ? `${a.days}d` : `+${a.days}d`) : '';
+              // Positive days = overdue (vencido), negative = days remaining (próximo)
+              const dstr = a.days !== null
+                ? (a.days <= 0 ? `+${Math.abs(a.days)}d` : `-${a.days}d`)
+                : '';
               inner += `<div class="cub-alert-pill ${ac}">
                 <span style="overflow:hidden;text-overflow:ellipsis">${a.tag}</span>
                 ${dstr ? `<span class="cub-days">${dstr}</span>` : ''}
