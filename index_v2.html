@@ -2040,15 +2040,6 @@ async function cargarFilaMulti(rows) {
   _estabRows = []; // reset so renderEstablecimientoTable refreshes on next render
   // Etapa I
   selEl('f1-imp', r['Importador']||'');
-  // Ensure ref data loaded before autocompleting
-  if(refImportadores.length) {
-    onImp();
-  } else {
-    loadRefData().then(()=>{
-      selEl('f1-imp', r['Importador']||'');
-      onImp();
-    });
-  }
   selEl('f1-pais', r['Origen']||''); onPais();
   sv('f1-fech-rec', fmtD(r['Fecha Recepcion']||r['Fecha Solicitud']||''));
   sv('f1-rut', r['Rut']||'');
@@ -2062,13 +2053,19 @@ async function cargarFilaMulti(rows) {
   sv('f1-horas-frio', r['Horas Frio']||'');
   selEl('f1-pto', r['Pto Ingreso']||'');
   sv('f1-fing', fmtD(r['Fecha Ing. Solicitada']||''));
-  // Contraparte — always load from saved record first; onImp() will only fill if still empty
+  // Contraparte — load from saved record first; onImp() fills what's still empty
   sv('f1-cp1-nombre', r['Contraparte Importacion']||'');
   sv('f1-cp1-tel',    r['Tel Importacion']||'');
   sv('f1-cp1-email',  r['Email Importacion']||'');
   sv('f1-cp2-nombre', r['Contraparte Territorial']||'');
   sv('f1-cp2-tel',    r['Tel Territorial']||'');
   sv('f1-cp2-email',  r['Email Territorial']||'');
+  // Call onImp AFTER loading sheet values — fills any remaining empty contraparte fields
+  if(refImportadores.length) {
+    onImp();
+  } else {
+    loadRefData().then(()=>{ selEl('f1-imp', r['Importador']||''); onImp(); });
+  }
   // Etapa II
   sv('f2-nres', r['Res.']||'');
   sv('f2-anio-res', fmtD(r['Fecha Res.']||'').substring(0,4));
@@ -4214,20 +4211,9 @@ function updateStatusBadge() {
   const badge=$('status-badge-display'); if(!badge) return;
   if(!stat){ badge.style.display='none'; return; }
   badge.style.display='inline-block';
-  // Colors matching card borders: Terminada=blue, Entregada=green, Liberada=light blue
-  const colorMap = {
-    'Entregada':   'background:#dcfce7;color:#166534;border:1px solid #86efac',
-    'Terminada':   'background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd',
-    'Liberada':    'background:#e0f2fe;color:#0369a1;border:1px solid #7dd3fc',
-    'A destruir':  'background:#fef9c3;color:#854d0e;border:1px solid #fde047',
-    'Destruida':   'background:#fee2e2;color:#991b1b;border:1px solid #fca5a5',
-    'No Recibida': 'background:#fee2e2;color:#991b1b;border:1px solid #fca5a5',
-    'Perdida':     'background:#f3f4f6;color:#374151;border:1px solid #d1d5db',
-  };
-  badge.className = 'badge';
-  badge.style.cssText = (colorMap[stat] || 'background:var(--nv);color:var(--gd);border:1px solid var(--gd)') +
-    ';padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600';
-  badge.textContent = stat;
+  const map={'Entregada':'badge-ok','No Recibida':'badge-err','A destruir':'badge-warn','Destruida':'badge-err','Perdida':'badge-err'};
+  badge.className='badge '+(map[stat]||'badge-nv');
+  badge.textContent=stat;
 }
 
 // ── TIMELINE ──
