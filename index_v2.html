@@ -6434,8 +6434,8 @@ function renderInvernaderoGrid() {
           inner += `</div>`;
         });
 
-        const isAnyDelivered  = entries.some(e => e.entregada && toSafeDate(e.entregada));
         const norm2 = s => String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+        const isAnyDelivered  = entries.some(e => e.entregada && toSafeDate(e.entregada));
         const isAnyTerminada  = !isAnyDelivered && entries.some(e => {
           const t = norm2(e.terminada);
           return t === 'si' || t === 'si' || t === 'terminada';
