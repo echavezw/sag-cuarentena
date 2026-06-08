@@ -6209,6 +6209,9 @@ function renderInvernaderoGrid() {
   const cc = document.getElementById('al-cards-container');
   if (!cc) return;
 
+  // Normalize helper — defined here so it's available throughout the function
+  const norm2 = s => String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+
   // Build map: cubículo → [{ reg, imp, especies:[{esp, variedades:[]}], alerts[] }]
   const cubMap = {};
   const seenReg = new Set();
@@ -6434,7 +6437,6 @@ function renderInvernaderoGrid() {
           inner += `</div>`;
         });
 
-        const norm2 = s => String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
         const isAnyDelivered  = entries.some(e => e.entregada && toSafeDate(e.entregada));
         const isAnyTerminada  = !isAnyDelivered && entries.some(e => {
           const t = norm2(e.terminada);
