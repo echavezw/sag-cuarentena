@@ -538,12 +538,18 @@ input.field-blocked, select.field-blocked {
   background: #fff; border-color: var(--g200);
   cursor: pointer;
 }
-.cub-card.has-alert-r { border: 1px solid #fca5a5; border-top: 3px solid #dc2626; }
-.cub-card.has-alert-o { border: 1px solid #fdba74; border-top: 3px solid #ea580c; }
-.cub-card.has-alert-b { border: 1px solid #93c5fd; border-top: 3px solid #2563eb; }
+/* delivered must come AFTER occupied to win specificity */
+.cub-card.occupied.delivered {
+  background: #f0fdf4 !important;
+  border: 1px solid #22c55e !important;
+  border-top: 3px solid #22c55e !important;
+}
+.cub-card.has-alert-r, .cub-card.occupied.has-alert-r { border: 1px solid #fca5a5 !important; border-top: 3px solid #dc2626 !important; }
+.cub-card.has-alert-o, .cub-card.occupied.has-alert-o { border: 1px solid #fdba74 !important; border-top: 3px solid #ea580c !important; }
+.cub-card.has-alert-b, .cub-card.occupied.has-alert-b { border: 1px solid #93c5fd !important; border-top: 3px solid #2563eb !important; }
 .cub-top-right {
   position: absolute; top: 8px; right: 9px;
-  display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
+  display: flex; flex-direction: row; align-items: center; gap: 5px;
 }
 .cub-num {
   font-family: var(--mono); font-size: 11px; font-weight: 700;
@@ -584,22 +590,30 @@ input.field-blocked, select.field-blocked {
 }
 .cub-card.delivered .cub-num { background: #dcfce7; color: #166534; }
 .cub-delivered-badge {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: 9px; font-weight: 700; letter-spacing: .05em;
-  padding: 2px 7px; border-radius: 3px;
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 8.5px; font-weight: 700; letter-spacing: .04em;
+  padding: 2px 6px; border-radius: 3px;
   background: #dcfce7; color: #166534; border: 1px solid #86efac;
-  margin-top: 4px; margin-bottom: 6px;
-  width: fit-content;
+  white-space: nowrap;
 }
 .cub-delivered-info {
-  font-size: 11px; color: var(--ink); line-height: 1.6;
+  line-height: 1.65; margin-top: 5px;
 }
 .cub-delivered-res {
-  font-family: var(--serif); font-size: 13px; font-weight: 600;
-  color: var(--ink);
+  font-family: var(--serif); font-size: 15px; font-weight: 600;
+  color: var(--ink); margin-bottom: 1px;
 }
 .cub-delivered-date {
-  font-size: 11px; color: var(--ink);
+  font-family: var(--serif); font-size: 13px; font-weight: 500;
+  color: var(--ink);
+}
+/* especie same serif style as res */
+.cub-card.delivered .cub-esp {
+  font-family: var(--serif); font-size: 13px; font-weight: 500;
+  color: var(--ink); font-style: normal;
+}
+.cub-card.delivered .cub-esp-var {
+  font-family: var(--serif); font-size: 11px; color: var(--g500);
 }
 .cub-alerts { display: flex; flex-direction: column; gap: 2px; margin-top: 3px; }
 .cub-alert-pill {
