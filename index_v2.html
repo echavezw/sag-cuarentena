@@ -612,6 +612,19 @@ input.field-blocked, select.field-blocked {
   font-size: 9.5px; color: var(--g400);
 }
 .cub-card.delivered .cub-num { background: #dcfce7; color: #166534; }
+.cub-card.occupied.terminada {
+  background: #eff6ff;
+  border: 1px solid #3b82f6;
+  border-top: 3px solid #3b82f6;
+}
+.cub-card.terminada .cub-num { background: #dbeafe; color: #1d4ed8; }
+.cub-terminada-badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 8.5px; font-weight: 700; letter-spacing: .04em;
+  padding: 2px 6px; border-radius: 3px;
+  background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd;
+  white-space: nowrap;
+}
 .cub-delivered-badge {
   display: inline-flex; align-items: center; gap: 3px;
   font-size: 8.5px; font-weight: 700; letter-spacing: .04em;
@@ -1307,7 +1320,8 @@ input.field-blocked, select.field-blocked {
       <div class="ff c2"><label class="lbl">Status Final</label>
         <select id="f6-stat" onchange="updateStatusBadge()">
           <option value="">—</option><option>A destruir</option><option>Destruida</option>
-          <option>Entregada</option><option>No Recibida</option><option>Perdida</option>
+          <option>Entregada</option><option>Liberada</option><option>No Recibida</option>
+          <option>Perdida</option><option>Terminada</option>
         </select></div>
       <div class="ff c2">
         <label class="lbl">Badge Status</label>
@@ -2107,6 +2121,7 @@ async function cargarFilaMulti(rows) {
         nplanEstab:  x['N° Plantas Establ.']||x['N° Plantas']||'',
         obs:         x['Observaciones']||'',
         nplanEstadia: x['N° Plantas Estadía']||x['N° Plantas Estadia']||x['N° Plantas']||'',
+        nplanFin:     x['N° Plantas Finales']||'',
       }));
     }
   } catch(e) { /* fall through to Detalle-based espData */ }
@@ -3996,7 +4011,7 @@ function renderCierreTabs() {
         especie:    e.especie||'',
         variedad:   e.variedad||'',
         nplanEstab: parseInt(e.nplanEstab||e.nplan||'0')||0,
-        nplanFin:   parseInt(e.nplanEstadia||e.nplan||'0')||0,
+        nplanFin:   parseInt(e.nplanFin||e.nplanEstadia||e.nplan||'0')||0,
       });
     });
   } else {
@@ -5036,6 +5051,14 @@ async function saveMaterial(nsol, imp, res) {
       vrow ? (vrow.obs||'') : '',
       // N° Plantas Estadía — from estadía table if edited, else nplan default
       (()=>{ const k=e.especie+'|'+(e.variedad||''); return estadiaNplan[k]!==undefined ? estadiaNplan[k] : (e.nplan||nplanDefault); })(),
+      // N° Plantas Finales — from pf-{rowIdx} input in Etapa VI
+      (()=>{
+        // Find row index matching this especie+variedad in renderCierreTabs order
+        const pfIdx = (window._loadedEspData||[]).findIndex(x =>
+          x.especie===e.especie && (x.variedad||'')===(e.variedad||''));
+        const pfEl = pfIdx >= 0 ? document.getElementById('pf-'+pfIdx) : null;
+        return pfEl ? (pfEl.value||'') : '';
+      })(),
     ];
   });
 
@@ -5043,7 +5066,7 @@ async function saveMaterial(nsol, imp, res) {
     'Res.','Solicitud','Importador','Especie','Variedad',
     'Tipo Material','Cantidad','Portainjerto','N° Plantas',
     'Cant. Real','Recibida','N° Plantas Establ.','Observaciones',
-    'N° Plantas Estadía'
+    'N° Plantas Estadía','N° Plantas Finales'
   ];
 
   // Read existing state BEFORE touching anything
@@ -6179,6 +6202,7 @@ function renderInvernaderoGrid() {
         origen: String(row['Origen'] || '').trim(),
         fechaEst: String(row['Fecha de Ingreso'] || '').trim(),
         entregada: String(row['Entregada'] || '').trim(),
+        terminada: String(row['Terminada'] || '').trim(),
         resTermino: String(row['Res. Término'] || '').trim(),
         fechaResT: String(row['Fecha Res.4'] || '').trim(),
         especies: {},
@@ -6291,6 +6315,24 @@ function renderInvernaderoGrid() {
           const fechaEntFmt = fmtDate(entry.entregada);
           const fechaResTFmt = fmtDate(entry.fechaResT);
 
+          // Check if terminada (not delivered)
+          const isTerminada = (() => {
+            const t = String(entry.terminada||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+            return (t === 'si' || t === 'sí' || t === 'terminada') && !isDelivered;
+          })();
+
+          if (isTerminada) {
+            inner += `<div onclick="goStageFromAlert('${entry.key.replace(/'/g,"\'")}','RES. TÉRMINO')">
+              <div class="cub-reg">${entry.reg}</div>
+              <div class="cub-imp">${entry.imp || '—'}</div>
+              <div class="cub-delivered-info" style="margin-top:4px">
+                ${entry.resTermino ? `<div class="cub-delivered-res">Res. Término ${entry.resTermino}${fechaResTFmt ? ' / ' + fechaResTFmt : ''}</div>` : ''}
+              </div>
+              ${espHtml}
+            </div>`;
+            return;
+          }
+
           if (isDelivered) {
             // Format fecha entrega as "XX de mes de YYYY"
             const fechaEntLarga = (() => {
@@ -6347,10 +6389,18 @@ function renderInvernaderoGrid() {
           inner += `</div>`;
         });
 
-        const isAnyDelivered = entries.some(e => e.entregada && toSafeDate(e.entregada));
-        const isAnyCritical  = entries.some(e => e.alerts.some(a => a.severity === 'vencido' && a.days !== null && Math.abs(a.days) > 30));
-        const cardExtraCls = sev ? `occupied ${borderCls}${isAnyCritical ? ' critical-blink' : ''}` : isAnyDelivered ? 'occupied delivered' : 'occupied';
-        const delivBadgeHtml = isAnyDelivered ? '<span class="cub-delivered-badge">✓ Entregada</span>' : '';
+        const isAnyDelivered  = entries.some(e => e.entregada && toSafeDate(e.entregada));
+        const isAnyTerminada  = !isAnyDelivered && entries.some(e => {
+          const t = String(e.terminada||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+          return t === 'si' || t === 'sí' || t === 'terminada';
+        });
+        const isAnyCritical   = entries.some(e => e.alerts.some(a => a.severity === 'vencido' && a.days !== null && Math.abs(a.days) > 30));
+        const cardExtraCls = sev ? `occupied ${borderCls}${isAnyCritical ? ' critical-blink' : ''}`
+          : isAnyDelivered  ? 'occupied delivered'
+          : isAnyTerminada  ? 'occupied terminada'
+          : 'occupied';
+        const delivBadgeHtml = isAnyDelivered  ? '<span class="cub-delivered-badge">✓ Entregada</span>'
+          : isAnyTerminada ? '<span class="cub-terminada-badge">● Terminada</span>' : '';
         html += `<div class="cub-card ${cardExtraCls}">
           <div class="cub-top-right">
             ${delivBadgeHtml}
