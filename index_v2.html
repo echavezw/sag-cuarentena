@@ -1064,6 +1064,8 @@ input.field-blocked, select.field-blocked {
       <div class="ff c1"><label class="lbl">Ano Ingreso <span class="auto">AUTO</span></label><input id="f3-anio" readonly style="font-family:var(--mono)"></div>
       <div class="ff c1 ff-primary"><label class="lbl">Cubiculo</label>
         <select id="f3-cub"><option value="">— Seleccionar —</option></select></div>
+      <div class="ff c1"><label class="lbl">Cubiculo 2 <span style="font-size:9px;color:var(--g400);font-weight:300">(opcional)</span></label>
+        <select id="f3-cub2"><option value="">—</option></select></div>
       <div class="ff c2"><label class="lbl">Fecha Injertacion / Plantacion</label><input type="date" id="f3-finj" oninput="calcLev()"></div>
       <div class="ff c2"><label class="lbl">Fecha Levantamiento Est. <span class="auto">CALC</span></label><input type="date" id="f3-flev" readonly></div>
       <div class="ff c1"><label class="lbl">N° Plantas Estab./Injertadas</label><input type="number" id="f3-nplan" min="0"></div>
@@ -2100,6 +2102,7 @@ async function cargarFilaMulti(rows) {
   sv('f3-fing', fmtD(r['Fecha de Ingreso']||''));
   sv('f3-anio', r['Año de Ingreso']||'');
   selEl('f3-cub', r['Cubículo']||r['Cubiculo']||'');
+  selEl('f3-cub2', r['Cubículo2']||r['Cubiculo2']||'');
   sv('f3-nplan', r['N° Plantas']||'');
   sv('f3-finj', fmtD(r['Fecha Injertación']||r['Fecha Inyertacion']||''));
   sv('f3-flev', fmtD(r['Fecha aprox. Levant.']||''));
@@ -2222,7 +2225,7 @@ function limpiarFormSilent() {
   ].forEach(id=>{ const e=$(id); if(e) e.value=''; });
   ['f1-imp','f1-pais','f1-uso','f1-frio','f1-pto',
    'f2-estado','f2-recibida','f2-proceso',
-   'f3-estado','f3-cub','f6-term','f6-lib','f6-stat','f6-afirma']
+   'f3-estado','f3-cub','f3-cub2','f6-term','f6-lib','f6-stat','f6-afirma']
     .forEach(id=>{ const e=$(id); if(e) e.value=''; });
   selEl('f1-proceso','Sin Res.');
   sv('f1-oficina','Red Laboratorios SAG - ECA');
@@ -2444,11 +2447,14 @@ function onPais() {
 }
 
 function loadCubiculos() {
-  const sel=$('f3-cub'); if(!sel) return;
-  sel.innerHTML='<option value="">— Seleccionar —</option>';
   const cubs=[];
   for(let g=1;g<=7;g++) for(let s=1;s<=10;s++) cubs.push(g+'.'+s);
-  cubs.forEach(c=>{ const o=document.createElement('option'); o.value=c; o.textContent=c; sel.appendChild(o); });
+  ['f3-cub','f3-cub2'].forEach(sid => {
+    const sel=$(sid); if(!sel) return;
+    const isSecond = sid==='f3-cub2';
+    sel.innerHTML = isSecond ? '<option value="">—</option>' : '<option value="">— Seleccionar —</option>';
+    cubs.forEach(c=>{ const o=document.createElement('option'); o.value=c; o.textContent=c; sel.appendChild(o); });
+  });
 }
 
 function loadProveedores() {
@@ -4813,6 +4819,7 @@ function buildRows(nsol,imp) {
     'Rut':             v('f1-rut'),
     'Origen':          v('f1-pais'),
     'Cubículo':        v('f3-cub'),
+    'Cubículo2':       v('f3-cub2'),
     'Fecha de Ingreso':fmtDisplay(v('f3-fing')),
     'Año de Ingreso':  v('f3-anio'),
     'Fecha Injertación':fmtDisplay(v('f3-finj')),
@@ -5542,8 +5549,8 @@ function getAnalysisLabel(row) {
   return AN_TYPE_LABEL[tipo] || tipo || '—';
 }
 
-function pushAlert(severity, reg, imp, cub, esp, analysis, action, tag, days, key) {
-  _alerts.push({ severity, reg, imp, cub, esp, analysis, action, tag, days, key });
+function pushAlert(severity, reg, imp, cub, esp, analysis, action, tag, days, key, cub2) {
+  _alerts.push({ severity, reg, imp, cub, cub2: cub2||'', esp, analysis, action, tag, days, key });
 }
 
 function buildAlerts() {
@@ -5563,6 +5570,7 @@ function buildAlerts() {
     const reg      = regLabel(row);
     const imp      = String(row['Importador'] || '').trim();
     const cub      = String(row['Cubículo'] || row['Cubiculo'] || '').trim();
+    const cub2     = String(row['Cubículo2'] || row['Cubiculo2'] || '').trim();
     const esp      = String(row['Especie'] || '').trim();
     const analysis = getAnalysisLabel(row);
     const key      = reg; // unique per registration
@@ -5588,9 +5596,9 @@ function buildAlerts() {
         const d = daysDiff(fechaMuest);
         if (d !== null) {
           if (d < 0 && Math.abs(d) >= 1) {
-            pushAlert('vencido', reg, imp, cub, esp, analysis, 'Muestreo no realizado', 'MUESTREO', d, key);
+            pushAlert('vencido', reg, imp, cub, esp, analysis, 'Muestreo no realizado', 'MUESTREO', d, key, cub2);
           } else if (d >= 0 && d <= 7) {
-            pushAlert('proximo', reg, imp, cub, esp, analysis, 'Muestreo estimado próximo', 'MUESTREO', d, key);
+            pushAlert('proximo', reg, imp, cub, esp, analysis, 'Muestreo estimado próximo', 'MUESTREO', d, key, cub2);
           }
         }
       }
@@ -5604,9 +5612,9 @@ function buildAlerts() {
         const d = daysDiff(fechaCCAA);
         if (d !== null) {
           if (d < 0 && Math.abs(d) >= 1) {
-            pushAlert('vencido', reg, imp, cub, esp, analysis, 'CCAA vencida sin registrar', 'CCAA', d, key);
+            pushAlert('vencido', reg, imp, cub, esp, analysis, 'CCAA vencida sin registrar', 'CCAA', d, key, cub2);
           } else if (d >= 0 && d <= 3) {
-            pushAlert('proximo', reg, imp, cub, esp, analysis, 'Fecha estimada CCAA próxima', 'CCAA', d, key);
+            pushAlert('proximo', reg, imp, cub, esp, analysis, 'Fecha estimada CCAA próxima', 'CCAA', d, key, cub2);
           }
         }
       }
@@ -5617,7 +5625,7 @@ function buildAlerts() {
       const tdm   = String(row['TDM'] || '').trim();
       const envio = String(row['Fecha de envío'] || '').trim();
       if (tdm && !envio) {
-        pushAlert('pendiente', reg, imp, cub, esp, analysis, 'Envío a laboratorio sin registrar', 'ENVÍO LAB', null, key);
+        pushAlert('pendiente', reg, imp, cub, esp, analysis, 'Envío a laboratorio sin registrar', 'ENVÍO LAB', null, key, cub2);
       }
     });
 
@@ -5626,7 +5634,7 @@ function buildAlerts() {
       const muestreada = String(row['Muestreada?'] || '').toLowerCase();
       const sps        = clean(row['SPS análisis']);
       if ((muestreada === 'si' || muestreada === 'sí') && !sps) {
-        pushAlert('pendiente', reg, imp, cub, esp, analysis, 'SPS análisis sin número', 'SPS ANÁLISIS', null, key);
+        pushAlert('pendiente', reg, imp, cub, esp, analysis, 'SPS análisis sin número', 'SPS ANÁLISIS', null, key, cub2);
       }
     });
 
@@ -5639,13 +5647,13 @@ function buildAlerts() {
         const d = daysDiff(safeAddDays(fechaRef, 7));
         if (d === null) return;
         if (d <= 0) {
-          pushAlert('vencido', reg, imp, cub, esp, analysis, 'CORE análisis sin registrar', 'CORE', d, key);
+          pushAlert('vencido', reg, imp, cub, esp, analysis, 'CORE análisis sin registrar', 'CORE', d, key, cub2);
         } else if (d <= 3) {
-          pushAlert('proximo', reg, imp, cub, esp, analysis, `CORE análisis — faltan ${d} día(s)`, 'CORE', d, key);
+          pushAlert('proximo', reg, imp, cub, esp, analysis, `CORE análisis — faltan ${d} día(s)`, 'CORE', d, key, cub2);
         }
       } else if (sps && !core && !fechaRef) {
         // SPS registrado pero sin fecha de muestreo — alerta pendiente directa
-        pushAlert('pendiente', reg, imp, cub, esp, analysis, 'CORE análisis sin registrar', 'CORE', null, key);
+        pushAlert('pendiente', reg, imp, cub, esp, analysis, 'CORE análisis sin registrar', 'CORE', null, key, cub2);
       }
     });
 
@@ -5657,9 +5665,9 @@ function buildAlerts() {
         const d = daysDiff(safeAddDays(fechaInj, 355));
         if (d !== null) {
           if (d <= 0) {
-            pushAlert('vencido', reg, imp, cub, esp, analysis, 'SPS estadía sin emitir (365 días post-injertación)', 'SPS ESTADÍA', d, key);
+            pushAlert('vencido', reg, imp, cub, esp, analysis, 'SPS estadía sin emitir (365 días post-injertación)', 'SPS ESTADÍA', d, key, cub2);
           } else if (d <= 10) {
-            pushAlert('proximo', reg, imp, cub, esp, analysis, `SPS estadía — faltan ${d} día(s)`, 'SPS ESTADÍA', d, key);
+            pushAlert('proximo', reg, imp, cub, esp, analysis, `SPS estadía — faltan ${d} día(s)`, 'SPS ESTADÍA', d, key, cub2);
           }
         }
       }
@@ -5674,9 +5682,9 @@ function buildAlerts() {
       if (spsEst && !coreEst) {
         const d = fechaRef ? daysDiff(safeAddDays(fechaRef, 5)) : null;
         if (d === null || d <= 0) {
-          pushAlert('vencido', reg, imp, cub, esp, analysis, 'CORE estadía sin registrar', 'CORE ESTADÍA', d, key);
+          pushAlert('vencido', reg, imp, cub, esp, analysis, 'CORE estadía sin registrar', 'CORE ESTADÍA', d, key, cub2);
         } else if (d <= 3) {
-          pushAlert('proximo', reg, imp, cub, esp, analysis, `CORE estadía — faltan ${d} día(s)`, 'CORE ESTADÍA', d, key);
+          pushAlert('proximo', reg, imp, cub, esp, analysis, `CORE estadía — faltan ${d} día(s)`, 'CORE ESTADÍA', d, key, cub2);
         }
       }
     });
@@ -5689,9 +5697,9 @@ function buildAlerts() {
         const d = daysDiff(safeAddDays(envio, 25));
         if (d !== null) {
           if (d <= 0) {
-            pushAlert('vencido', reg, imp, cub, esp, analysis, 'Informe fitosanitario vencido', 'INFORME', d, key);
+            pushAlert('vencido', reg, imp, cub, esp, analysis, 'Informe fitosanitario vencido', 'INFORME', d, key, cub2);
           } else if (d <= 7) {
-            pushAlert('proximo', reg, imp, cub, esp, analysis, `Informe fitosanitario — faltan ${d} día(s)`, 'INFORME', d, key);
+            pushAlert('proximo', reg, imp, cub, esp, analysis, `Informe fitosanitario — faltan ${d} día(s)`, 'INFORME', d, key, cub2);
           }
         }
       }
@@ -5704,9 +5712,9 @@ function buildAlerts() {
         const d = daysDiff(vigFin);
         if (d !== null) {
           if (d < 0) {
-            pushAlert('vencido', reg, imp, cub, esp, analysis, 'Vigencia resolución vencida', 'VIGENCIA', d, key);
+            pushAlert('vencido', reg, imp, cub, esp, analysis, 'Vigencia resolución vencida', 'VIGENCIA', d, key, cub2);
           } else if (d <= 5) {
-            pushAlert('proximo', reg, imp, cub, esp, analysis, `Vigencia resolución — faltan ${d} día(s)`, 'VIGENCIA', d, key);
+            pushAlert('proximo', reg, imp, cub, esp, analysis, `Vigencia resolución — faltan ${d} día(s)`, 'VIGENCIA', d, key, cub2);
           }
         }
       }
@@ -5717,7 +5725,7 @@ function buildAlerts() {
       const term    = String(row['Terminada'] || '').toLowerCase();
       const resT    = String(row['Res. Término'] || '').trim();
       if ((term === 'si' || term === 'sí') && !resT) {
-        pushAlert('pendiente', reg, imp, cub, esp, analysis, 'Resolución de término pendiente', 'RES. TÉRMINO', null, key);
+        pushAlert('pendiente', reg, imp, cub, esp, analysis, 'Resolución de término pendiente', 'RES. TÉRMINO', null, key, cub2);
       }
     });
 
@@ -5729,9 +5737,9 @@ function buildAlerts() {
         const d = daysDiff(fechaAsig);
         if (d !== null) {
           if (d < 0) {
-            pushAlert('vencido', reg, imp, cub, esp, analysis, 'Material no recepcionado (fecha de ingreso pasó)', 'RECEPCIÓN', d, key);
+            pushAlert('vencido', reg, imp, cub, esp, analysis, 'Material no recepcionado (fecha de ingreso pasó)', 'RECEPCIÓN', d, key, cub2);
           } else if (d <= 5) {
-            pushAlert('proximo', reg, imp, cub, esp, analysis, `Recepción material — faltan ${d} día(s)`, 'RECEPCIÓN', d, key);
+            pushAlert('proximo', reg, imp, cub, esp, analysis, `Recepción material — faltan ${d} día(s)`, 'RECEPCIÓN', d, key, cub2);
           }
         }
       }
@@ -5746,7 +5754,7 @@ function buildAlerts() {
       if (needsGraft && !fechaInj && fechaIng) {
         const d = daysDiff(safeAddDays(fechaIng, 1));
         if (d !== null && d <= 0) {
-          pushAlert('vencido', reg, imp, cub, esp, analysis, 'Fecha injertación no registrada', 'INJERTACIÓN', d, key);
+          pushAlert('vencido', reg, imp, cub, esp, analysis, 'Fecha injertación no registrada', 'INJERTACIÓN', d, key, cub2);
         }
       }
     });
@@ -5759,9 +5767,9 @@ function buildAlerts() {
         const d = daysDiff(safeAddDays(fechaInj, 355));
         if (d !== null) {
           if (d <= 0) {
-            pushAlert('vencido', reg, imp, cub, esp, analysis, 'Liberación programada vencida (365 días post-injertación)', 'LIBERACIÓN', d, key);
+            pushAlert('vencido', reg, imp, cub, esp, analysis, 'Liberación programada vencida (365 días post-injertación)', 'LIBERACIÓN', d, key, cub2);
           } else if (d <= 10) {
-            pushAlert('proximo', reg, imp, cub, esp, analysis, `Liberación programada — faltan ${d} día(s)`, 'LIBERACIÓN', d, key);
+            pushAlert('proximo', reg, imp, cub, esp, analysis, `Liberación programada — faltan ${d} día(s)`, 'LIBERACIÓN', d, key, cub2);
           }
         }
       }
@@ -5776,9 +5784,9 @@ function buildAlerts() {
           entregada !== 'si' && entregada !== 'sí') {
         const d = fechaRef ? daysDiff(safeAddDays(fechaRef, 15)) : null;
         if (d === null || d <= 0) {
-          pushAlert('vencido', reg, imp, cub, esp, analysis, 'Entrega post-liberación pendiente', 'ENTREGA', d, key);
+          pushAlert('vencido', reg, imp, cub, esp, analysis, 'Entrega post-liberación pendiente', 'ENTREGA', d, key, cub2);
         } else if (d <= 5) {
-          pushAlert('proximo', reg, imp, cub, esp, analysis, `Entrega post-liberación — faltan ${d} día(s)`, 'ENTREGA', d, key);
+          pushAlert('proximo', reg, imp, cub, esp, analysis, `Entrega post-liberación — faltan ${d} día(s)`, 'ENTREGA', d, key, cub2);
         }
       }
     });
@@ -5788,7 +5796,7 @@ function buildAlerts() {
       const liberada    = String(row['Liberada'] || '').toLowerCase();
       const plantasFin  = String(row['N° Plantas Finales'] || '').trim();
       if ((liberada === 'si' || liberada === 'sí') && !plantasFin) {
-        pushAlert('pendiente', reg, imp, cub, esp, analysis, 'N° Plantas Finales sin registrar', 'RECUENTO', null, key);
+        pushAlert('pendiente', reg, imp, cub, esp, analysis, 'N° Plantas Finales sin registrar', 'RECUENTO', null, key, cub2);
       }
     });
 
@@ -6219,12 +6227,15 @@ function renderInvernaderoGrid() {
 
   gsData.forEach(row => {
     if (!isActive(row)) return;
-    const cub = String(row['Cubículo'] || row['Cubiculo'] || '').trim();
+    const cub  = String(row['Cubículo'] || row['Cubiculo'] || '').trim();
+    const cub2 = String(row['Cubículo2'] || row['Cubiculo2'] || '').trim();
     if (!cub) return;
     const key = regLabel(row);
+    const cubs = [cub, ...(cub2 && cub2 !== cub ? [cub2] : [])];
 
-    if (!cubMap[cub]) cubMap[cub] = [];
-    let entry = cubMap[cub].find(e => e.key === key);
+    cubs.forEach(cubId => {
+    if (!cubMap[cubId]) cubMap[cubId] = [];
+    let entry = cubMap[cubId].find(e => e.key === key);
     if (!entry) {
       entry = {
         key,
@@ -6237,10 +6248,11 @@ function renderInvernaderoGrid() {
         liberada:  String(row['Liberada'] || '').trim(),
         resTermino: String(row['Res. Término'] || '').trim(),
         fechaResT: String(row['Fecha Res.4'] || '').trim(),
+        cub2: cub2 || '',
         especies: {},
         alerts: []
       };
-      cubMap[cub].push(entry);
+      cubMap[cubId].push(entry);
     }
 
     // Collect especie + variedad from this row
@@ -6254,15 +6266,19 @@ function renderInvernaderoGrid() {
               .forEach(v => entry.especies[esp].add(v));
       }
     }
+    }); // end cubs.forEach
   });
 
-  // Attach alerts to each cubículo entry
+  // Attach alerts to each cubículo entry (including cub2)
   _alerts.forEach(a => {
     if (!a.cub) return;
-    const entries = cubMap[a.cub];
-    if (!entries) return;
-    const entry = entries.find(e => e.key === a.key) || entries[0];
-    if (entry) entry.alerts.push(a);
+    // Primary cubículo
+    [a.cub, a.cub2].filter(Boolean).forEach(cubId => {
+      const entries = cubMap[cubId];
+      if (!entries) return;
+      const entry = entries.find(e => e.key === a.key) || entries[0];
+      if (entry && !entry.alerts.find(x => x === a)) entry.alerts.push(a);
+    });
   });
 
   // Determine worst severity per cubículo entry
@@ -6414,6 +6430,7 @@ function renderInvernaderoGrid() {
               ${entry.origen ? `<span>${entry.origen}</span>` : ''}
               ${entry.origen && fechaEstFmt ? `<span class="cub-meta-sep">·</span>` : ''}
               ${fechaEstFmt ? `<span>Est. ${fechaEstFmt}</span>` : ''}
+              ${entry.cub2 ? `<span class="cub-meta-sep">·</span><span style="font-weight:600;color:var(--nv)">+ Cub. ${entry.cub2}</span>` : ''}
             </div>
             ${espHtml}`;
 
