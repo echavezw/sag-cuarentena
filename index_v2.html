@@ -4214,9 +4214,20 @@ function updateStatusBadge() {
   const badge=$('status-badge-display'); if(!badge) return;
   if(!stat){ badge.style.display='none'; return; }
   badge.style.display='inline-block';
-  const map={'Entregada':'badge-ok','No Recibida':'badge-err','A destruir':'badge-warn','Destruida':'badge-err','Perdida':'badge-err'};
-  badge.className='badge '+(map[stat]||'badge-nv');
-  badge.textContent=stat;
+  // Colors matching card borders: Terminada=blue, Entregada=green, Liberada=light blue
+  const colorMap = {
+    'Entregada':   'background:#dcfce7;color:#166534;border:1px solid #86efac',
+    'Terminada':   'background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd',
+    'Liberada':    'background:#e0f2fe;color:#0369a1;border:1px solid #7dd3fc',
+    'A destruir':  'background:#fef9c3;color:#854d0e;border:1px solid #fde047',
+    'Destruida':   'background:#fee2e2;color:#991b1b;border:1px solid #fca5a5',
+    'No Recibida': 'background:#fee2e2;color:#991b1b;border:1px solid #fca5a5',
+    'Perdida':     'background:#f3f4f6;color:#374151;border:1px solid #d1d5db',
+  };
+  badge.className = 'badge';
+  badge.style.cssText = (colorMap[stat] || 'background:var(--nv);color:var(--gd);border:1px solid var(--gd)') +
+    ';padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600';
+  badge.textContent = stat;
 }
 
 // ── TIMELINE ──
