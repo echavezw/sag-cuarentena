@@ -6435,14 +6435,20 @@ function renderInvernaderoGrid() {
         });
 
         const isAnyDelivered  = entries.some(e => e.entregada && toSafeDate(e.entregada));
+        const norm2 = s => String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
         const isAnyTerminada  = !isAnyDelivered && entries.some(e => {
-          const t = String(e.terminada||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
-          return t === 'si' || t === 'sí' || t === 'terminada';
+          const t = norm2(e.terminada);
+          return t === 'si' || t === 'si' || t === 'terminada';
+        });
+        const isAnyLiberada   = !isAnyDelivered && !isAnyTerminada && entries.some(e => {
+          const l = norm2(e.liberada);
+          return l === 'si' || l === 'liberada';
         });
         const isAnyCritical   = entries.some(e => e.alerts.some(a => a.severity === 'vencido' && a.days !== null && Math.abs(a.days) > 30));
         const cardExtraCls = sev ? `occupied ${borderCls}${isAnyCritical ? ' critical-blink' : ''}`
           : isAnyDelivered  ? 'occupied delivered'
           : isAnyTerminada  ? 'occupied terminada'
+          : isAnyLiberada   ? 'occupied liberada'
           : 'occupied';
         const delivBadgeHtml = isAnyDelivered  ? '<span class="cub-delivered-badge">✓ Entregada</span>'
           : isAnyTerminada  ? '<span class="cub-terminada-badge">● Terminada</span>'
