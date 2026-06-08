@@ -2061,10 +2061,11 @@ async function cargarFilaMulti(rows) {
   sv('f1-cp2-tel',    r['Tel Territorial']||'');
   sv('f1-cp2-email',  r['Email Territorial']||'');
   // Call onImp AFTER loading sheet values — fills any remaining empty contraparte fields
+  // setTimeout ensures DOM is settled and refImportadores fully available
   if(refImportadores.length) {
-    onImp();
+    setTimeout(onImp, 150);
   } else {
-    loadRefData().then(()=>{ selEl('f1-imp', r['Importador']||''); onImp(); });
+    loadRefData().then(()=>{ selEl('f1-imp', r['Importador']||''); setTimeout(onImp, 150); });
   }
   // Etapa II
   sv('f2-nres', r['Res.']||'');
