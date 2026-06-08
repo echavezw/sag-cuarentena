@@ -3745,11 +3745,9 @@ function makeCobroRow(key, i, r, nAn) {
         placeholder="Patogeno..." style="text-align:center;width:100%">
     </td>
     <td style="text-align:center;padding:4px 6px;vertical-align:middle">
-      <div style="display:flex;justify-content:center;align-items:center">
-        <input type="number" id="cobro-nan-${key}-${i}" value="${nAn}"
-          placeholder="N° An." style="font-family:var(--mono);text-align:center;width:70px"
-          oninput="updateCobroTotal('${key}')">
-      </div>
+      <input type="number" id="cobro-nan-${key}-${i}" value="${nAn}"
+        placeholder="N° An." style="font-family:var(--mono);text-align:center;width:70px;margin:0 auto;display:block"
+        oninput="updateCobroTotal('${key}')">
     </td>
     <td style="text-align:center;padding:4px 6px">
       <input id="cobro-sps-${key}-${i}" value="${esc(r.sps||'')}" placeholder="N° SPS"
@@ -4752,6 +4750,8 @@ function buscarPanel() {
       const _res=r['Res.']||'';
       const _yr=fmtD(r['Fecha Res.']||'').substring(0,4);
       const _sol=r['Solicitud']||'';
+      const _st= _res ? (r['Status']||'En proceso') : (r['Estado Res.']||'Sin Firma');
+      const _sc=_st==='Entregada'?'badge-ok':_st==='A destruir'||_st==='No Recibida'?'badge-err':_st==='Sin Firma'?'badge-warn':'badge-nv';
       const onclick=_res
         ? `cargarFichaPanel('${_res}','${_yr}','')`
         : `cargarFichaPanel('','','${_sol}')`;
@@ -4760,7 +4760,7 @@ function buscarPanel() {
         <td style="padding:7px 9px;border-bottom:1px solid var(--g100);font-family:var(--mono)">${_yr||'—'}</td>
         <td style="padding:7px 9px;border-bottom:1px solid var(--g100);font-family:var(--mono)">${_sol||'—'}</td>
         <td style="padding:7px 9px;border-bottom:1px solid var(--g100)">${r['Importador']||'—'}</td>
-        <td style="padding:7px 9px;border-bottom:1px solid var(--g100)"><span class="badge ${_res?(r['Status']?'badge-nv':'badge-nv'):'badge-warn'}">${_res?(r['Status']||'En proceso'):(r['Estado Res.']||'Sin Firma')}</span></td>
+        <td style="padding:7px 9px;border-bottom:1px solid var(--g100)"><span class="badge ${_sc}">${_st}</span></td>
       </tr>`;
     }).join('')}</tbody></table>`;
   }
