@@ -532,11 +532,25 @@ input.field-blocked, select.field-blocked {
   color: var(--nv); padding: 8px 0 6px;
   border-bottom: 2px solid var(--gd); margin-bottom: 10px;
   display: flex; align-items: center; gap: 8px;
+  cursor: pointer; user-select: none;
 }
+.inv-title:hover { color: var(--gd); }
 .inv-title span {
   font-family: var(--font); font-size: 9px; font-weight: 400;
   color: var(--g400); letter-spacing: .08em; text-transform: uppercase;
 }
+.inv-toggle {
+  margin-left: auto; font-size: 11px; color: var(--g400);
+  transition: transform .2s;
+  font-family: var(--font);
+}
+.inv-toggle.collapsed { transform: rotate(-90deg); }
+.inv-rows {
+  overflow: hidden;
+  transition: max-height .3s ease, opacity .3s ease;
+  max-height: 2000px; opacity: 1;
+}
+.inv-rows.collapsed { max-height: 0; opacity: 0; }
 .inv-row { display: grid; grid-template-columns: repeat(5,1fr); gap: 8px; margin-bottom: 8px; }
 .cub-card {
   border-radius: 7px; padding: 6px 11px 10px;
@@ -5847,6 +5861,15 @@ function scrollToGroup(id) {
   if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
 }
 
+function toggleInv(n) {
+  const rows   = document.getElementById('inv-rows-' + n);
+  const toggle = document.querySelector('#inv-section-' + n + ' .inv-toggle');
+  if (!rows) return;
+  const isCollapsed = rows.classList.contains('collapsed');
+  rows.classList.toggle('collapsed', !isCollapsed);
+  if (toggle) toggle.classList.toggle('collapsed', !isCollapsed);
+}
+
 function renderIncoming() {
   const ic = document.getElementById('al-incoming-container');
   if (!ic) return;
@@ -6206,11 +6229,14 @@ function renderInvernaderoGrid() {
     }
     const hasData = allCubs.some(c => cubMap[c] && cubMap[c].length);
 
-    html += `<div class="inv-section">
-      <div class="inv-title">
+    const collapsed = [1,4,5].includes(inv);
+    html += `<div class="inv-section" id="inv-section-${inv}">
+      <div class="inv-title" onclick="toggleInv(${inv})">
         Invernadero ${inv}
         <span>${allCubs.filter(c => cubMap[c] && cubMap[c].length).length} cubículos ocupados</span>
-      </div>`;
+        <span class="inv-toggle${collapsed ? ' collapsed' : ''}">▼</span>
+      </div>
+      <div class="inv-rows${collapsed ? ' collapsed' : ''}" id="inv-rows-${inv}">`;
 
     // Row 1: odd (1,3,5,7,9)
     // Row 2: even (2,4,6,8,10)
@@ -6335,6 +6361,7 @@ function renderInvernaderoGrid() {
       });
       html += `</div>`; // inv-row
     }
+    html += `</div>`; // inv-rows
     html += `</div>`; // inv-section
   }
 
