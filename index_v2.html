@@ -5450,7 +5450,7 @@ async function procesarDocumento(stage,input) {
       messages=[{role:'user',content:`${prompt}\n\nCONTENIDO:\n${txt.substring(0,5000)}`}];
     }
     setS('Claude analizando documento...','');
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:2000,messages})});
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:8000,messages})});
     if(!resp.ok) throw new Error(`API error ${resp.status}`);
     const data=await resp.json();
     const txt2=data.content?.filter(b=>b.type==='text').map(b=>b.text).join('');
