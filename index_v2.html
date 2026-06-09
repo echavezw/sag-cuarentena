@@ -6345,10 +6345,44 @@ function renderInvernaderoGrid() {
           // Build especies list with variety counts
           const especiesArr = Object.entries(entry.especies || {});
           let espHtml = '';
-          if (especiesArr.length) {
-            espHtml = especiesArr.map(([esp, vars]) => {
+
+          // Abbreviate genus: Prunus→P., Malus→M., Vitis→V., Citrus→C.,
+          //                   Actinidia→A., Pyrus→Py., Prunus spp.→Prunus spp.
+          function abbrevGenus(name) {
+            if (!name) return name;
+            return name
+              .replace(/\bPrunus spp\.?/gi, 'Prunus spp.')
+              .replace(/\bPrunus\b/g, 'P.')
+              .replace(/\bMalus\b/g, 'M.')
+              .replace(/\bVitis\b/g, 'V.')
+              .replace(/\bCitrus\b/g, 'C.')
+              .replace(/\bActinidia\b/g, 'A.')
+              .replace(/\bPyrus\b/g, 'Py.')
+              .replace(/\bFragaria\b/g, 'F.');
+          }
+
+          // Normalize hybrid: sort both sides of × / x alphabetically so
+          // "A × B" and "B × A" map to the same key
+          function normalizeHybrid(name) {
+            const sep = name.match(/\s[×x]\s/);
+            if (!sep) return name;
+            const parts = name.split(/\s[×x]\s/).map(s => s.trim()).sort();
+            return parts.join(' × ');
+          }
+
+          // Merge deduplicated especies (hybrids normalized)
+          const mergedEsps = {};
+          especiesArr.forEach(([esp, vars]) => {
+            const key = normalizeHybrid(esp.trim());
+            if (!mergedEsps[key]) mergedEsps[key] = { esp: key, vars: new Set() };
+            vars.forEach(v => mergedEsps[key].vars.add(v));
+          });
+
+          if (Object.keys(mergedEsps).length) {
+            espHtml = Object.values(mergedEsps).map(({ esp, vars }) => {
               const nVars = vars.size;
-              return `<div class="cub-esp">${esp}${nVars ? ` <span class="cub-esp-var">(${nVars} var.)</span>` : ''}</div>`;
+              const label = abbrevGenus(esp);
+              return `<div class="cub-esp">${label}${nVars ? ` <span class="cub-esp-var">(${nVars} var.)</span>` : ''}</div>`;
             }).join('');
           } else {
             espHtml = `<div class="cub-esp" style="color:var(--g300)">—</div>`;
