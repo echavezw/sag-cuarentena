@@ -3871,14 +3871,14 @@ function renderEstimacionCobro() {
         </div>
         <table class="tbl" style="width:100%;border-radius:0 0 4px 4px">
           <thead><tr>
-            <th style="width:34px;text-align:center;padding:6px 8px">
-              <input type="checkbox" id="${chkAll}"
-                onchange="toggleEstimAll('${key}',this.checked)"
-                style="cursor:pointer;width:14px;height:14px">
-            </th>
             <th style="text-align:left;padding:6px 10px">Especie</th>
             <th style="text-align:left;padding:6px 10px">Patógeno / Plaga</th>
             <th style="text-align:center;padding:6px 10px;width:110px">N° Análisis Est.</th>
+            <th style="width:38px;text-align:center;padding:6px 8px">
+              <input type="checkbox" id="${chkAll}"
+                onclick="toggleEstimAll('${key}', this.checked)"
+                style="cursor:pointer;width:14px;height:14px;accent-color:var(--nv)">
+            </th>
           </tr></thead>
           <tbody id="estim-body-${key}">`;
 
@@ -3888,24 +3888,25 @@ function renderEstimacionCobro() {
           ? '<span style="font-size:8px;background:#ef4444;color:#fff;padding:1px 4px;border-radius:2px;margin-left:4px;vertical-align:middle">extra</span>'
           : '';
         html += `<tr id="estim-row-${key}-${i}">
-          <td style="text-align:center;padding:4px 8px">
-            <input type="checkbox" class="estim-chk estim-chk-${key}"
-              style="cursor:pointer;width:14px;height:14px" data-tipo="${key}" data-idx="${i}">
-          </td>
           <td style="font-style:italic;padding:5px 10px;font-size:12px">${esc(r.esp)}</td>
           <td style="padding:5px 10px;font-size:12px;${sinStyle}">${esc(r.plaga)}${extraBadge}</td>
           <td style="font-family:var(--mono);text-align:center;padding:5px 10px;font-weight:600">${r.nAn}</td>
+          <td style="text-align:center;padding:4px 8px">
+            <input type="checkbox" class="estim-chk estim-chk-${key}"
+              style="cursor:pointer;width:14px;height:14px;accent-color:var(--nv)"
+              data-tipo="${key}" data-idx="${i}">
+          </td>
         </tr>`;
       });
 
       html += `</tbody>
           <tfoot><tr style="background:var(--gold-bg)">
-            <td></td>
             <td colspan="2" style="padding:5px 10px;font-size:11px;font-weight:700;color:var(--nv);text-align:right">
               TOTAL ${label}
             </td>
             <td style="font-family:var(--mono);text-align:center;padding:5px 10px;font-weight:800;font-size:13px;color:var(--nv)"
               id="estim-total-${key}">${totalTipo}</td>
+            <td></td>
           </tr></tfoot>
         </table>
       </div>`;
@@ -3951,13 +3952,14 @@ function eliminarEstimSelec(tipo) {
         const sinStyle = r.isSin ? 'color:var(--ok);font-style:italic' : '';
         const extraBadge = r.esExtra ? '<span style="font-size:8px;background:#ef4444;color:#fff;padding:1px 4px;border-radius:2px;margin-left:4px;vertical-align:middle">extra</span>' : '';
         return `<tr id="estim-row-${tipo}-${i}">
-          <td style="text-align:center;padding:4px 8px">
-            <input type="checkbox" class="estim-chk estim-chk-${tipo}"
-              style="cursor:pointer;width:14px;height:14px" data-tipo="${tipo}" data-idx="${i}">
-          </td>
           <td style="font-style:italic;padding:5px 10px;font-size:12px">${esc(r.esp)}</td>
           <td style="padding:5px 10px;font-size:12px;${sinStyle}">${esc(r.plaga)}${extraBadge}</td>
           <td style="font-family:var(--mono);text-align:center;padding:5px 10px;font-weight:600">${r.nAn}</td>
+          <td style="text-align:center;padding:4px 8px">
+            <input type="checkbox" class="estim-chk estim-chk-${tipo}"
+              style="cursor:pointer;width:14px;height:14px;accent-color:var(--nv)"
+              data-tipo="${tipo}" data-idx="${i}">
+          </td>
         </tr>`;
       }).join('');
       // Uncheck the "all" header checkbox
