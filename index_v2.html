@@ -3101,7 +3101,11 @@ function renderAnTable(key,idx,label,tecnica) {
         <th style="width:105px;text-align:center">Estado</th>
         <th style="width:100px;text-align:center">Resultado</th>
         <th style="text-align:left;min-width:60px">Observaciones</th>
-        <th style="width:28px"></th>
+        <th style="width:28px;text-align:center;padding:5px 4px">
+          <label style="cursor:pointer;display:flex;align-items:center;justify-content:center" onclick="toggleAllAnChks('${key}')">
+            <span id="an-all-icon-${key}" style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1.5px solid rgba(255,255,255,.6);border-radius:3px;background:rgba(255,255,255,.15);transition:all .15s;font-size:11px;font-family:var(--serif);font-weight:600;color:transparent">&#10003;</span>
+          </label>
+        </th>
       </tr></thead>
       <tbody id="an-body-rows-${key}"></tbody>
     </table></div>`;
@@ -3235,6 +3239,25 @@ function makeAnRow(key,i,r,tecnica) {
       </label>
     </td>`;
   return tr;
+}
+
+function toggleAllAnChks(key) {
+  const inputs = [...document.querySelectorAll('.an-row-chk[data-key="' + key + '"]')];
+  const allChecked = inputs.every(inp => inp.checked);
+  const newState = !allChecked;
+  inputs.forEach(inp => {
+    inp.checked = newState;
+    const span = inp.closest('label')?.querySelector('.an-chk-icon');
+    if (span) {
+      span.style.color = newState ? 'var(--nv)' : 'transparent';
+      span.style.background = newState ? 'var(--gold-bg)' : '#fff';
+    }
+  });
+  const hdrIcon = document.getElementById('an-all-icon-' + key);
+  if (hdrIcon) {
+    hdrIcon.style.color = newState ? '#fff' : 'transparent';
+    hdrIcon.style.background = newState ? 'rgba(255,255,255,.3)' : 'rgba(255,255,255,.15)';
+  }
 }
 
 function toggleAnChk(span) {
@@ -3875,10 +3898,10 @@ function renderEstimacionCobro() {
             <th style="text-align:left;padding:6px 10px">Patógeno / Plaga</th>
             <th style="text-align:center;padding:6px 10px;width:110px">N° Análisis Est.</th>
             <th style="width:38px;text-align:center;padding:6px 8px">
-              <input type="checkbox" class="estim-all-chk"
-                data-tipo="${key}"
-                style="cursor:pointer;width:15px;height:15px;accent-color:#fff;
-                  border:2px solid #fff;outline:2px solid #fff;border-radius:3px">
+              <label style="cursor:pointer;display:flex;align-items:center;justify-content:center"
+                onclick="toggleEstimAll('${key}')">
+                <span id="estim-all-icon-${key}" style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1.5px solid rgba(255,255,255,.6);border-radius:3px;background:rgba(255,255,255,.15);transition:all .15s;font-size:11px;font-family:var(--serif);font-weight:600;color:transparent">✓</span>
+              </label>
             </th>
           </tr></thead>
           <tbody id="estim-body-${key}">`;
@@ -3893,10 +3916,11 @@ function renderEstimacionCobro() {
           <td style="padding:5px 10px;font-size:12px;${sinStyle}">${esc(r.plaga)}${extraBadge}</td>
           <td style="font-family:var(--mono);text-align:center;padding:5px 10px;font-weight:600">${r.nAn}</td>
           <td style="text-align:center;padding:4px 8px">
-            <input type="checkbox" class="estim-chk estim-chk-${key}"
-              style="cursor:pointer;width:15px;height:15px;accent-color:var(--nv2);
-                border:2px solid var(--g400);outline:1px solid var(--g300);border-radius:3px"
-              data-tipo="${key}" data-idx="${i}">
+            <label style="cursor:pointer;display:flex;align-items:center;justify-content:center"
+              onclick="toggleEstimRowChk(this)">
+              <input type="checkbox" class="estim-chk estim-chk-${key}" data-tipo="${key}" data-idx="${i}" style="display:none">
+              <span class="estim-chk-icon" style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1.5px solid var(--g300,#b0b8c4);border-radius:3px;background:#fff;transition:all .15s;font-size:11px;font-family:var(--serif);font-weight:600;color:transparent">&#10003;</span>
+            </label>
           </td>
         </tr>`;
       });
@@ -3930,44 +3954,41 @@ function renderEstimacionCobro() {
   el.innerHTML = buildEstimHtml();
 }
 
-function toggleEstimAll(tipo, checked) {
-  document.querySelectorAll('.estim-chk-' + tipo).forEach(chk => { chk.checked = checked; });
+function toggleEstimRowChk(label) {
+  if (!label) return;
+  const input = label.querySelector('input[type=checkbox]');
+  const span  = label.querySelector('.estim-chk-icon');
+  if (!input || !span) return;
+  input.checked = !input.checked;
+  span.style.color = input.checked ? 'var(--nv)' : 'transparent';
+  span.style.background = input.checked ? 'var(--gold-bg)' : '#fff';
 }
 
-// Event delegation for estimación checkboxes — attached once on container
-(function() {
-  function setupEstimEvents() {
-    const el = document.getElementById('estimacion-cobro-body');
-    if (!el || el._estimEventsAttached) return;
-    el._estimEventsAttached = true;
-    el.addEventListener('change', function(e) {
-      const t = e.target;
-      // Toggle-all checkbox
-      if (t.classList.contains('estim-all-chk')) {
-        const tipo = t.dataset.tipo;
-        document.querySelectorAll('.estim-chk-' + tipo).forEach(chk => { chk.checked = t.checked; });
-      }
-    });
-  }
-  // Attach after DOM ready and after each renderEstimacionCobro
-  document.addEventListener('DOMContentLoaded', setupEstimEvents);
-  const _origRender = window.renderEstimacionCobro;
-  // Will be re-attached after function definition below
-  setTimeout(() => {
-    const orig = window.renderEstimacionCobro;
-    if (orig) {
-      window.renderEstimacionCobro = function() {
-        orig.apply(this, arguments);
-        setTimeout(setupEstimEvents, 50);
-      };
+function toggleEstimAll(tipo) {
+  // Determine new state: if any unchecked → check all; else uncheck all
+  const inputs = [...document.querySelectorAll('.estim-chk-' + tipo)];
+  const allChecked = inputs.every(inp => inp.checked);
+  const newState = !allChecked;
+  inputs.forEach(inp => {
+    inp.checked = newState;
+    const span = inp.closest('label')?.querySelector('.estim-chk-icon');
+    if (span) {
+      span.style.color = newState ? 'var(--nv)' : 'transparent';
+      span.style.background = newState ? 'var(--gold-bg)' : '#fff';
     }
-  }, 500);
-})();
+  });
+  // Update header icon
+  const hdrIcon = document.getElementById('estim-all-icon-' + tipo);
+  if (hdrIcon) {
+    hdrIcon.style.color = newState ? '#fff' : 'transparent';
+    hdrIcon.style.background = newState ? 'rgba(255,255,255,.3)' : 'rgba(255,255,255,.15)';
+  }
+}
 
 function eliminarEstimSelec(tipo) {
   if (!window._estimRows || !window._estimRows[tipo]) return;
   const rows = window._estimRows[tipo].filter(r => !r.deleted);
-  document.querySelectorAll(`.estim-chk-${tipo}`).forEach((chk, i) => {
+  document.querySelectorAll('.estim-chk-' + tipo).forEach((chk, i) => {
     if (chk.checked && rows[i]) rows[i].deleted = true;
   });
   // Rebuild totals and DOM for this section
@@ -3988,9 +4009,10 @@ function eliminarEstimSelec(tipo) {
           <td style="padding:5px 10px;font-size:12px;${sinStyle}">${esc(r.plaga)}${extraBadge}</td>
           <td style="font-family:var(--mono);text-align:center;padding:5px 10px;font-weight:600">${r.nAn}</td>
           <td style="text-align:center;padding:4px 8px">
-            <input type="checkbox" class="estim-chk estim-chk-${tipo}"
-              style="cursor:pointer;width:15px;height:15px;accent-color:var(--nv2);border:2px solid var(--g400);outline:1px solid var(--g300);border-radius:3px"
-              data-tipo="${tipo}" data-idx="${i}">
+            <label style="cursor:pointer;display:flex;align-items:center;justify-content:center" onclick="toggleEstimRowChk(this)">
+              <input type="checkbox" class="estim-chk estim-chk-${tipo}" data-tipo="${tipo}" data-idx="${i}" style="display:none">
+              <span class="estim-chk-icon" style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1.5px solid var(--g300,#b0b8c4);border-radius:3px;background:#fff;transition:all .15s;font-size:11px;font-family:var(--serif);font-weight:600;color:transparent">&#10003;</span>
+            </label>
           </td>
         </tr>`;
       }).join('');
