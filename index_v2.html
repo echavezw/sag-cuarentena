@@ -1233,8 +1233,8 @@ input.field-blocked, select.field-blocked {
   <div class="sec-h">
     <div class="sec-n">VI</div>
     <div>
-      <div class="sec-t">Recuento Final y Cobro Estadía</div>
-      <div class="sec-s">Plantas finales y cobro estadía</div>
+      <div class="sec-t">Recuento Final</div>
+      <div class="sec-s">Plantas finales con cobro estadía</div>
     </div>
     <div class="sec-actions">
       <button class="btn btn-gh btn-sm" onclick="limpiarEtapa(6)">Limpiar</button>
@@ -1242,7 +1242,6 @@ input.field-blocked, select.field-blocked {
   </div>
   <div class="tabs">
     <button class="tab active" onclick="showTab(6,0)">Plantas Finales</button>
-    <button class="tab" onclick="showTab(6,1)">Cobro Estadía</button>
   </div>
 
   <!-- Tab 6.1: Plantas finales -->
@@ -1252,10 +1251,13 @@ input.field-blocked, select.field-blocked {
     <div class="tbl-wrap">
     <table class="tbl" id="plantas-tbl">
       <thead><tr>
-        <th>Especie / Hibrido</th><th>Variedad</th>
-        <th>N° Plantas Estab. (Etapa III)</th>
-        <th>N° Plantas Finales</th>
-        <th>Observaciones</th>
+        <th>Especie / Híbrido</th>
+        <th style="text-align:center">Variedad</th>
+        <th style="text-align:center">N° Plantas Estab.</th>
+        <th style="text-align:center">N° Plantas Finales</th>
+        <th style="text-align:center">N° SPS Estadía</th>
+        <th style="text-align:center">N° CORE Estadía</th>
+        <th style="text-align:center">Observaciones</th>
       </tr></thead>
       <tbody id="plantas-body"></tbody>
     </table>
@@ -1263,37 +1265,6 @@ input.field-blocked, select.field-blocked {
   </div>
   </div>
 
-  
-<!-- Tab 6.2: Cobro Estadia (desde Etapa V) -->
-  <div class="tab-panel" id="t6-1">
-  <div class="tab-body">
-    <div class="info-box">Cobro por estadia en ECA. Datos de especies desde Etapa III.</div>
-    <div class="tbl-wrap">
-    <table class="tbl" id="estadia-tbl">
-      <thead><tr>
-        <th style="width:32px"></th>
-        <th style="text-align:center">Especie / Híbrido</th>
-        <th style="text-align:center">Variedad(es)</th>
-        <th style="width:90px;text-align:center">N° Plantas</th>
-        <th style="width:80px;text-align:center">Meses ECA</th>
-        <th style="text-align:center">N° SPS Estadía</th>
-        <th style="text-align:center">N° CORE Estadía</th>
-      </tr></thead>
-      <tbody id="estadia-body"></tbody>
-      <tfoot>
-        <tr style="background:var(--nv);color:#fff;font-weight:700">
-          <td style="padding:7px 8px"></td>
-          <td colspan="2" style="padding:7px 8px;font-size:11px;letter-spacing:.4px;text-transform:uppercase;text-align:right;padding-right:16px">TOTAL PLANTAS</td>
-          <td style="font-family:var(--mono);text-align:center;padding:7px 8px;font-size:15px;font-weight:800">
-            <span id="f5-total-plantas">—</span>
-          </td>
-          <td colspan="3"></td>
-        </tr>
-      </tfoot>
-    </table>
-    </div>
-  </div>
-  </div>
 
   <div class="stage-nav">
     <button class="btn btn-gh btn-sm" onclick="goStage(5)">&#8592; V. Cobro</button>
@@ -1776,7 +1747,7 @@ function goStage(n) {
   document.querySelectorAll('.sb-item').forEach(e=>e.classList.remove('active'));
   if(n===3) setTimeout(renderEstablecimientoTable, 80);
   if(n==='alerts') { setTimeout(()=>{ buildAlerts(); renderAlertsStage(); }, 80); }
-  if(n===6) setTimeout(()=>{ renderCierreTabs(); renderEstadiaTable(); }, 50);
+  if(n===6) setTimeout(()=>{ renderCierreTabs(); }, 50);
   const stEl=$('stage-'+n); if(stEl) stEl.classList.add('active');
   const navEl=$('nav-'+n); if(navEl) navEl.classList.add('active');
   currentStage=n;
@@ -1797,7 +1768,7 @@ function showTab(stage, idx) {
   tabs.forEach((t,i)=>t.classList.toggle('active',i===idx));
   panels.forEach((p,i)=>p.classList.toggle('active',i===idx));
   // Estadía table now lives in stage 6 tab 1
-  if(stage===6 && idx===1) setTimeout(renderEstadiaTable, 50);
+  // Cobro Estadía tab removed — no secondary tab for stage 6
   // Re-fit folio/corr inputs now that the tab is visible
   if(stage===4) {
     setTimeout(()=>{
@@ -3739,8 +3710,7 @@ function renderCobroTabs() {
 
   if(!totalRows) tbody.innerHTML='<tr><td colspan="6" style="color:var(--g400);padding:16px;font-size:12px;text-align:center">Complete analisis en la Etapa IV.</td></tr>';
 
-  // Sync Plantas Finales → Cobro Estadía on render
-  setTimeout(syncPfToEstadia, 60);
+
   // Check core blocks after cobro renders
   setTimeout(checkCoreBlocks, 100);
 }  // renderEstadiaTable now in stage 6 tab 2
@@ -4073,9 +4043,13 @@ function renderCierreTabs() {
   }
 
   if(!rows.length) {
-    tbody.innerHTML='<tr><td colspan="5" style="color:var(--g400);padding:16px;font-size:12px;text-align:center">Complete la tabla de material en la Etapa I.</td></tr>';
+    tbody.innerHTML='<tr><td colspan="7" style="color:var(--g400);padding:16px;font-size:12px;text-align:center">Complete la tabla de material en la Etapa I.</td></tr>';
     return;
   }
+
+  // Load saved SPS/CORE Estadía values
+  const loadedSpsEst  = _lastLoadedRow['SPS estadía']||_lastLoadedRow['SPS estadia']||'';
+  const loadedCoreEst = _lastLoadedRow['CORE/Factura3']||'';
 
   rows.forEach((e,i) => {
     const nEstab = e.nplanEstab||0;
@@ -4089,18 +4063,26 @@ function renderCierreTabs() {
       <td style="padding:5px 8px;text-align:center;font-size:11px;color:var(--g600)">${esc(e.variedad||'—')}</td>
       <td style="font-family:var(--mono);text-align:center;padding:5px 8px">${nEstab||'—'}</td>
       <td style="padding:4px 6px;text-align:center;vertical-align:middle">${nFinCell}</td>
-      <td style="padding:4px 6px"><input id="pf-obs-${i}" placeholder="Observaciones..."></td>`;
+      <td style="padding:5px 8px;text-align:center">
+        <input id="est-sps-${i}" value="${esc(loadedSpsEst)}" placeholder="N° SPS"
+          style="font-family:var(--mono);text-align:center;width:100%" oninput="replicarSPSEst(this.value)">
+      </td>
+      <td style="padding:5px 8px;text-align:center">
+        <input id="est-core-${i}" value="${esc(loadedCoreEst)}" placeholder="N° CORE"
+          style="font-family:var(--mono);text-align:center;width:100%" oninput="replicarCOREEst(this.value)">
+      </td>
+      <td style="padding:4px 6px;text-align:center"><input id="pf-obs-${i}" placeholder="Observaciones..."></td>`;
     tbody.appendChild(tr);
   });
 
-  // Total row
+  // Total row (7 cols now)
   const totalTr = document.createElement('tr');
   totalTr.style.cssText = 'background:var(--nv);color:#fff;font-weight:700';
   totalTr.innerHTML=`
     <td colspan="2" style="padding:7px 8px;font-size:11px;letter-spacing:.4px;text-transform:uppercase">Total</td>
     <td style="font-family:var(--mono);text-align:center;padding:7px 8px">—</td>
     <td id="pf-total" style="font-family:var(--mono);text-align:center;padding:7px 8px;font-size:14px">—</td>
-    <td></td>`;
+    <td colspan="3"></td>`;
   tbody.appendChild(totalTr);
   calcPlantasTotal();
 }
