@@ -6467,10 +6467,17 @@ function renderInvernaderoGrid() {
               if (solPart) return !String(m['Res.']||'').trim() && String(m['Solicitud']||'').trim() === solPart[1];
               return false;
             });
-            // Use rows where Cant. Real > 0 (variedades que realmente llegaron)
             sourceEsps = {};
-            const realRows = matRows.filter(m => parseFloat(String(m['Cant. Real']||'').replace(',','.')) > 0);
-            const useRows = realRows.length ? realRows : matRows; // fallback: all rows if none have Cant. Real
+            // Liberado/Terminado/Entregado → N° Plantas Finales (lo que sobrevivió)
+            // Activo → Cant. Real (lo que llegó)
+            let useRows;
+            if (isFinalState) {
+              const finRows = matRows.filter(m => parseFloat(String(m['N° Plantas Finales']||'').replace(',','.')) > 0);
+              useRows = finRows.length ? finRows : matRows;
+            } else {
+              const realRows = matRows.filter(m => parseFloat(String(m['Cant. Real']||'').replace(',','.')) > 0);
+              useRows = realRows.length ? realRows : matRows;
+            }
             useRows.forEach(m => {
               const esp = String(m['Especie']||'').trim();
               const varRaw = String(m['Variedad']||m['Variedades']||'').trim();
@@ -6479,7 +6486,6 @@ function renderInvernaderoGrid() {
               if (!sourceEsps[key]) sourceEsps[key] = new Set();
               if (varRaw) varRaw.split(/[,;]/).map(v=>v.trim()).filter(Boolean).forEach(v=>sourceEsps[key].add(v));
             });
-            // If Material had nothing useful, fall back to gsData especies
             if (!Object.keys(sourceEsps).length) sourceEsps = null;
           }
 
