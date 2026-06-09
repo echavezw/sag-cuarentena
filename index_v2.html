@@ -1052,6 +1052,7 @@ input.field-blocked, select.field-blocked {
   </div>
   <div class="tabs">
     <button class="tab active" onclick="showTab(3,0)">Verificación y Establecimiento del Material</button>
+    <button class="tab" onclick="showTab(3,1);renderConsolidadoEspecies()">Consolidado por Especie</button>
   </div>
 
   <!-- Tab 3.1: Verificación y Establecimiento (merged) -->
@@ -1121,9 +1122,13 @@ input.field-blocked, select.field-blocked {
       </div>
     </div>
 
-    <!-- Consolidado por especie -->
-    <div id="esp-consolidado" style="margin-top:18px"></div>
+  </div>
+  </div>
 
+  <!-- Tab 3.2: Consolidado por Especie -->
+  <div class="tab-panel" id="t3-1">
+  <div class="tab-body">
+    <div id="esp-consolidado"></div>
   </div>
   </div>
 
@@ -2831,6 +2836,8 @@ function renderVerifTable(data) {
   setTimeout(()=>{ makeVerifResizable(); renderEstablecimientoTable(); calcNplanEstab(); renderConsolidadoEspecies(); }, 50);
 }
 
+let _consolidadoEspecies = {}; // { especie → { nVars, nplan } } — shared with fichas alertas
+
 function renderConsolidadoEspecies() {
   const el = document.getElementById('esp-consolidado');
   if (!el) return;
@@ -2844,20 +2851,26 @@ function renderConsolidadoEspecies() {
   [...verifBody.children].forEach((_, i) => {
     const esp  = document.getElementById(`ve-${i}`)?.value?.trim() || '';
     const vari = document.getElementById(`vv-${i}`)?.value?.trim() || '';
-    const np   = parseFloat(document.getElementById(`vnplan-${i}`)?.value || '0') || 0;
-    if (!esp) return;
+    const np   = parseFloat(document.getElementById(`vcr-${i}`)?.value || '0') || 0;
+    if (!esp || np <= 0) return; // only count varieties that actually arrived
     if (!map[esp]) map[esp] = { variedades: new Set(), nplan: 0 };
     if (vari) {
       vari.split(/[,;]/).map(v => v.trim()).filter(Boolean)
           .forEach(v => map[esp].variedades.add(v));
     } else {
-      // Count as 1 unnamed variety if no name given
       map[esp].variedades.add('__unnamed__' + i);
     }
     map[esp].nplan += np;
   });
 
   const entries = Object.entries(map);
+  // Store globally for fichas reference
+  _consolidadoEspecies = {};
+  entries.forEach(([esp, d]) => {
+    const nVars = [...d.variedades].filter(v => !v.startsWith('__unnamed__')).length
+                  || [...d.variedades].filter(v => v.startsWith('__unnamed__')).length;
+    _consolidadoEspecies[esp] = { nVars, nplan: d.nplan };
+  });
   if (!entries.length) { el.innerHTML = ''; return; }
 
   const rows = entries.map(([esp, d]) => {
