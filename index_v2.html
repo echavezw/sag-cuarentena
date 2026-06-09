@@ -1106,7 +1106,7 @@ input.field-blocked, select.field-blocked {
             <th rowspan="2" style="width:110px;text-align:center">Variedad(es)</th>
             <th rowspan="2" style="width:100px;text-align:center">Tipo Material</th>
             <th colspan="2" style="text-align:center;border-bottom:1px solid var(--g200);background:var(--g50);font-size:10px;letter-spacing:.3px;text-transform:uppercase;color:var(--g600)">Verificación del Material Recibido</th>
-            <th colspan="1" style="text-align:center;border-bottom:1px solid var(--g200);background:var(--gold-bg);font-size:10px;letter-spacing:.3px;text-transform:uppercase;color:var(--g700)">Establecimiento del Material</th>
+            <th colspan="2" style="text-align:center;border-bottom:1px solid var(--g200);background:var(--gold-bg);font-size:10px;letter-spacing:.3px;text-transform:uppercase;color:var(--g700)">Establecimiento del Material</th>
             <th rowspan="2" style="text-align:left">Observaciones</th>
             <th rowspan="2" style="width:28px"></th>
           </tr>
@@ -1115,6 +1115,14 @@ input.field-blocked, select.field-blocked {
             <th style="width:75px;text-align:center;font-size:11px">Cant. Decl.</th>
             <th style="width:75px;text-align:center;font-size:11px">Cant. Real</th>
             <th style="width:95px;text-align:center;font-size:11px;background:var(--gold-bg)">N° Plantas Establ.</th>
+            <th style="width:110px;text-align:center;font-size:11px;background:var(--gold-bg)">
+              N° Plantas Brotadas
+              <div style="margin-top:3px">
+                <button onclick="autofillBrotadas()" title="Autocompletar todas las filas con el mismo valor"
+                  style="background:var(--nv);color:#fff;border:none;border-radius:3px;padding:1px 6px;
+                  font-size:9px;cursor:pointer;font-weight:600">↓ Llenar</button>
+              </div>
+            </th>
           </tr>
         </thead>
         <tbody id="verif-body"></tbody>
@@ -2137,8 +2145,8 @@ async function cargarFilaMulti(rows) {
         ok:          x['Recibida']   !== undefined ? x['Recibida']!=='0' : true,
         nplanEstab:  x['N° Plantas Establ.']||x['N° Plantas']||'',
         obs:         x['Observaciones']||'',
+        nplanBrot:   x['N° Plantas Brotadas']||'',
         nplanEstadia: x['N° Plantas Estadía']||x['N° Plantas Estadia']||x['N° Plantas']||'',
-        nplanFin:     x['N° Plantas Finales']||'',
         nplanFin:     x['N° Plantas Finales']||'',
       }));
     }
@@ -2963,6 +2971,30 @@ function makeVerifResizable() {
   });
 }
 
+// Returns default value for N° Plantas Brotadas:
+// — if nplan (Establ.) is 0 or empty → '0'; otherwise → saved value or '' (shown as placeholder —)
+function getBrotDefault(r) {
+  const nplan = parseFloat(String(r.nplan||'').replace(',','.'));
+  if (r.nplanBrot !== undefined && r.nplanBrot !== '') return r.nplanBrot;
+  if (!isNaN(nplan) && nplan === 0) return '0';
+  return '';
+}
+
+function autofillBrotadas() {
+  const tbody = document.getElementById('verif-body');
+  if (!tbody) return;
+  const val = prompt('N° Plantas Brotadas para todas las filas (dejar vacío para no cambiar):');
+  if (val === null) return; // cancelled
+  [...tbody.children].forEach((_, i) => {
+    const inp = document.getElementById('vbrot-' + i);
+    if (!inp) return;
+    const nplan = parseFloat(document.getElementById('vnplan-' + i)?.value || '');
+    // Only fill rows that have plantas establecidas > 0 (rows with 0 keep 0)
+    if (!isNaN(nplan) && nplan === 0) return;
+    inp.value = val;
+  });
+}
+
 function makeVerifRow(i,r) {
   const tr=document.createElement('tr');
   const cantDecl = r.cant||'';
@@ -2997,6 +3029,10 @@ function makeVerifRow(i,r) {
       <input type="number" id="vnplan-${i}" value="${r.nplan||''}" min="0"
         placeholder="—" style="font-family:var(--mono);text-align:center;width:70px;background:var(--gold-bg)"
         oninput="calcNplanEstab()">
+    </td>
+    <td style="text-align:center;padding:4px 6px;background:var(--gold-bg)">
+      <input type="number" id="vbrot-${i}" value="${getBrotDefault(r)}" min="0"
+        placeholder="—" style="font-family:var(--mono);text-align:center;width:70px;background:var(--gold-bg)">
     </td>
     <td><input id="vobs-${i}" value="${esc(r.obs||'')}" placeholder="Observaciones..."></td>
     <td><button class="del-btn" onclick="delVerifRow(${i})">×</button></td>`;
@@ -3045,6 +3081,7 @@ function syncVerifFromDOM() {
     cant:     document.getElementById('vcd-'+i)?.value||'',
     cantReal: document.getElementById('vcr-'+i)?.value||'',
     nplan:    document.getElementById('vnplan-'+i)?.value||'',
+    nplanBrot:document.getElementById('vbrot-'+i)?.value||'',
     obs:      document.getElementById('vobs-'+i)?.value||'',
     ok:       document.getElementById('vchk-'+i)?.checked ?? true,
   }));
@@ -5474,6 +5511,7 @@ async function saveMaterial(nsol, imp, res) {
       vrow ? String(vrow.cantReal!==undefined && vrow.cantReal!=='' ? vrow.cantReal : (e.cant||'')) : (e.cant||''),
       vrow ? (vrow.ok !== false ? '1' : '0') : '1',
       vrow ? (vrow.nplan!==undefined && vrow.nplan!=='' ? vrow.nplan : (e.nplan||nplanDefault)) : (e.nplan||nplanDefault),
+      vrow ? (vrow.nplanBrot||'') : '',
       vrow ? (vrow.obs||'') : '',
       // N° Plantas Estadía — from estadía table if edited, else nplan default
       (()=>{ const k=e.especie+'|'+(e.variedad||''); return estadiaNplan[k]!==undefined ? estadiaNplan[k] : (e.nplan||nplanDefault); })(),
@@ -5491,7 +5529,7 @@ async function saveMaterial(nsol, imp, res) {
   const MAT_HEADERS = [
     'Res.','Solicitud','Importador','Especie','Variedad',
     'Tipo Material','Cantidad','Portainjerto','N° Plantas',
-    'Cant. Real','Recibida','N° Plantas Establ.','Observaciones',
+    'Cant. Real','Recibida','N° Plantas Establ.','N° Plantas Brotadas','Observaciones',
     'N° Plantas Estadía','N° Plantas Finales'
   ];
 
