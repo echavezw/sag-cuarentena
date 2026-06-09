@@ -1202,6 +1202,7 @@ input.field-blocked, select.field-blocked {
   </div>
   <div class="tabs">
     <button class="tab active" onclick="showTab(5,0)">Cobro Analisis</button>
+    <button class="tab" onclick="showTab(5,1);renderEstimacionCobro()">Estimación Análisis</button>
   </div>
 
   <!-- Tab 5.1: Cobro analisis -->
@@ -1224,6 +1225,14 @@ input.field-blocked, select.field-blocked {
     <div id="cobro-total" style="margin-top:12px;padding:10px 14px;background:var(--gold-bg);border-radius:var(--rs);font-size:12px;color:var(--g700)">
       Complete los analisis en la Etapa IV para ver el calculo.
     </div>
+  </div>
+  </div>
+
+  <!-- Tab 5.2: Estimación de Análisis -->
+  <div class="tab-panel" id="t5-1">
+  <div class="tab-body">
+    <div class="info-box">Estimación basada en variedades establecidas (Cant. Real) × plagas por especie y zona de origen. Solo referencia — el cobro real se registra en "Cobro Análisis".</div>
+    <div id="estimacion-cobro-body"></div>
   </div>
   </div>
 
@@ -3723,6 +3732,175 @@ function autoCargarAnalisis() {
 }
 
 // ── ETAPA V — COBRO ──
+function renderEstimacionCobro() {
+  const el = document.getElementById('estimacion-cobro-body');
+  if (!el) return;
+
+  // Get current registration key
+  const res = v('f2-nres').trim();
+  const sol = v('f1-nsol').trim();
+  const origen = v('f1-pais').trim();
+
+  if (!_matData.length) {
+    el.innerHTML = '<div style="color:var(--g400);padding:16px;font-size:12px;text-align:center">Cargue un registro primero.</div>';
+    return;
+  }
+
+  // Get Material rows for this record with Cant. Real > 0
+  const matRows = _matData.filter(m => {
+    const mRes = String(m['Res.']||'').trim();
+    const mSol = String(m['Solicitud']||'').trim();
+    if (res) return mRes === res;
+    return !mRes && mSol === sol;
+  }).filter(m => parseFloat(String(m['Cant. Real']||'').replace(',','.')) > 0);
+
+  if (!matRows.length) {
+    el.innerHTML = '<div style="color:var(--g400);padding:16px;font-size:12px;text-align:center">Sin variedades con Cant. Real registrada en Etapa III.</div>';
+    return;
+  }
+
+  // Determine zona key from origen
+  const CE_PAISES_EST = ['Alemania','Austria','Bélgica','Bulgaria','Chequia','Chipre','Croacia','Dinamarca',
+    'Eslovaquia','Eslovenia','España','Estonia','Finlandia','Francia','Grecia','Hungría','Irlanda',
+    'Italia','Letonia','Lituania','Luxemburgo','Malta','Países Bajos','Holanda','Polonia','Portugal',
+    'República Checa','Rumanía','Suecia','República Checa'];
+  const origenNorm = (origen||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+  let zonaKey = 'CE';
+  if (origenNorm.includes('eeuu') || origenNorm.includes('usa') || origenNorm.includes('estados unidos')) zonaKey = 'EEUU';
+  else if (origenNorm.includes('sudafrica') || origenNorm.includes('sudáfrica') || origenNorm.includes('south africa')) zonaKey = 'Sudáfrica';
+  else if (origenNorm.includes('israel')) zonaKey = 'Israel';
+  else if (origenNorm.includes('australia')) zonaKey = 'Australia';
+  else if (origenNorm.includes('nueva zelanda') || origenNorm.includes('new zealand')) zonaKey = 'Nueva Zelanda';
+  else if (origenNorm.includes('canada') || origenNorm.includes('canadá')) zonaKey = 'Canadá';
+  else if (origenNorm.includes('china')) zonaKey = 'China';
+  else if (origenNorm.includes('japon') || origenNorm.includes('japón')) zonaKey = 'Japón';
+  else if (CE_PAISES_EST.some(p => p.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase() === origenNorm)) zonaKey = 'CE';
+
+  // Build especie → nVariedades map from matRows
+  const espMap = {}; // espNorm → { espOriginal, nVars }
+  matRows.forEach(m => {
+    const esp = String(m['Especie']||'').trim();
+    if (!esp) return;
+    const key = esp.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+    if (!espMap[key]) espMap[key] = { esp, nVars: 0 };
+    espMap[key].nVars++;
+  });
+
+  // AN_TYPES order and labels
+  const TIPOS = [
+    { key:'V', label:'Virológico' },
+    { key:'H', label:'Micológico' },
+    { key:'B', label:'Bacteriológico' },
+    { key:'F', label:'Fitoplasma' },
+    { key:'E', label:'Entomológico' },
+    { key:'N', label:'Nematológico' },
+  ];
+
+  const tipoKey = tipo => {
+    const t = (tipo||'').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+    if(t.includes('ENTOMOL'))   return 'E';
+    if(t.includes('NEMATOL'))   return 'N';
+    if(t.includes('VIROL'))     return 'V';
+    if(t.includes('MICOL'))     return 'H';
+    if(t.includes('BACTERIOL')) return 'B';
+    if(t.includes('FITOPLASMA'))return 'F';
+    return null;
+  };
+
+  const PLAGAS_SIEMPRE_EST = ['Xylella fastidiosa','Plum Pox Virus','Candidatus Liberibacter','Erwinia amylovora'];
+
+  // Build analysis rows grouped by tipo
+  const byTipo = { V:[], H:[], B:[], F:[], E:[], N:[] };
+  const seenPlaga = new Set();
+
+  Object.values(espMap).forEach(({ esp, nVars }) => {
+    const genus = esp.split(' ')[0] + ' spp.';
+    const plagasZona = PLAGAS_LOOKUP[esp]?.[zonaKey]
+                    || PLAGAS_LOOKUP[genus]?.[zonaKey]
+                    || PLAGAS_LOOKUP[esp]?.['CE']
+                    || PLAGAS_LOOKUP[genus]?.['CE']
+                    || [];
+
+    // Obligatorias
+    const todasZonas = [
+      ...(Object.values(PLAGAS_LOOKUP[esp]   || {})).flat(),
+      ...(Object.values(PLAGAS_LOOKUP[genus] || {})).flat(),
+    ];
+    const plagasObl = todasZonas.filter(p => {
+      if (plagasZona.some(z => z.plaga === p.plaga)) return false;
+      return PLAGAS_SIEMPRE_EST.some(s => p.plaga.toLowerCase().includes(s.toLowerCase()));
+    });
+    const seenObl = new Set();
+    const plagasOblDedup = plagasObl.filter(p => { if(seenObl.has(p.plaga)) return false; seenObl.add(p.plaga); return true; });
+
+    const plagas = [...plagasZona, ...plagasOblDedup.map(p => ({...p, esExtra:true}))];
+    plagas.forEach(p => {
+      const tk = tipoKey(p.tipo);
+      if (!tk) return;
+      // Entomológico: 1 row per genus (nVars = 1)
+      const nAn = tk === 'E' ? 1 : nVars;
+      const rowKey = (tk === 'E' ? genus : esp) + '||' + p.plaga;
+      if (seenPlaga.has(rowKey)) return;
+      seenPlaga.add(rowKey);
+      byTipo[tk].push({ esp: tk === 'E' ? genus : esp, plaga: p.plaga, nAn, esExtra: p.esExtra||false, isSin: (p.plaga||'').includes('(S)') });
+    });
+  });
+
+  // Render
+  let html = '';
+  let grandTotal = 0;
+
+  TIPOS.forEach(({ key, label }) => {
+    const rows = byTipo[key];
+    if (!rows.length) return;
+    const totalTipo = rows.reduce((s,r) => s + r.nAn, 0);
+    grandTotal += totalTipo;
+
+    html += `<div style="margin-bottom:18px">
+      <div style="background:var(--nv);color:rgba(255,255,255,.85);font-size:10px;font-weight:700;
+        letter-spacing:.5px;padding:6px 10px;text-transform:uppercase;border-radius:4px 4px 0 0">${label}</div>
+      <table class="tbl" style="width:100%;border-radius:0 0 4px 4px">
+        <thead><tr>
+          <th style="text-align:left;padding:6px 10px">Especie</th>
+          <th style="text-align:left;padding:6px 10px">Patógeno / Plaga</th>
+          <th style="text-align:center;padding:6px 10px;width:110px">N° Análisis Est.</th>
+        </tr></thead>
+        <tbody>`;
+
+    rows.forEach(r => {
+      const sinStyle = r.isSin ? 'color:var(--ok);font-style:italic' : '';
+      const extraBadge = r.esExtra ? '<span style="font-size:8px;background:#ef4444;color:#fff;padding:1px 4px;border-radius:2px;margin-left:4px;vertical-align:middle">extra</span>' : '';
+      html += `<tr>
+        <td style="font-style:italic;padding:5px 10px;font-size:12px">${esc(r.esp)}</td>
+        <td style="padding:5px 10px;font-size:12px;${sinStyle}">${esc(r.plaga)}${extraBadge}</td>
+        <td style="font-family:var(--mono);text-align:center;padding:5px 10px;font-weight:600">${r.nAn}</td>
+      </tr>`;
+    });
+
+    html += `</tbody>
+        <tfoot><tr style="background:var(--gold-bg)">
+          <td colspan="2" style="padding:5px 10px;font-size:11px;font-weight:700;color:var(--nv);text-align:right">
+            TOTAL ${label}
+          </td>
+          <td style="font-family:var(--mono);text-align:center;padding:5px 10px;font-weight:800;font-size:13px;color:var(--nv)">${totalTipo}</td>
+        </tr></tfoot>
+      </table>
+    </div>`;
+  });
+
+  // Grand total
+  html += `<div style="background:var(--nv);color:#fff;border-radius:4px;padding:8px 14px;
+    display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+    <span style="font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase">TOTAL GENERAL ESTIMADO</span>
+    <span style="font-family:var(--mono);font-size:16px;font-weight:800">${grandTotal}</span>
+  </div>
+  <div style="font-size:10px;color:var(--g400);margin-top:6px;font-style:italic">
+    Zona: ${zonaKey} · Basado en ${Object.values(espMap).reduce((s,e)=>s+e.nVars,0)} variedades con Cant. Real > 0
+  </div>`;
+
+  el.innerHTML = html;
+}
+
 function renderCobroTabs() {
   // Sync analysis DOM → anRows before rendering cobro
   Object.values(AN_TYPES).forEach(({key})=>{ if(key) syncAnFromDOM(key); });
