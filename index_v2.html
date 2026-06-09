@@ -5366,7 +5366,7 @@ function _parseMaterialFromJSON(d) {
   }
   // Fallback: legacy especie_1..N fields
   const rows = [];
-  for(let i=1; i<=20; i++) {
+  for(let i=1; i<=150; i++) {
     const e = d['especie_'+i];
     if(!e) break;
     rows.push({
@@ -5445,9 +5445,9 @@ async function procesarDocumento(stage,input) {
     } else if(ext==='pdf'){
       messages=[{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},{type:'text',text:prompt}]}];
     } else {
-      let txt=''; if(ext==='docx'&&typeof mammoth!=='undefined'){ const arr=Uint8Array.from(atob(b64),c=>c.charCodeAt(0)); txt=(await mammoth.extractRawText({arrayBuffer:arr.buffer})).value.substring(0,5000); }
-      else if(['xlsx','xls'].includes(ext)&&typeof XLSX!=='undefined'){ const arr=Uint8Array.from(atob(b64),c=>c.charCodeAt(0)); const wb=XLSX.read(arr,{type:'array'}); txt=wb.SheetNames.slice(0,2).map(n=>XLSX.utils.sheet_to_csv(wb.Sheets[n]).substring(0,2000)).join('\n'); }
-      messages=[{role:'user',content:`${prompt}\n\nCONTENIDO:\n${txt.substring(0,5000)}`}];
+      let txt=''; if(ext==='docx'&&typeof mammoth!=='undefined'){ const arr=Uint8Array.from(atob(b64),c=>c.charCodeAt(0)); txt=(await mammoth.extractRawText({arrayBuffer:arr.buffer})).value.substring(0,15000); }
+      else if(['xlsx','xls'].includes(ext)&&typeof XLSX!=='undefined'){ const arr=Uint8Array.from(atob(b64),c=>c.charCodeAt(0)); const wb=XLSX.read(arr,{type:'array'}); txt=wb.SheetNames.slice(0,3).map(n=>XLSX.utils.sheet_to_csv(wb.Sheets[n]).substring(0,15000)).join('\n'); }
+      messages=[{role:'user',content:`${prompt}\n\nCONTENIDO:\n${txt.substring(0,15000)}`}];
     }
     setS('Claude analizando documento...','');
     const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:8000,messages})});
