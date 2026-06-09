@@ -1120,6 +1120,10 @@ input.field-blocked, select.field-blocked {
       </table>
       </div>
     </div>
+
+    <!-- Consolidado por especie -->
+    <div id="esp-consolidado" style="margin-top:18px"></div>
+
   </div>
   </div>
 
@@ -2824,7 +2828,64 @@ function renderVerifTable(data) {
   tbody.innerHTML='';
   rows.forEach((r,i)=>tbody.appendChild(makeVerifRow(i,r)));
   if(!rows.length) addVerifRow();
-  setTimeout(()=>{ makeVerifResizable(); renderEstablecimientoTable(); calcNplanEstab(); }, 50);
+  setTimeout(()=>{ makeVerifResizable(); renderEstablecimientoTable(); calcNplanEstab(); renderConsolidadoEspecies(); }, 50);
+}
+
+function renderConsolidadoEspecies() {
+  const el = document.getElementById('esp-consolidado');
+  if (!el) return;
+
+  // Build from verif-body rows currently in DOM
+  const verifBody = document.getElementById('verif-body');
+  if (!verifBody || !verifBody.children.length) { el.innerHTML = ''; return; }
+
+  // Aggregate by especie
+  const map = {}; // especie → { variedades: Set, nplan: number }
+  [...verifBody.children].forEach((_, i) => {
+    const esp  = document.getElementById(`ve-${i}`)?.value?.trim() || '';
+    const vari = document.getElementById(`vv-${i}`)?.value?.trim() || '';
+    const np   = parseFloat(document.getElementById(`vnplan-${i}`)?.value || '0') || 0;
+    if (!esp) return;
+    if (!map[esp]) map[esp] = { variedades: new Set(), nplan: 0 };
+    if (vari) {
+      vari.split(/[,;]/).map(v => v.trim()).filter(Boolean)
+          .forEach(v => map[esp].variedades.add(v));
+    } else {
+      // Count as 1 unnamed variety if no name given
+      map[esp].variedades.add('__unnamed__' + i);
+    }
+    map[esp].nplan += np;
+  });
+
+  const entries = Object.entries(map);
+  if (!entries.length) { el.innerHTML = ''; return; }
+
+  const rows = entries.map(([esp, d]) => {
+    // Filter out unnamed placeholders for display
+    const realVars = [...d.variedades].filter(v => !v.startsWith('__unnamed__'));
+    const nVars = [...d.variedades].filter(v => !v.startsWith('__unnamed__')).length
+                  || [...d.variedades].filter(v => v.startsWith('__unnamed__')).length;
+    return `<tr>
+      <td style="font-style:italic;padding:5px 10px;color:var(--ink)">${esc(esp)}</td>
+      <td style="font-family:var(--mono);text-align:center;padding:5px 10px;font-weight:600">${nVars}</td>
+      <td style="font-family:var(--mono);text-align:center;padding:5px 10px;font-weight:600">${d.nplan || '—'}</td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div style="font-size:11px;font-weight:600;color:var(--nv);letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px">
+      Consolidado por Especie
+    </div>
+    <div class="tbl-wrap" style="max-width:520px">
+    <table class="tbl" style="width:100%">
+      <thead><tr>
+        <th style="text-align:left;padding:7px 10px">Especie</th>
+        <th style="text-align:center;padding:7px 10px;width:130px">N° Total Variedades</th>
+        <th style="text-align:center;padding:7px 10px;width:130px">N° Total Plantas</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    </div>`;
 }
 
 function toggleAllVerifChecks() {
@@ -4212,6 +4273,7 @@ function calcNplanEstab() {
   const nvarEl  = document.getElementById('f3-nvar');
   if(nplanEl) nplanEl.value = totalNplan || '';
   if(nvarEl)  nvarEl.value  = totalVar  || '';
+  renderConsolidadoEspecies();
 }
 
 function calcPlantasTotal() {
