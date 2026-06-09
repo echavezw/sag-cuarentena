@@ -1520,6 +1520,7 @@ input.field-blocked, select.field-blocked {
   <option value="Prunus mahaleb">
   <option value="Prunus persica">
   <option value="Prunus persica var. nucipersica">
+  <option value="Prunus spp.">
   <option value="Prunus salicina">
   <option value="Prunus serotina">
   <option value="Prunus serrulata">
@@ -3241,11 +3242,23 @@ function getPlagasForEspecie(espNombre, anKey) {
   if(typeof PLAGAS_LOOKUP==='undefined' || !espNombre) return [];
 
   const genus = espNombre.split(' ')[0] + ' spp.';
-  // Collect plagas from ALL zones for this especie (and genus fallback)
-  const allZoneData = [
-    ...(Object.values(PLAGAS_LOOKUP[espNombre] || {})).flat(),
-    ...(Object.values(PLAGAS_LOOKUP[genus]     || {})).flat(),
-  ];
+  let allZoneData = [];
+
+  if(espNombre.trim().endsWith('spp.') || espNombre.trim().endsWith('spp')) {
+    // "Prunus spp." — aggregate plagas from ALL entries with the same genus
+    const genusPrefix = espNombre.split(' ')[0].toLowerCase();
+    Object.entries(PLAGAS_LOOKUP).forEach(([espKey, zonas]) => {
+      if(espKey.toLowerCase().startsWith(genusPrefix)) {
+        allZoneData.push(...Object.values(zonas).flat());
+      }
+    });
+  } else {
+    // Normal case: exact especie + genus spp. fallback
+    allZoneData = [
+      ...(Object.values(PLAGAS_LOOKUP[espNombre] || {})).flat(),
+      ...(Object.values(PLAGAS_LOOKUP[genus]     || {})).flat(),
+    ];
+  }
 
   // Normalize tipo to anKey
   const tipoKey = tipo => {
