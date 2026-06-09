@@ -6242,6 +6242,7 @@ function renderInvernaderoGrid() {
         liberada:  String(row['Liberada'] || '').trim(),
         resTermino: String(row['Res. Término'] || '').trim(),
         fechaResT: String(row['Fecha Res.4'] || '').trim(),
+        aFirma: String(row['A Firma Res. Termino'] || '').trim(),
         cub2: cub2 || '',
         especies: {},
         alerts: []
@@ -6501,6 +6502,16 @@ function renderInvernaderoGrid() {
             return; // skip alerts for delivered entries
           }
 
+          // "Pendiente Firma Res. Término" badge — show when aFirma is set but not "Firmada"
+          const _af = norm2(entry.aFirma||'');
+          const isPendFirma = entry.aFirma && _af !== 'firmada';
+          const pendFirmaHtml = isPendFirma
+            ? `<div style="margin-top:3px;display:inline-flex;align-items:center;gap:3px;
+                font-size:8px;font-weight:700;letter-spacing:.03em;padding:2px 6px;border-radius:3px;
+                background:#fef9c3;color:#854d0e;border:1px solid #fde047;white-space:nowrap">
+                ✍ Pdte. Firma Res. Término</div>`
+            : '';
+
           inner += `<div onclick="goStageFromAlert('${entry.key.replace(/'/g,"\'")}','${worstTag}')">
             <div class="cub-reg">${entry.reg}</div>
             <div class="cub-imp">${entry.imp || '—'}</div>
@@ -6510,6 +6521,7 @@ function renderInvernaderoGrid() {
               ${fechaEstFmt ? `<span>Est. ${fechaEstFmt}</span>` : ''}
               ${entry.cub2 ? `<span class="cub-meta-sep">·</span><span style="font-weight:600;color:var(--nv)">+ Cub. ${entry.cub2}</span>` : ''}
             </div>
+            ${pendFirmaHtml}
             ${espHtml}`;
 
           if (entry.alerts.length) {
