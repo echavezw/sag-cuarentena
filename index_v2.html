@@ -2717,7 +2717,7 @@ function renderEstablecimientoTable(forceRefresh) {
         // N° Plantas Establ. = nplan from getEspecies (not cantReal)
         const espData  = getEspecies().find(e=>e.especie===esp && (e.variedad||'')===(vari||''));
         const nplan    = espData?.nplan || '';
-        if(esp && cantReal >= 1) newRows.push({especie:esp, variedad:vari, nplan});
+        if(esp) newRows.push({especie:esp, variedad:vari, nplan});
       });
     }
     if(!newRows.length) {
