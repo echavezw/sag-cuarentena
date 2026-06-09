@@ -1631,6 +1631,7 @@ const BASE_URL = 'https://sheets.googleapis.com/v4/spreadsheets';
 // ── STATE ──
 const GS = { sheetId:'', apiKey:'', oauthClientId:'', anthropicKey:'' };
 let gsData = [];          // all rows from Sheets
+let _matData = [];        // all rows from Material sheet (cache)
 let anRows = {};          // analysis rows by type {V:[], H:[], B:[], F:[], E:[], N:[]}
 let verifRows = [];       // verification rows (Etapa III)
 let currentStage = 'panel';
@@ -1934,6 +1935,12 @@ async function recargar() {
     gsData=vals.slice(1).map(row=>{ const o={}; headers.forEach((h,i)=>o[h]=row[i]||''); return o; });
     buildRecordIndex();
     loadProveedores();
+    // Load Material sheet into cache for alerts species/variety display
+    fetchSheetRows(SHEET_MATERIAL).then(rows => {
+      if (!rows.length) return;
+      const hdr = rows[0];
+      _matData = rows.slice(1).map(row => { const o={}; hdr.forEach((h,i)=>o[h]=row[i]||''); return o; });
+    }).catch(()=>{});
     setTimeout(()=>loadRefData(), 500); // delay to avoid 429
     filterHist();
     renderStats();
@@ -6346,8 +6353,7 @@ function renderInvernaderoGrid() {
           const especiesArr = Object.entries(entry.especies || {});
           let espHtml = '';
 
-          // Abbreviate genus: Prunus→P., Malus→M., Vitis→V., Citrus→C.,
-          //                   Actinidia→A., Pyrus→Py., Prunus spp.→Prunus spp.
+          // Abbreviate genus
           function abbrevGenus(name) {
             if (!name) return name;
             return name
@@ -6361,8 +6367,7 @@ function renderInvernaderoGrid() {
               .replace(/\bFragaria\b/g, 'F.');
           }
 
-          // Normalize hybrid: sort both sides of × / x alphabetically so
-          // "A × B" and "B × A" map to the same key
+          // Normalize hybrid: sort both sides of × / x alphabetically
           function normalizeHybrid(name) {
             const sep = name.match(/\s[×x]\s/);
             if (!sep) return name;
@@ -6370,16 +6375,63 @@ function renderInvernaderoGrid() {
             return parts.join(' × ');
           }
 
-          // Merge deduplicated especies (hybrids normalized)
-          const mergedEsps = {};
-          especiesArr.forEach(([esp, vars]) => {
-            const key = normalizeHybrid(esp.trim());
-            if (!mergedEsps[key]) mergedEsps[key] = { esp: key, vars: new Set() };
-            vars.forEach(v => mergedEsps[key].vars.add(v));
-          });
+          // Determine if this record has reached a final state (Liberada/Terminada/Entregada)
+          // For final states, filter species/varieties using Material sheet N° Plantas Finales > 0
+          const isFinalState = isAnyDelivered || isAnyTerminada || isAnyLiberada;
 
-          if (Object.keys(mergedEsps).length) {
-            espHtml = Object.values(mergedEsps).map(({ esp, vars }) => {
+          let sourceEsps; // { espNorm → Set<variedad> }
+
+          if (isFinalState && _matData.length) {
+            // Find Material rows for this registration
+            const regKey = entry.key; // e.g. "Res. 1035 / 2025" or "|sol:263"
+            const resPart = regKey.match(/Res\.\s*(\d+)\s*\/\s*(\d+)/);
+            const solPart = regKey.match(/\|sol:(.+)$/);
+            const matRows = _matData.filter(m => {
+              if (resPart) return String(m['Res.']||'').trim() === resPart[1];
+              if (solPart) return !String(m['Res.']||'').trim() && String(m['Solicitud']||'').trim() === solPart[1];
+              return false;
+            });
+            // Build from Material rows where N° Plantas Finales > 0
+            sourceEsps = {};
+            const finalRows = matRows.filter(m => parseFloat(String(m['N° Plantas Finales']||'').replace(',','.')) > 0);
+            const useRows = finalRows.length ? finalRows : matRows; // fallback to all if none have final plants
+            useRows.forEach(m => {
+              const esp = String(m['Especie']||'').trim();
+              const varRaw = String(m['Variedad']||m['Variedades']||'').trim();
+              if (!esp) return;
+              const key = normalizeHybrid(esp);
+              if (!sourceEsps[key]) sourceEsps[key] = new Set();
+              if (varRaw) varRaw.split(/[,;]/).map(v=>v.trim()).filter(Boolean).forEach(v=>sourceEsps[key].add(v));
+            });
+            // If Material had nothing useful, fall back to gsData especies
+            if (!Object.keys(sourceEsps).length) sourceEsps = null;
+          }
+
+          // Fallback: use gsData-derived especies (Etapa III Detalle)
+          if (!sourceEsps) {
+            sourceEsps = {};
+            especiesArr.forEach(([esp, vars]) => {
+              const key = normalizeHybrid(esp.trim());
+              if (!sourceEsps[key]) sourceEsps[key] = { esp: key, vars: new Set() };
+              else if (!sourceEsps[key].vars) sourceEsps[key].vars = new Set();
+              vars.forEach(v => sourceEsps[key].vars.add(v));
+            });
+            // normalize structure: ensure all entries have .vars Set
+            Object.keys(sourceEsps).forEach(k => {
+              if (sourceEsps[k] instanceof Set) sourceEsps[k] = { esp: k, vars: sourceEsps[k] };
+              if (!sourceEsps[k].vars) sourceEsps[k].vars = new Set();
+            });
+          } else {
+            // normalize sourceEsps from _matData path into { esp, vars } objects
+            const normalized = {};
+            Object.entries(sourceEsps).forEach(([k, vars]) => {
+              normalized[k] = { esp: k, vars };
+            });
+            sourceEsps = normalized;
+          }
+
+          if (Object.keys(sourceEsps).length) {
+            espHtml = Object.values(sourceEsps).map(({ esp, vars }) => {
               const nVars = vars.size;
               const label = abbrevGenus(esp);
               return `<div class="cub-esp">${label}${nVars ? ` <span class="cub-esp-var">(${nVars} var.)</span>` : ''}</div>`;
