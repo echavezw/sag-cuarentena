@@ -6376,8 +6376,13 @@ function renderInvernaderoGrid() {
           }
 
           // Determine if this record has reached a final state (Liberada/Terminada/Entregada)
-          // For final states, filter species/varieties using Material sheet N° Plantas Finales > 0
-          const isFinalState = isAnyDelivered || isAnyTerminada || isAnyLiberada;
+          // Uses entry-level fields (available here) instead of outer isAny* vars (declared later)
+          const _entTerm = norm2(entry.terminada||'');
+          const _entLib  = norm2(entry.liberada||'');
+          const _entDel  = !!(entry.entregada && toSafeDate(entry.entregada));
+          const isFinalState = _entDel
+            || _entTerm === 'si' || _entTerm === 'sí' || _entTerm === 'terminada'
+            || _entLib  === 'si' || _entLib  === 'sí' || _entLib  === 'liberada';
 
           let sourceEsps; // { espNorm → Set<variedad> }
 
