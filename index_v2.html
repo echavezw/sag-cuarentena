@@ -6457,9 +6457,9 @@ function renderInvernaderoGrid() {
 
           let sourceEsps; // { espNorm → Set<variedad> }
 
-          if (isFinalState && _matData.length) {
+          if (_matData.length) {
             // Find Material rows for this registration
-            const regKey = entry.key; // e.g. "Res. 1035 / 2025" or "|sol:263"
+            const regKey = entry.key;
             const resPart = regKey.match(/Res\.\s*(\d+)\s*\/\s*(\d+)/);
             const solPart = regKey.match(/\|sol:(.+)$/);
             const matRows = _matData.filter(m => {
@@ -6467,10 +6467,10 @@ function renderInvernaderoGrid() {
               if (solPart) return !String(m['Res.']||'').trim() && String(m['Solicitud']||'').trim() === solPart[1];
               return false;
             });
-            // Build from Material rows where N° Plantas Finales > 0
+            // Use rows where Cant. Real > 0 (variedades que realmente llegaron)
             sourceEsps = {};
-            const finalRows = matRows.filter(m => parseFloat(String(m['N° Plantas Finales']||'').replace(',','.')) > 0);
-            const useRows = finalRows.length ? finalRows : matRows; // fallback to all if none have final plants
+            const realRows = matRows.filter(m => parseFloat(String(m['Cant. Real']||'').replace(',','.')) > 0);
+            const useRows = realRows.length ? realRows : matRows; // fallback: all rows if none have Cant. Real
             useRows.forEach(m => {
               const esp = String(m['Especie']||'').trim();
               const varRaw = String(m['Variedad']||m['Variedades']||'').trim();
