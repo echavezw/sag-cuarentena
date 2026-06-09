@@ -3846,59 +3846,134 @@ function renderEstimacionCobro() {
     });
   });
 
-  // Render
-  let html = '';
-  let grandTotal = 0;
+  // Store rows globally for delete support
+  window._estimRows = byTipo;
 
-  TIPOS.forEach(({ key, label }) => {
-    const rows = byTipo[key];
-    if (!rows.length) return;
-    const totalTipo = rows.reduce((s,r) => s + r.nAn, 0);
-    grandTotal += totalTipo;
+  function buildEstimHtml() {
+    let html = '';
+    let grandTotal = 0;
 
-    html += `<div style="margin-bottom:18px">
-      <div style="background:var(--nv);color:rgba(255,255,255,.85);font-size:10px;font-weight:700;
-        letter-spacing:.5px;padding:6px 10px;text-transform:uppercase;border-radius:4px 4px 0 0">${label}</div>
-      <table class="tbl" style="width:100%;border-radius:0 0 4px 4px">
-        <thead><tr>
-          <th style="text-align:left;padding:6px 10px">Especie</th>
-          <th style="text-align:left;padding:6px 10px">Patógeno / Plaga</th>
-          <th style="text-align:center;padding:6px 10px;width:110px">N° Análisis Est.</th>
-        </tr></thead>
-        <tbody>`;
+    TIPOS.forEach(({ key, label }) => {
+      const rows = (window._estimRows[key]||[]).filter(r => !r.deleted);
+      if (!rows.length) return;
+      const totalTipo = rows.reduce((s,r) => s + r.nAn, 0);
+      grandTotal += totalTipo;
 
-    rows.forEach(r => {
-      const sinStyle = r.isSin ? 'color:var(--ok);font-style:italic' : '';
-      const extraBadge = r.esExtra ? '<span style="font-size:8px;background:#ef4444;color:#fff;padding:1px 4px;border-radius:2px;margin-left:4px;vertical-align:middle">extra</span>' : '';
-      html += `<tr>
-        <td style="font-style:italic;padding:5px 10px;font-size:12px">${esc(r.esp)}</td>
-        <td style="padding:5px 10px;font-size:12px;${sinStyle}">${esc(r.plaga)}${extraBadge}</td>
-        <td style="font-family:var(--mono);text-align:center;padding:5px 10px;font-weight:600">${r.nAn}</td>
-      </tr>`;
+      const chkAll = `estim-all-${key}`;
+      html += `<div style="margin-bottom:18px" id="estim-section-${key}">
+        <div style="background:var(--nv);color:rgba(255,255,255,.85);font-size:10px;font-weight:700;
+          letter-spacing:.5px;padding:6px 10px;text-transform:uppercase;border-radius:4px 4px 0 0;
+          display:flex;align-items:center;justify-content:space-between">
+          <span>${label}</span>
+          <button onclick="eliminarEstimSelec('${key}')"
+            style="background:#ef4444;color:#fff;border:none;border-radius:3px;padding:2px 8px;
+            font-size:9px;font-weight:700;cursor:pointer;letter-spacing:.3px">Eliminar selec.</button>
+        </div>
+        <table class="tbl" style="width:100%;border-radius:0 0 4px 4px">
+          <thead><tr>
+            <th style="width:34px;text-align:center;padding:6px 8px">
+              <input type="checkbox" id="${chkAll}"
+                onchange="toggleEstimAll('${key}',this.checked)"
+                style="cursor:pointer;width:14px;height:14px">
+            </th>
+            <th style="text-align:left;padding:6px 10px">Especie</th>
+            <th style="text-align:left;padding:6px 10px">Patógeno / Plaga</th>
+            <th style="text-align:center;padding:6px 10px;width:110px">N° Análisis Est.</th>
+          </tr></thead>
+          <tbody id="estim-body-${key}">`;
+
+      rows.forEach((r, i) => {
+        const sinStyle = r.isSin ? 'color:var(--ok);font-style:italic' : '';
+        const extraBadge = r.esExtra
+          ? '<span style="font-size:8px;background:#ef4444;color:#fff;padding:1px 4px;border-radius:2px;margin-left:4px;vertical-align:middle">extra</span>'
+          : '';
+        html += `<tr id="estim-row-${key}-${i}">
+          <td style="text-align:center;padding:4px 8px">
+            <input type="checkbox" class="estim-chk estim-chk-${key}"
+              style="cursor:pointer;width:14px;height:14px" data-tipo="${key}" data-idx="${i}">
+          </td>
+          <td style="font-style:italic;padding:5px 10px;font-size:12px">${esc(r.esp)}</td>
+          <td style="padding:5px 10px;font-size:12px;${sinStyle}">${esc(r.plaga)}${extraBadge}</td>
+          <td style="font-family:var(--mono);text-align:center;padding:5px 10px;font-weight:600">${r.nAn}</td>
+        </tr>`;
+      });
+
+      html += `</tbody>
+          <tfoot><tr style="background:var(--gold-bg)">
+            <td></td>
+            <td colspan="2" style="padding:5px 10px;font-size:11px;font-weight:700;color:var(--nv);text-align:right">
+              TOTAL ${label}
+            </td>
+            <td style="font-family:var(--mono);text-align:center;padding:5px 10px;font-weight:800;font-size:13px;color:var(--nv)"
+              id="estim-total-${key}">${totalTipo}</td>
+          </tr></tfoot>
+        </table>
+      </div>`;
     });
 
-    html += `</tbody>
-        <tfoot><tr style="background:var(--gold-bg)">
-          <td colspan="2" style="padding:5px 10px;font-size:11px;font-weight:700;color:var(--nv);text-align:right">
-            TOTAL ${label}
-          </td>
-          <td style="font-family:var(--mono);text-align:center;padding:5px 10px;font-weight:800;font-size:13px;color:var(--nv)">${totalTipo}</td>
-        </tr></tfoot>
-      </table>
+    // Grand total
+    html += `<div style="background:var(--nv);color:#fff;border-radius:4px;padding:8px 14px;
+      display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+      <span style="font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase">TOTAL GENERAL ESTIMADO</span>
+      <span style="font-family:var(--mono);font-size:16px;font-weight:800" id="estim-grand-total">${grandTotal}</span>
+    </div>
+    <div style="font-size:10px;color:var(--g400);margin-top:6px;font-style:italic">
+      Zona: ${zonaKey} · Basado en ${Object.values(espMap).reduce((s,e)=>s+e.nVars,0)} variedades con Cant. Real > 0
     </div>`;
+
+    return html;
+  }
+
+  el.innerHTML = buildEstimHtml();
+}
+
+function toggleEstimAll(tipo, checked) {
+  document.querySelectorAll(`.estim-chk-${tipo}`).forEach(chk => { chk.checked = checked; });
+}
+
+function eliminarEstimSelec(tipo) {
+  if (!window._estimRows || !window._estimRows[tipo]) return;
+  const rows = window._estimRows[tipo].filter(r => !r.deleted);
+  document.querySelectorAll(`.estim-chk-${tipo}`).forEach((chk, i) => {
+    if (chk.checked && rows[i]) rows[i].deleted = true;
   });
-
-  // Grand total
-  html += `<div style="background:var(--nv);color:#fff;border-radius:4px;padding:8px 14px;
-    display:flex;justify-content:space-between;align-items:center;margin-top:4px">
-    <span style="font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase">TOTAL GENERAL ESTIMADO</span>
-    <span style="font-family:var(--mono);font-size:16px;font-weight:800">${grandTotal}</span>
-  </div>
-  <div style="font-size:10px;color:var(--g400);margin-top:6px;font-style:italic">
-    Zona: ${zonaKey} · Basado en ${Object.values(espMap).reduce((s,e)=>s+e.nVars,0)} variedades con Cant. Real > 0
-  </div>`;
-
-  el.innerHTML = html;
+  // Rebuild totals and DOM for this section
+  const TIPOS_LBL = {V:'Virológico',H:'Micológico',B:'Bacteriológico',F:'Fitoplasma',E:'Entomológico',N:'Nematológico'};
+  const remaining = (window._estimRows[tipo]||[]).filter(r => !r.deleted);
+  const section = document.getElementById(`estim-section-${tipo}`);
+  if (!section) return;
+  if (!remaining.length) { section.remove(); }
+  else {
+    // Re-render just this section's tbody rows and total
+    const tbody = document.getElementById(`estim-body-${tipo}`);
+    if (tbody) {
+      tbody.innerHTML = remaining.map((r, i) => {
+        const sinStyle = r.isSin ? 'color:var(--ok);font-style:italic' : '';
+        const extraBadge = r.esExtra ? '<span style="font-size:8px;background:#ef4444;color:#fff;padding:1px 4px;border-radius:2px;margin-left:4px;vertical-align:middle">extra</span>' : '';
+        return `<tr id="estim-row-${tipo}-${i}">
+          <td style="text-align:center;padding:4px 8px">
+            <input type="checkbox" class="estim-chk estim-chk-${tipo}"
+              style="cursor:pointer;width:14px;height:14px" data-tipo="${tipo}" data-idx="${i}">
+          </td>
+          <td style="font-style:italic;padding:5px 10px;font-size:12px">${esc(r.esp)}</td>
+          <td style="padding:5px 10px;font-size:12px;${sinStyle}">${esc(r.plaga)}${extraBadge}</td>
+          <td style="font-family:var(--mono);text-align:center;padding:5px 10px;font-weight:600">${r.nAn}</td>
+        </tr>`;
+      }).join('');
+      // Uncheck the "all" header checkbox
+      const allChk = document.getElementById(`estim-all-${tipo}`);
+      if (allChk) allChk.checked = false;
+    }
+    const totalEl = document.getElementById(`estim-total-${tipo}`);
+    if (totalEl) totalEl.textContent = remaining.reduce((s,r)=>s+r.nAn,0);
+  }
+  // Update grand total
+  const gtEl = document.getElementById('estim-grand-total');
+  if (gtEl) {
+    const gt = Object.entries(window._estimRows||{})
+      .reduce((s,[,rs]) => s + rs.filter(r=>!r.deleted).reduce((ss,r)=>ss+r.nAn,0), 0);
+    gtEl.textContent = gt;
+  }
 }
 
 function renderCobroTabs() {
