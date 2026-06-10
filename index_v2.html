@@ -5487,6 +5487,7 @@ function buildRows(nsol,imp) {
         const _hasFin=!!(x['Fecha Informe Fitosanitario']||'').trim();
         const _rfix=(!_f&&!_cd&&!_ch&&!_hasFin)?'':(_badRes.includes((_r||'').toLowerCase().trim())?'':(_r||''));
         anByType[k].push({
+          tipo_an:x['Análisis']||x['Analisis']||'',
           especie:x['Especie']||'',patogeno:x['Patógenos']||x['Patogenos']||'',
           estado:x['Estado Análisis']||x['Estado Analisis']||'',resultado:_rfix,
           tecnica:x['Técnica']||x['Tecnica']||'',folio:_f,corr_desde:_cd,corr_hasta:_ch,
@@ -5507,7 +5508,7 @@ function buildRows(nsol,imp) {
       'Especie':a.especie||esp[0]?.especie||'',
       'Variedades':esp.find(e=>e.especie===a.especie)?.variedad||'',
       'Portainjerto':esp.find(e=>e.especie===a.especie)?.portainjerto||'',
-      'Análisis':a.tipo_an||Object.entries(AN_TYPES).find(([,v])=>Object.values(anRows[v.key]||[]).includes(a))?.[1]?.label||'',
+      'Análisis':a.tipo_an||(Object.entries(AN_TYPES).find(([,v])=>(anRows[v.key]||[]).some(r=>r===a))||[])[1]?.label||'',
       'Patógenos':a.patogeno||'','Estado Análisis':a.estado||'',
       'Resultado':a.resultado||'','Técnica':a.tecnica||'',
       'Folio':a.folio||'','Corr. Desde':a.corr_desde||'','Corr. Hasta':a.corr_hasta||'',
