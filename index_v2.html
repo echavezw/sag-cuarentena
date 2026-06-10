@@ -2880,14 +2880,15 @@ function renderVerifTable(data) {
   const esp = data||getEspecies();
   // Map to verif row format
   const rows = esp.map(e=>({
-    especie:  e.especie||'',
-    variedad: e.variedad||'',
-    tipo:     e.tipo||'',
-    cant:     e.cant||'',
-    cantReal: (e.cantReal !== undefined && e.cantReal !== '') ? e.cantReal : (e.cant||''),
-    nplan:    e.nplanEstab||e.nplan||'',
-    obs:      e.obs||'',
-    ok:       e.ok !== undefined ? e.ok : true,
+    especie:   e.especie||'',
+    variedad:  e.variedad||'',
+    tipo:      e.tipo||'',
+    cant:      e.cant||'',
+    cantReal:  (e.cantReal !== undefined && e.cantReal !== '') ? e.cantReal : (e.cant||''),
+    nplan:     e.nplanEstab||e.nplan||'',
+    nplanBrot: e.nplanBrot||'',
+    obs:       e.obs||'',
+    ok:        e.ok !== undefined ? e.ok : true,
   }));
   tbody.innerHTML='';
   rows.forEach((r,i)=>tbody.appendChild(makeVerifRow(i,r)));
