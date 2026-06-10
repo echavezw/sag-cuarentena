@@ -1113,7 +1113,12 @@ input.field-blocked, select.field-blocked {
           <tr>
             <th style="width:75px;text-align:center;font-size:11px">Cant. Decl.</th>
             <th style="width:75px;text-align:center;font-size:11px">Cant. Real</th>
-            <th style="width:95px;text-align:center;font-size:11px;background:var(--gold-bg);color:#000">N° Plantas Establ.</th>
+            <th style="width:95px;text-align:center;font-size:11px;background:var(--gold-bg);color:#000">
+              N° Plantas Establ.
+              <div style="margin-top:3px;visibility:hidden">
+                <button style="background:transparent;border:none;padding:1px 6px;font-size:9px">↓ Llenar</button>
+              </div>
+            </th>
             <th style="width:110px;text-align:center;font-size:11px;background:var(--gold-bg);color:#000">
               N° Plantas Brotadas
               <div style="margin-top:3px">
@@ -3128,9 +3133,11 @@ function addVerifRow() { const tb=$('verif-body'); if(!tb) return; tb.appendChil
 function delVerifRow(i) {
   const tb=$('verif-body'); if(!tb) return;
   const rows=[...tb.children].map((_,j)=>({
-    ok:     document.getElementById(`vchk-${j}`)?.checked,
-    especie:v(`ve-${j}`), variedad:v(`vv-${j}`), tipo:v(`vt-${j}`),
-    cant:   v(`vcd-${j}`), cantReal:v(`vcr-${j}`), obs:v(`vobs-${j}`)
+    ok:       document.getElementById(`vchk-${j}`)?.checked,
+    especie:  v(`ve-${j}`), variedad:v(`vv-${j}`), tipo:v(`vt-${j}`),
+    cant:     v(`vcd-${j}`), cantReal:v(`vcr-${j}`), obs:v(`vobs-${j}`),
+    nplan:    v(`vnplan-${j}`),
+    nplanBrot:v(`vbrot-${j}`)
   }));
   rows.splice(i,1);
   renderVerifTable(rows);
