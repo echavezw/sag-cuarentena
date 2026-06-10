@@ -1779,7 +1779,7 @@ function goStage(n) {
   currentStage=n;
   if(n===2) { window._resEspRows=null; updateReadonlyRefs(); }
   if(n===3) updateResBars();
-  if(n===4) { updateResBars(); renderAnalisisTabs(); setTimeout(checkCoreBlocks, 200); }
+  if(n===4) { updateResBars(); renderAnalisisTabs(); }
   if(n===5) renderCobroTabs();
 
   if(n===7) { showTab(7,0); setTimeout(updateReadonlyRefs, 50); }
@@ -3541,26 +3541,33 @@ function onAnPatChange(key, i, patVal) {
 }
 
 function syncAnFromDOM(key) {
-  anRows[key]=(anRows[key]||[]).map((_,i)=>({
-    ...(anRows[key][i]||{}),
-    especie:  document.getElementById(`ae-esp-${key}-${i}`)?.value||'',
-    patogeno: document.getElementById(`ae-pat-${key}-${i}`)?.value||'',
-    ccaa_est: document.getElementById(`ae-ccaa-est-${key}-${i}`)?.value||'',
-    ccaa_real:document.getElementById(`ae-ccaa-real-${key}-${i}`)?.value||'',
-    tdm_est:  document.getElementById(`ae-tdm-est-${key}-${i}`)?.value||'',
-    tdm:      document.getElementById(`ae-tdm-${key}-${i}`)?.value||'',
-    folio:    document.getElementById(`ae-folio-${key}-${i}`)?.value||'',
-    corr_desde:document.getElementById(`ae-cd-${key}-${i}`)?.value||'',
-    corr_hasta:document.getElementById(`ae-ch-${key}-${i}`)?.value||'',
-    n_muestras:document.getElementById(`ae-nm-${key}-${i}`)?.value||'',
-    estado:   document.getElementById(`ae-est-${key}-${i}`)?.value||'',
-    resultado:document.getElementById(`ae-res-${key}-${i}`)?.value||'',
-    obs:      document.getElementById(`ae-obs-${key}-${i}`)?.value||'',
-    // preserve flags set at render time
-    esExtra:  anRows[key][i]?.esExtra || false,
-    via:      anRows[key][i]?.via || '',
-    esRaiz:   anRows[key][i]?.esRaiz || false,
-  }));
+  // Only sync if the analysis table is actually rendered in DOM
+  // If DOM inputs don't exist, preserve anRows as-is (avoid wiping in-memory data)
+  const testEl = document.getElementById(`ae-esp-${key}-0`);
+  if(!testEl) return; // table not rendered — keep anRows intact
+  anRows[key]=(anRows[key]||[]).map((_,i)=>{
+    const espEl   = document.getElementById(`ae-esp-${key}-${i}`);
+    if(!espEl) return anRows[key][i]||{}; // row not in DOM — preserve
+    return {
+      ...(anRows[key][i]||{}),
+      especie:   espEl.value||'',
+      patogeno:  document.getElementById(`ae-pat-${key}-${i}`)?.value||'',
+      ccaa_est:  document.getElementById(`ae-ccaa-est-${key}-${i}`)?.value||'',
+      ccaa_real: document.getElementById(`ae-ccaa-real-${key}-${i}`)?.value||'',
+      tdm_est:   document.getElementById(`ae-tdm-est-${key}-${i}`)?.value||'',
+      tdm:       document.getElementById(`ae-tdm-${key}-${i}`)?.value||'',
+      folio:     document.getElementById(`ae-folio-${key}-${i}`)?.value||'',
+      corr_desde:document.getElementById(`ae-cd-${key}-${i}`)?.value||'',
+      corr_hasta:document.getElementById(`ae-ch-${key}-${i}`)?.value||'',
+      n_muestras:document.getElementById(`ae-nm-${key}-${i}`)?.value||'',
+      estado:    document.getElementById(`ae-est-${key}-${i}`)?.value||'',
+      resultado: document.getElementById(`ae-res-${key}-${i}`)?.value||'',
+      obs:       document.getElementById(`ae-obs-${key}-${i}`)?.value||'',
+      esExtra:   anRows[key][i]?.esExtra || false,
+      via:       anRows[key][i]?.via || '',
+      esRaiz:    anRows[key][i]?.esRaiz || false,
+    };
+  });
 }
 
 function autoEstadoFolio(key,i) {
@@ -4409,6 +4416,9 @@ function updateCobroStatus(tr, key, otherVal) {
 function syncCobroFromDOM() {
   Object.values(AN_TYPES).forEach(({key})=>{
     const rows = anRows[key]||[];
+    // Only sync if cobro table is rendered
+    const testCobro = document.querySelector(`[id^="cobro-sps-${key}-"]`);
+    if(!testCobro) return; // not rendered — preserve sps/core in anRows
     document.querySelectorAll(`[id^="cobro-sps-${key}-"]`).forEach(spsInp=>{
       const m = spsInp.id.match(new RegExp('cobro-sps-'+key+'-(\\d+)$'));
       if(!m) return;
@@ -5347,10 +5357,14 @@ async function guardarTodo() {
     let existing=[];
     let existKey='';
     if(res) {
-      existing=gsData.filter(r=>String(r['Res.']||'').trim()===res);
+      const saveYear2 = fmtD(v('f2-fres')).substring(0,4);
+      existing=gsData.filter(r=>{
+        const rRes=String(r['Res.']||'').trim();
+        const rYear=fmtD(r['Fecha Res.']||'').substring(0,4);
+        return rRes===res && (!saveYear2||!rYear||rYear===saveYear2);
+      });
       existKey=res;
     } else {
-      // Sin resolución: detect by Solicitud + empty Res.
       existing=gsData.filter(r=>String(r['Solicitud']||'').trim()===String(nsol)&&!String(r['Res.']||'').trim());
       existKey='Sol.'+nsol;
     }
@@ -5439,9 +5453,13 @@ function buildRows(nsol,imp) {
   // for this record, reload them rather than overwrite with blank
   if(!allAn.length) {
     const res = v('f2-nres').trim();
+    const resYear = fmtD(v('f2-fres')||_lastLoadedRow['Fecha Res.']||'').substring(0,4);
     const existingWithAn = gsData.filter(r => {
-      const matchRes = res ? String(r['Res.']||'').trim()===res
-                           : String(r['Solicitud']||'').trim()===String(nsol) && !String(r['Res.']||'').trim();
+      const rRes  = String(r['Res.']||'').trim();
+      const rYear = fmtD(r['Fecha Res.']||'').substring(0,4);
+      const matchRes = res
+        ? (rRes===res && (!resYear||!rYear||rYear===resYear))
+        : (String(r['Solicitud']||'').trim()===String(nsol) && !rRes);
       return matchRes && (r['Análisis']||r['Patógenos']||r['Estado Análisis']);
     });
     if(existingWithAn.length) {
@@ -5521,11 +5539,25 @@ async function doSave(rows,isUpdate,res,nsol) {
   if(isUpdate) {
     const allRows=await fetchAllRows();
     const toDelete=[];
+    // Determine column indices from actual sheet header row (don't assume positions)
+    const hdr = allRows[0]||[];
+    const iRes  = hdr.indexOf('Res.');
+    const iSol  = hdr.indexOf('Solicitud');
+    const iFRes = hdr.indexOf('Fecha Res.');
+    // Year from the rows we are about to write (rows[0] has the current record's Fecha Res.)
+    const saveYear = rows[0]?.['Fecha Res.']?.substring(0,4) || rows[0]?.['Fecha Solicitud']?.substring(0,4) || '';
     allRows.slice(1).forEach((row,i)=>{
       if(res) {
-        if(String(row[2]||'').trim()===res.trim()) toDelete.push(i+1);
+        const rowRes  = iRes>=0  ? String(row[iRes]||'').trim()  : String(row[2]||'').trim();
+        const rowFRes = iFRes>=0 ? String(row[iFRes]||'').trim() : '';
+        const rowYear = rowFRes ? rowFRes.substring(0,4) : '';
+        // Match res number AND year (when year available) to avoid deleting same-number different-year
+        const resMatch = rowRes===res.trim() && (!saveYear || !rowYear || rowYear===saveYear);
+        if(resMatch) toDelete.push(i+1);
       } else {
-        if(String(row[0]||'').trim()===String(nsol) && !String(row[2]||'').trim()) toDelete.push(i+1);
+        const rowSol = iSol>=0 ? String(row[iSol]||'').trim() : String(row[0]||'').trim();
+        const rowRes = iRes>=0 ? String(row[iRes]||'').trim() : String(row[2]||'').trim();
+        if(rowSol===String(nsol) && !rowRes) toDelete.push(i+1);
       }
     });
 
