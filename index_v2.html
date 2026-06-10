@@ -4486,13 +4486,14 @@ function renderCierreTabs() {
 
   const espData = window._loadedEspData||[];
   if(espData.length) {
-    // Primary: use loaded data with saved nplanEstab and nplanEstadia
+    // Primary: use loaded data with saved nplanEstab, nplanBrot and nplanFin
     espData.forEach(e => {
       rows.push({
         especie:    e.especie||'',
         variedad:   e.variedad||'',
         nplanEstab: parseInt(e.nplanEstab||e.nplan||'0')||0,
-        nplanFin:   parseInt(e.nplanFin||e.nplanEstadia||e.nplan||'0')||0,
+        nplanBrot:  e.nplanBrot||'',
+        nplanFin:   e.nplanFin||'',  // keep raw string — rendering logic handles fallback
       });
     });
   } else {
@@ -4531,11 +4532,15 @@ function renderCierreTabs() {
 
   rows.forEach((e,i) => {
     const nEstab = e.nplanEstab||0;
-    const nFin   = e.nplanFin!==undefined ? e.nplanFin : 0;
+    // nplanFin: use saved value first; if empty fall back to nplanBrot (Etapa III), then 0
+    const nFin = (e.nplanFin!==undefined && e.nplanFin!=='' && parseInt(e.nplanFin)>0)
+      ? parseInt(e.nplanFin)
+      : ((e.nplanBrot!==undefined && e.nplanBrot!=='' && parseInt(e.nplanBrot)>0)
+          ? parseInt(e.nplanBrot) : 0);
     const tr = document.createElement('tr');
-    const nFinCell = nEstab===0
-      ? '<span style="font-family:var(--mono);color:var(--g400);font-size:13px;display:block;text-align:center">—</span>'
-      : '<input type="number" id="pf-'+i+'" value="'+(nFin||'')+'" placeholder="—" style="font-family:var(--mono);text-align:center;width:80px" oninput="calcPlantasTotal();syncPfToEstadia()">';
+    // Always show editable input (not — placeholder) so user can enter data
+    const nFinCell = '<input type="number" id="pf-'+i+'" value="'+(nFin||'')+'" placeholder="0"'
+      +' style="font-family:var(--mono);text-align:center;width:80px" oninput="markDirty(6);calcPlantasTotal();syncPfToEstadia()">';
     tr.innerHTML=`
       <td style="font-style:italic;padding:5px 8px">${esc(e.especie)}</td>
       <td style="padding:5px 8px;text-align:center;font-size:11px;color:var(--g600)">${esc(e.variedad||'—')}</td>
@@ -4543,13 +4548,13 @@ function renderCierreTabs() {
       <td style="padding:4px 6px;text-align:center;vertical-align:middle">${nFinCell}</td>
       <td style="padding:5px 8px;text-align:center">
         <input id="est-sps-${i}" value="${esc(loadedSpsEst)}" placeholder="N° SPS"
-          style="font-family:var(--mono);text-align:center;width:100%" oninput="replicarSPSEst(this.value)">
+          style="font-family:var(--mono);text-align:center;width:100%" oninput="markDirty(6);replicarSPSEst(this.value)">
       </td>
       <td style="padding:5px 8px;text-align:center">
         <input id="est-core-${i}" value="${esc(loadedCoreEst)}" placeholder="N° CORE"
-          style="font-family:var(--mono);text-align:center;width:100%" oninput="replicarCOREEst(this.value)">
+          style="font-family:var(--mono);text-align:center;width:100%" oninput="markDirty(6);replicarCOREEst(this.value)">
       </td>
-      <td style="padding:4px 6px;text-align:center"><input id="pf-obs-${i}" placeholder="Observaciones..."></td>`;
+      <td style="padding:4px 6px;text-align:center"><input id="pf-obs-${i}" placeholder="Observaciones..." oninput="markDirty(6)"></td>`;
     tbody.appendChild(tr);
   });
 
@@ -5356,8 +5361,8 @@ function buildRows(nsol,imp) {
     'Fecha aprox. Levant.':fmtDisplay(v('f3-flev')),
     'Estado':          v('f3-estado')||'Sin muestrear',
     'Muestreada?':     v('f2-recibida'),
-    'SPS estadía':     (()=>{ const el=document.querySelector('[id^="est-sps-"]'); return (el?.value||'')||_lastLoadedRow['SPS estadía']||_lastLoadedRow['SPS estadia']||''; })(),
-    'CORE/Factura3':   (()=>{ const el=document.querySelector('[id^="est-core-"]'); return (el?.value||'')||_lastLoadedRow['CORE/Factura3']||''; })(),
+    'SPS estadía':     (()=>{ const el=document.getElementById('est-sps-0'); return el ? (el.value||'') : (_lastLoadedRow['SPS estadía']||_lastLoadedRow['SPS estadia']||''); })(),
+    'CORE/Factura3':   (()=>{ const el=document.getElementById('est-core-0'); return el ? (el.value||'') : (_lastLoadedRow['CORE/Factura3']||''); })(),
     'Terminada':       v('f6-term')||_lastLoadedRow['Terminada']||'',
     'Res. Término':    v('f6-nrest')||_lastLoadedRow['Res. Término']||'',
     'Fecha Res.4':     fmtDisplay(v('f6-frterm'))||_lastLoadedRow['Fecha Res.4']||'',
@@ -5391,7 +5396,18 @@ function buildRows(nsol,imp) {
     'Pto Ingreso':     v('f1-pto'),
     'Res. Modificacion': v('f2-res-mod'),
     'Fec. Mod.':       fmtDisplay(v('f2-fres-mod')),
-    'N° Plantas Finales': v('f6-total-fin')||'',
+    'N° Plantas Finales': (()=>{
+      // Prefer live DOM sum; fallback to _loadedEspData sum; then f6-total-fin
+      let _tot=0; let _hasInput=false;
+      document.querySelectorAll('[id^="pf-"]').forEach(inp=>{
+        if(inp.id==='pf-total'||inp.id.startsWith('pf-obs')) return;
+        _hasInput=true; _tot+=parseInt(inp.value)||0;
+      });
+      if(_hasInput) return _tot>0?String(_tot):'';
+      const _espD=window._loadedEspData||[];
+      const _espTot=_espD.reduce((s,e)=>s+(parseInt(e.nplanFin)||0),0);
+      return _espTot>0?String(_espTot):(v('f6-total-fin')||'');
+    })(),
     'Meses ECA':       '',
   };
   const rows=[];
@@ -5551,7 +5567,20 @@ async function doSave(rows,isUpdate,res,nsol) {
   clearDirty();
   saveProveedorIfNew(v('f1-prov'));
   // Save material/varieties to dedicated sheet
-  try { await saveMaterial(nsol, v('f1-imp'), res||''); } catch(e){ console.warn('saveMaterial error:',e); }
+  try {
+    await saveMaterial(nsol, v('f1-imp'), res||'');
+    // Update _loadedEspData nplanFin from pf-{i} DOM after successful save
+    if(window._loadedEspData) {
+      window._loadedEspData.forEach((e,i)=>{
+        const pfEl=document.getElementById('pf-'+i);
+        if(pfEl) e.nplanFin=pfEl.value||'';
+        const spsEl=document.getElementById('est-sps-'+i);
+        if(spsEl) { _lastLoadedRow['SPS estadía']=spsEl.value||''; }
+        const coreEl=document.getElementById('est-core-'+i);
+        if(coreEl) { _lastLoadedRow['CORE/Factura3']=coreEl.value||''; }
+      });
+    }
+  } catch(e){ console.warn('saveMaterial error:',e); }
   setTimeout(()=>recargar(),800);
 }
 
