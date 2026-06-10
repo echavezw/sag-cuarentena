@@ -4419,10 +4419,13 @@ function syncCobroFromDOM() {
   });
 }
 function replicarSPSEst(val) {
-  document.querySelectorAll('[id^="est-sps-"]').forEach(inp=>{ inp.value=val; });
+  // Only replicate within Etapa VI tabla (plantas-body), not Etapa V
+  const tb = document.getElementById('plantas-body');
+  if(tb) tb.querySelectorAll('[id^="est-sps-"]').forEach(inp=>{ inp.value=val; });
 }
 function replicarCOREEst(val) {
-  document.querySelectorAll('[id^="est-core-"]').forEach(inp=>{ inp.value=val; });
+  const tb = document.getElementById('plantas-body');
+  if(tb) tb.querySelectorAll('[id^="est-core-"]').forEach(inp=>{ inp.value=val; });
 }
 function calcTotalEstadia() {
   let total=0;
@@ -4547,11 +4550,13 @@ function renderCierreTabs() {
       <td style="padding:4px 6px;text-align:center;vertical-align:middle">${nFinCell}</td>
       <td style="padding:5px 8px;text-align:center">
         <input id="est-sps-${i}" value="${esc(loadedSpsEst)}" placeholder="N° SPS"
-          style="font-family:var(--mono);text-align:center;width:100%" oninput="markDirty(6);replicarSPSEst(this.value)">
+          style="font-family:var(--mono);text-align:center;width:100%"
+          oninput="markDirty(6);${i===0?'replicarSPSEst(this.value)':''}">
       </td>
       <td style="padding:5px 8px;text-align:center">
         <input id="est-core-${i}" value="${esc(loadedCoreEst)}" placeholder="N° CORE"
-          style="font-family:var(--mono);text-align:center;width:100%" oninput="markDirty(6);replicarCOREEst(this.value)">
+          style="font-family:var(--mono);text-align:center;width:100%"
+          oninput="markDirty(6);${i===0?'replicarCOREEst(this.value)':''}">
       </td>
       <td style="padding:4px 6px;text-align:center"><input id="pf-obs-${i}" placeholder="Observaciones..." oninput="markDirty(6)"></td>`;
     tbody.appendChild(tr);
