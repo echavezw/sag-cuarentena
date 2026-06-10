@@ -2263,8 +2263,24 @@ function limpiarFormSilent() {
   verifRows=[];
   window._resEspRows=null;
   window._loadedEspData=null;
-  window._loadedEspKey=null;  // invalidate cache key
-  // Clear Etapa VI table immediately to avoid stale data flash
+  window._loadedEspKey=null;
+  // Clear all dynamic table bodies immediately — prevents stale data flash when switching records
+  // Etapa III — Establecimiento
+  const _estabTb=document.getElementById('estab-mat-body');
+  if(_estabTb) _estabTb.innerHTML='';
+  const _consol=document.getElementById('esp-consolidado');
+  if(_consol) _consol.innerHTML='';
+  // Etapa IV — Análisis (6 tab panels, each rebuilt by renderAnalisisTabs)
+  for(let _i=0;_i<6;_i++){
+    const _ab=document.getElementById('an-body-'+_i);
+    if(_ab) _ab.innerHTML='';
+  }
+  // Etapa V — Cobro
+  const _cb=document.getElementById('cobro-body');
+  if(_cb) _cb.innerHTML='';
+  const _ecb=document.getElementById('estimacion-cobro-body');
+  if(_ecb) _ecb.innerHTML='';
+  // Etapa VI — Recuento
   const _pb=document.getElementById('plantas-body');
   if(_pb) _pb.innerHTML='';
   clearDirty();
