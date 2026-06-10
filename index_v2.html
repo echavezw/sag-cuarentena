@@ -3277,13 +3277,13 @@ function makeAnRow(key,i,r,tecnica) {
         onchange="onAnPatChange('${key}',${i},this.value)"
         title="Seleccionar patógeno/plaga para la especie indicada">${plagaOpts}</select>
     </td>
-    <td style="text-align:center"><input type="date" id="ae-ccaa-est-${key}-${i}" value="${r.ccaa_est||''}" style="text-align:center"></td>
-    <td style="text-align:center"><input type="date" id="ae-ccaa-real-${key}-${i}" value="${r.ccaa_real||''}" style="text-align:center"></td>
-    <td style="text-align:center"><input type="date" id="ae-tdm-est-${key}-${i}" value="${r.tdm_est||''}" style="text-align:center"></td>
-    <td style="text-align:center"><input type="date" id="ae-tdm-${key}-${i}" value="${r.tdm||''}" style="text-align:center"></td>
-    <td style="text-align:center"><input type="text" inputmode="numeric" id="ae-folio-${key}-${i}" value="${r.folio||''}" style="font-family:var(--mono);text-align:center;min-width:36px;width:auto" oninput="autoEstadoFolio('${key}',${i});autoFitInput(this)"></td>
-    <td style="text-align:center"><input type="text" inputmode="numeric" id="ae-cd-${key}-${i}" value="${r.corr_desde||''}" style="font-family:var(--mono);text-align:center;min-width:36px;width:auto" oninput="calcNM('${key}',${i});autoFitInput(this)"></td>
-    <td style="text-align:center"><input type="text" inputmode="numeric" id="ae-ch-${key}-${i}" value="${r.corr_hasta||''}" style="font-family:var(--mono);text-align:center;min-width:36px;width:auto" oninput="calcNM('${key}',${i});autoFitInput(this)"></td>
+    <td style="text-align:center"><input type="date" id="ae-ccaa-est-${key}-${i}" value="${r.ccaa_est||''}" style="text-align:center" ${i===0?`oninput="replicarFila0An('${key}','ccaa-est',this.value)"`:''}>  </td>
+    <td style="text-align:center"><input type="date" id="ae-ccaa-real-${key}-${i}" value="${r.ccaa_real||''}" style="text-align:center" ${i===0?`oninput="replicarFila0An('${key}','ccaa-real',this.value)"`:''}>  </td>
+    <td style="text-align:center"><input type="date" id="ae-tdm-est-${key}-${i}" value="${r.tdm_est||''}" style="text-align:center" ${i===0?`oninput="replicarFila0An('${key}','tdm-est',this.value)"`:''}>  </td>
+    <td style="text-align:center"><input type="date" id="ae-tdm-${key}-${i}" value="${r.tdm||''}" style="text-align:center" ${i===0?`oninput="replicarFila0An('${key}','tdm',this.value)"`:''}>  </td>
+    <td style="text-align:center"><input type="text" inputmode="numeric" id="ae-folio-${key}-${i}" value="${r.folio||''}" style="font-family:var(--mono);text-align:center;min-width:36px;width:auto" oninput="autoEstadoFolio('${key}',${i});autoFitInput(this);${i===0?`replicarFila0An('${key}','folio',this.value)`:''}"  ></td>
+    <td style="text-align:center"><input type="text" inputmode="numeric" id="ae-cd-${key}-${i}" value="${r.corr_desde||''}" style="font-family:var(--mono);text-align:center;min-width:36px;width:auto" oninput="calcNM('${key}',${i});autoFitInput(this);${i===0?`replicarFila0An('${key}','cd',this.value)`:''}"  ></td>
+    <td style="text-align:center"><input type="text" inputmode="numeric" id="ae-ch-${key}-${i}" value="${r.corr_hasta||''}" style="font-family:var(--mono);text-align:center;min-width:36px;width:auto" oninput="calcNM('${key}',${i});autoFitInput(this);${i===0?`replicarFila0An('${key}','ch',this.value)`:''}"  ></td>
     <td style="text-align:center"><input type="number" id="ae-nm-${key}-${i}" value="${r.n_muestras||''}" style="font-family:var(--mono);background:var(--gold-bg);font-weight:700;text-align:center" readonly></td>
     <td style="text-align:center"><select id="ae-est-${key}-${i}" style="font-weight:600;padding:4px;border-radius:3px;background:${estBg};color:${estColor}"
   onchange="updateEstadoColor(this)">${estOpts}</select></td>
@@ -3637,6 +3637,21 @@ function autoFitInput(inp) {
   ruler.textContent = inp.value;
   const w = Math.max(40, ruler.offsetWidth + 18);
   inp.style.width = w + 'px';
+}
+
+function replicarFila0An(key, field, val) {
+  // Replicate value from row 0 to all subsequent rows of same analysis type
+  const rows = anRows[key]||[];
+  for(let j=1; j<rows.length; j++) {
+    const el = document.getElementById(`ae-${field}-${key}-${j}`);
+    if(el && !el.readOnly) {
+      el.value = val;
+      // If replicating corr fields, recalculate N°M for that row
+      if(field==='cd'||field==='ch') calcNM(key,j);
+      // If replicating folio, also trigger estado update
+      if(field==='folio') autoEstadoFolio(key,j);
+    }
+  }
 }
 
 function calcNM(key,i) {
