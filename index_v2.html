@@ -1962,6 +1962,40 @@ async function recargar() {
       updateTimeline(_res,_yr,_rows.length?_rows:[_r0]);
     }
     buildAlerts();
+    // Reload anRows from fresh gsData for the active record — keeps analysis in sync after save
+    if(_activeRes && _lastLoadedRow && Object.keys(_lastLoadedRow).length) {
+      const _r0=_lastLoadedRow, _res=String(_r0['Res.']||'').trim();
+      const _yr=fmtD(_r0['Fecha Res.']||'').substring(0,4);
+      const _sol=String(_r0['Solicitud']||'').trim();
+      const _fresh=gsData.filter(x=>{
+        const xr=String(x['Res.']||'').trim();
+        if(_res) return xr===_res && (!_yr||fmtD(x['Fecha Res.']||'').substring(0,4)===_yr);
+        return String(x['Solicitud']||'').trim()===_sol && !xr;
+      });
+      if(_fresh.length) {
+        const _abt={V:[],H:[],B:[],F:[],E:[],N:[]};
+        _fresh.forEach(x=>{
+          const tipo=String(x['Analisis']||x['Álisis']||x['Análisis']||'').toUpperCase();
+          const pat=x['Patógenos']||x['Patogenos']||'';
+          if(!tipo&&!pat) return;
+          const k=tipo.includes('VIROL')?'V':tipo.includes('MICOL')?'H':tipo.includes('BACTERIOL')?'B':
+                  tipo.includes('FITOPLASMA')?'F':tipo.includes('ENTOMOL')?'E':tipo.includes('NEMATOL')?'N':'V';
+          const _f=x['Folio']||'',_cd=x['Corr. Desde']||'',_ch=x['Corr. Hasta']||'';
+          const _hasFin=!!(x['Fecha Informe Fitosanitario']||'').trim();
+          const _r2=x['Resultado']||'';
+          const _rfix=(!_f&&!_cd&&!_ch&&!_hasFin)?'':(['-','—','--'].includes((_r2||'').trim())?'':(_r2||''));
+          _abt[k].push({tipo_an:x['Análisis']||x['Analisis']||'',especie:x['Especie']||'',patogeno:pat,
+            estado:x['Estado Análisis']||x['Estado Analisis']||'',resultado:_rfix,
+            tecnica:x['Técnica']||x['Tecnica']||'',folio:_f,corr_desde:_cd,corr_hasta:_ch,
+            n_muestras:x['N° Muestras']||'',obs:x['Obs.']||'',
+            sps:x['SPS análisis']||'',core:x['CORE/Factura']||'',
+            ccaa_est:x['Fecha estimada de CCAA']||'',ccaa_real:x['Fecha Real de CCAA']||'',
+            tdm:x['Fecha muestreo/Indexaje']||'',tdm_est:x['Fecha Estimada Muestreo']||'',
+            fecha_inf:x['Fecha Informe Fitosanitario']||''});
+        });
+        anRows=_abt; _anRowsModified=false;
+      }
+    }
     setGSDot('ok',`${gsData.length} registros`);
     setS(`${gsData.length} registros cargados desde Google Sheets.`,'ok');
   } catch(e) { setGSDot('err','Error'); setS('Error cargando datos: '+e.message,'err'); }
