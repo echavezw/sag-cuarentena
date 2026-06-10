@@ -1944,6 +1944,18 @@ async function recargar() {
     renderStats();
     renderRecientes();
     initTimeline();
+    // Re-populate timeline if a record is already loaded
+    if(_activeRes && _lastLoadedRow && Object.keys(_lastLoadedRow).length) {
+      const _r0=_lastLoadedRow;
+      const _res=String(_r0['Res.']||'').trim();
+      const _yr=fmtD(_r0['Fecha Res.']||'').substring(0,4);
+      const _rows=gsData.filter(x=>{
+        const xr=String(x['Res.']||'').trim();
+        if(_res) return xr===_res && (!_yr||fmtD(x['Fecha Res.']||'').substring(0,4)===_yr);
+        return String(x['Solicitud']||'').trim()===String(_r0['Solicitud']||'').trim();
+      });
+      updateTimeline(_res,_yr,_rows.length?_rows:[_r0]);
+    }
     buildAlerts();
     setGSDot('ok',`${gsData.length} registros`);
     setS(`${gsData.length} registros cargados desde Google Sheets.`,'ok');
@@ -4779,11 +4791,23 @@ function toggleTlSection(id) {
 }
 
 function updateTimeline(res, year, rows) {
-  const r=rows?.[0]||{};
-  // Helper: get date from field or analysis data
+  const r=rows?.[0]||_lastLoadedRow||{};
+  // Helper: get date from DOM field, then from row by sheet column name
+  const FIELD_TO_COL = {
+    'f1-fech-rec': 'Fecha Recepcion',
+    'f2-fres':     'Fecha Res.',
+    'f3-fing':     'Fecha de Ingreso',
+    'f3-finj':     'Fecha Injertación',
+    'f3-flev':     'Fecha aprox. Levant.',
+    'f6-frterm':   'Fecha Res.4',
+    'f6-fent':     'Entregada'
+  };
   function getTlDate(item) {
-    if(item.field) return fmtD(v(item.field)||r[item.field]||'');
-    return '';
+    if(!item.field) return '';
+    const domVal = v(item.field);
+    if(domVal) return fmtD(domVal);
+    const col = FIELD_TO_COL[item.field];
+    return col ? fmtD(r[col]||'') : '';
   }
   // Update main items
   TL_MAIN.forEach(item=>{
@@ -4791,8 +4815,15 @@ function updateTimeline(res, year, rows) {
     const dateEl=$(`${item.id}-date`);
     let date=getTlDate(item);
     let doneCount=0, totalCount=0;
+    // Special case: tl-firma (A Firma Res. Termino)
+    if(item.id==='tl-firma') {
+      const firmaVal = v('f6-afirma') || r['A Firma Res. Termino'] || r['A firma'] || '';
+      const firmaDone = firmaVal && firmaVal !== 'Pendiente Envío a Firma';
+      date = firmaDone ? firmaVal : '';
+    }
     // Update children for collapsible items
     if(item.collapsible && item.children) {
+      let lastDate='';
       item.children.forEach(c=>{
         const cel=$(c.id); if(!cel) return;
         const cdateEl=$(`${c.id}-date`);
@@ -4803,20 +4834,24 @@ function updateTimeline(res, year, rows) {
           else if(c.sps) cdate=anList.map(a=>a.sps).filter(Boolean).sort().pop()||'';
           else if(c.core) cdate=anList.map(a=>a.core).filter(Boolean).sort().pop()||'';
           else cdate=anList.map(a=>a.ccaa_real||a.ccaa_est).filter(Boolean).sort().pop()||'';
-        } else if(c.spsEst) cdate=v('f5-sps-est')||r['SPS estadía']||'';
+        } else if(c.spsEst) cdate=v('f5-sps-est')||r['SPS estadía']||r['SPS estadia']||'';
         else if(c.coreEst) cdate=v('f5-core-est')||r['CORE/Factura3']||'';
         if(cdateEl) cdateEl.textContent=cdate||'—';
         const childDone=!!cdate;
         cel.classList.toggle('done',childDone);
         cel.classList.remove('active');
-        totalCount++; if(childDone) doneCount++;
+        totalCount++; if(childDone){ doneCount++; if(cdate) lastDate=cdate; }
       });
-      // Parent done if all children done
-      date=doneCount===totalCount&&totalCount>0?'Completo':'';
+      // Parent done if all children done; show last date or count
+      if(doneCount===totalCount && totalCount>0) {
+        date = lastDate || 'Completo';
+      } else if(doneCount>0) {
+        date = '';
+      }
       const countEl=$(`${item.id}-count`);
       if(countEl&&totalCount>0) countEl.textContent=`(${doneCount}/${totalCount})`;
     }
-    if(dateEl) dateEl.textContent=date||'—';
+    if(dateEl) dateEl.textContent=date ? fmtDisplay(date) : '—';
     const isDone=!!date;
     el.classList.toggle('done',isDone);
     el.classList.remove('active');
