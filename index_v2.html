@@ -962,14 +962,16 @@ input.field-blocked, select.field-blocked {
     </div>
   </div>
   <div class="tabs">
-    <button class="tab active" onclick="showTab(2,0)">Datos Resolucion</button>
-    <button class="tab" onclick="showTab(2,1)">Solicitud asociada</button>
-    <button class="tab" onclick="showTab(2,2)">Especies (traslado)</button>
+    <button class="tab active" onclick="showTab(2,0)">Resolución</button>
+    <button class="tab" onclick="showTab(2,1)">Especies (traslado)</button>
   </div>
 
-  <!-- Tab 2.1: Datos resolucion -->
+  <!-- Tab 2.0: Resolución (Datos Resolución + Solicitud Asociada fusionados) -->
   <div class="tab-panel active" id="t2-0">
   <div class="tab-body">
+
+    <!-- ── Datos Resolución ── -->
+    <div style="font-family:var(--serif);font-size:14px;font-weight:700;color:var(--nv);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--gd)">Datos Resolución</div>
     <div class="info-box">Al ingresar el N° de resolucion y el año, se cargaran automaticamente todos los datos desde Google Sheets.</div>
     <div class="fg">
       <div class="ff c1 ff-primary"><label class="lbl"><span class="req">*</span> N° Resolucion</label>
@@ -991,12 +993,11 @@ input.field-blocked, select.field-blocked {
       <div class="ff c1 ff-secondary"><label class="lbl">Proceso</label>
         <select id="f2-proceso"><option value="Sin Res.">Sin Res.</option><option value="Con Res.">Con Res.</option></select></div>
     </div>
-  </div>
-  </div>
 
-  <!-- Tab 2.2: Solicitud asociada -->
-  <div class="tab-panel" id="t2-1">
-  <div class="tab-body">
+    <hr class="divider">
+
+    <!-- ── Solicitud Asociada ── -->
+    <div style="font-family:var(--serif);font-size:14px;font-weight:700;color:var(--nv);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--gd)">Solicitud Asociada</div>
     <div class="fg">
       <div class="ff c1"><label class="lbl"><span class="ro">READ</span> N° Solicitud</label><input id="r-nsol" readonly></div>
       <div class="ff c2"><label class="lbl"><span class="ro">READ</span> Fecha Solicitud</label><input id="r-fsol" readonly></div>
@@ -1008,11 +1009,12 @@ input.field-blocked, select.field-blocked {
       <div class="ff c2"><label class="lbl"><span class="ro">READ</span> Uso</label><input id="r-uso" readonly></div>
       <div class="ff c2"><label class="lbl"><span class="ro">READ</span> Cod. Vivero</label><input id="r-vivero" readonly></div>
     </div>
+
   </div>
   </div>
 
-  <!-- Tab 2.3: Especies -->
-  <div class="tab-panel" id="t2-2">
+  <!-- Tab 2.1: Especies -->
+  <div class="tab-panel" id="t2-1">
   <div class="tab-body">
     <div class="info-box">Datos trasladados automaticamente desde la Etapa I. Edite solo si difieren de la resolucion.</div>
     <div class="tbl-wrap">
