@@ -5664,6 +5664,20 @@ async function saveMaterial(nsol, imp, res) {
 
   // Sync verif DOM → verifRows before reading
   syncVerifFromDOM();
+  // If verif-body not rendered (user on another stage), fall back to _loadedEspData
+  if(!verifRows.length && window._loadedEspData && window._loadedEspData.length) {
+    verifRows = window._loadedEspData.map(e => ({
+      especie:   e.especie||'',
+      variedad:  e.variedad||'',
+      tipo:      e.tipo||'',
+      cant:      e.cant||'',
+      cantReal:  e.cantReal!==undefined ? e.cantReal : (e.cant||''),
+      nplan:     e.nplanEstab||e.nplan||'',
+      nplanBrot: e.nplanBrot||'',
+      obs:       e.obs||'',
+      ok:        e.ok!==undefined ? e.ok : true,
+    }));
+  }
 
   // Read N° Plantas Estadía keyed by especie|variedad
   // estadía table rows match verif rows filtered by cantReal>=1, same order
