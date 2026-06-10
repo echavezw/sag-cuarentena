@@ -110,7 +110,7 @@ body{font-family:var(--font);font-weight:300;background:var(--g100);color:var(--
 .tl-item.done .tl-dot::after{content:'✓';color:#fff;font-size:9px;font-weight:700}
 .tl-item.active .tl-dot::after{content:'●';color:#fff;font-size:7px}
 .tl-sub .tl-dot{width:12px;height:12px;font-size:8px;border-width:1.5px;margin-top:2px}
-.tl-item.done .tl-dot{background:var(--gd);border-color:var(--gd);color:#fff}
+.tl-item.done .tl-dot{background:var(--ok);border-color:var(--ok);color:#fff}
 .tl-item.active .tl-dot{background:var(--nv);border-color:var(--nv);color:#fff}
 .tl-info{flex:1;min-width:0}
 .tl-label{font-size:11px;font-weight:600;color:var(--g700);line-height:1.35;word-break:break-word}
@@ -4730,12 +4730,34 @@ function toggleTimeline() {
   if(content) content.style.maxWidth = collapsed ? 'calc(100vw - 200px - 36px)' : '';
 }
 
+// Manual overrides: key = item.id, value = true (forced done) / false (forced undone) / undefined (auto)
+let _tlOverrides = {};
+
+function toggleTlItem(id) {
+  const el=$(id); if(!el) return;
+  const cur = el.classList.contains('done');
+  _tlOverrides[id] = !cur;
+  // Apply visually
+  el.classList.toggle('done', !cur);
+  el.classList.toggle('active', false);
+  // Re-run active marker
+  let foundActive=false;
+  TL_MAIN.forEach(item=>{
+    const e=$(item.id); if(!e) return;
+    e.classList.remove('active');
+    if(!foundActive && !e.classList.contains('done')){ e.classList.add('active'); foundActive=true; }
+  });
+}
+
 function initTimeline() {
   const body=$('tl-body'); if(!body) return;
+  _tlOverrides = {};
   body.innerHTML='';
   TL_MAIN.forEach(item=>{
     const div=document.createElement('div');
     div.className='tl-item'; div.id=item.id;
+    // Analysis items: hidden by default, shown only if anRows has data for that key
+    if(item.anKey) div.style.display='none';
     // Build children HTML inside tl-info
     let childrenHtml='';
     if(item.collapsible && item.children) {
@@ -4744,7 +4766,7 @@ function initTimeline() {
       item.children.forEach(c=>{
         childrenHtml+=`
         <div class="tl-item tl-sub" id="${c.id}" style="padding:4px 0;gap:8px;align-items:flex-start">
-          <div class="tl-dot" style="width:12px;height:12px;flex-shrink:0;margin-top:2px"></div>
+          <div class="tl-dot" style="width:12px;height:12px;flex-shrink:0;margin-top:2px;cursor:pointer" onclick="toggleTlItem('${c.id}')" title="Marcar/desmarcar"></div>
           <div style="flex:1;min-width:0">
             <div class="tl-label" style="font-size:10px;white-space:normal;line-height:1.3">${c.label}</div>
             <div class="tl-date" id="${c.id}-date" style="font-size:9px;margin-top:1px;color:var(--g400)">—</div>
@@ -4754,14 +4776,14 @@ function initTimeline() {
       childrenHtml+='</div>';
     }
     div.innerHTML=`
-      <div class="tl-dot" style="flex-shrink:0"></div>
+      <div class="tl-dot" style="flex-shrink:0;cursor:pointer" onclick="toggleTlItem('${item.id}')" title="Marcar/desmarcar manualmente"></div>
       <div class="tl-info" style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:4px">
           <div class="tl-label" style="white-space:normal;line-height:1.3;flex:1">
             ${item.label}
             ${item.collapsible?`<span id="${item.id}-count" style="font-size:9px;color:var(--g400);font-weight:400;display:block"></span>`:''}
           </div>
-          ${item.collapsible?`<button onclick="toggleTlSection('${item.id}')" 
+          ${item.collapsible?`<button onclick="event.stopPropagation();toggleTlSection('${item.id}')" 
             id="${item.id}-toggle"
             style="background:none;border:1px solid var(--g200);border-radius:3px;cursor:pointer;
                    font-size:9px;color:var(--g500);padding:1px 5px;flex-shrink:0;line-height:1.4"
@@ -4792,7 +4814,6 @@ function toggleTlSection(id) {
 
 function updateTimeline(res, year, rows) {
   const r=rows?.[0]||_lastLoadedRow||{};
-  // Helper: get date from DOM field, then from row by sheet column name
   const FIELD_TO_COL = {
     'f1-fech-rec': 'Fecha Recepcion',
     'f2-fres':     'Fecha Res.',
@@ -4809,18 +4830,26 @@ function updateTimeline(res, year, rows) {
     const col = FIELD_TO_COL[item.field];
     return col ? fmtD(r[col]||'') : '';
   }
-  // Update main items
   TL_MAIN.forEach(item=>{
     const el=$(item.id); if(!el) return;
     const dateEl=$(`${item.id}-date`);
     let date=getTlDate(item);
     let doneCount=0, totalCount=0;
-    // Special case: tl-firma (A Firma Res. Termino)
+
+    // Analysis items: show only if anRows has at least one row for that key
+    if(item.anKey) {
+      const hasRows = (anRows[item.anKey]||[]).filter(a=>a.patogeno||a.especie).length > 0;
+      el.style.display = hasRows ? 'flex' : 'none';
+      if(!hasRows) return; // skip further processing
+    }
+
+    // Special case: tl-firma
     if(item.id==='tl-firma') {
       const firmaVal = v('f6-afirma') || r['A Firma Res. Termino'] || r['A firma'] || '';
       const firmaDone = firmaVal && firmaVal !== 'Pendiente Envío a Firma';
       date = firmaDone ? firmaVal : '';
     }
+
     // Update children for collapsible items
     if(item.collapsible && item.children) {
       let lastDate='';
@@ -4836,13 +4865,14 @@ function updateTimeline(res, year, rows) {
           else cdate=anList.map(a=>a.ccaa_real||a.ccaa_est).filter(Boolean).sort().pop()||'';
         } else if(c.spsEst) cdate=v('f5-sps-est')||r['SPS estadía']||r['SPS estadia']||'';
         else if(c.coreEst) cdate=v('f5-core-est')||r['CORE/Factura3']||'';
+        // Apply manual override for child
+        const childOverride = _tlOverrides[c.id];
+        const childDone = childOverride !== undefined ? childOverride : !!cdate;
         if(cdateEl) cdateEl.textContent=cdate||'—';
-        const childDone=!!cdate;
         cel.classList.toggle('done',childDone);
         cel.classList.remove('active');
         totalCount++; if(childDone){ doneCount++; if(cdate) lastDate=cdate; }
       });
-      // Parent done if all children done; show last date or count
       if(doneCount===totalCount && totalCount>0) {
         date = lastDate || 'Completo';
       } else if(doneCount>0) {
@@ -4851,15 +4881,18 @@ function updateTimeline(res, year, rows) {
       const countEl=$(`${item.id}-count`);
       if(countEl&&totalCount>0) countEl.textContent=`(${doneCount}/${totalCount})`;
     }
+
+    // Apply manual override for main item
+    const override = _tlOverrides[item.id];
+    const isDone = override !== undefined ? override : !!date;
     if(dateEl) dateEl.textContent=date ? fmtDisplay(date) : '—';
-    const isDone=!!date;
     el.classList.toggle('done',isDone);
     el.classList.remove('active');
   });
-  // Mark first undone main item as active
+  // Mark first visible undone item as active
   let foundActive=false;
   TL_MAIN.forEach(item=>{
-    const el=$(item.id); if(!el) return;
+    const el=$(item.id); if(!el||el.style.display==='none') return;
     if(!foundActive&&!el.classList.contains('done')){ el.classList.add('active'); foundActive=true; }
   });
 }
