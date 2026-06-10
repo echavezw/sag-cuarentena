@@ -2075,6 +2075,10 @@ async function cargarFilaMulti(rows) {
   const r=rows[0];
   // Store for fallback in buildRows (fields not yet rendered don't overwrite sheet data)
   _lastLoadedRow = r;
+  // Pre-invalidate esp key so renderCierreTabs won't use stale data during async load
+  const _thisRes=String(r['Res.']||''). trim();
+  const _thisSol=String(r['Solicitud']||''). trim();
+  window._loadedEspKey = '__loading__'+_thisRes+'|'+_thisSol;
   _estabRows = []; // reset so renderEstablecimientoTable refreshes on next render
   // Etapa I
   selEl('f1-imp', r['Importador']||'');
@@ -2189,6 +2193,7 @@ async function cargarFilaMulti(rows) {
   }
 
   window._loadedEspData = espData; // store for estadía table
+  window._loadedEspKey = res + '|' + sol; // key to validate freshness
   renderEspTable(espData);
   renderVerifTable(espData);
   // Load analysis rows
@@ -2258,6 +2263,10 @@ function limpiarFormSilent() {
   verifRows=[];
   window._resEspRows=null;
   window._loadedEspData=null;
+  window._loadedEspKey=null;  // invalidate cache key
+  // Clear Etapa VI table immediately to avoid stale data flash
+  const _pb=document.getElementById('plantas-body');
+  if(_pb) _pb.innerHTML='';
   clearDirty();
   renderEspTable();
   renderVerifTable();
@@ -4446,6 +4455,14 @@ function addEstRow() {
 function renderCierreTabs() {
   const tbody=$('plantas-body'); if(!tbody) return;
   tbody.innerHTML='';
+
+  // Guard: if _loadedEspKey is still "__loading__...", data is not ready — show loading state and retry
+  const _espKey = window._loadedEspKey||'';
+  if(_espKey.startsWith('__loading__')) {
+    tbody.innerHTML='<tr><td colspan="7" style="color:var(--g400);padding:16px;font-size:12px;text-align:center">Cargando datos...</td></tr>';
+    setTimeout(()=>renderCierreTabs(), 150);
+    return;
+  }
 
   // Build rows from _loadedEspData (most reliable — always set on record load)
   // Fallback chain: _loadedEspData → verif-body DOM → getEspecies()
