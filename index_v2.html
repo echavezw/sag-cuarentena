@@ -1630,6 +1630,7 @@ const GS = { sheetId:'', apiKey:'', oauthClientId:'', anthropicKey:'' };
 let gsData = [];          // all rows from Sheets
 let _matData = [];        // all rows from Material sheet (cache)
 let anRows = {};          // analysis rows by type {V:[], H:[], B:[], F:[], E:[], N:[]}
+let _anRowsModified = false; // true when user has added/removed rows this session
 let verifRows = [];       // verification rows (Etapa III)
 let currentStage = 'panel';
 let _activeRes = null;    // active resolution key "res|year"
@@ -2258,7 +2259,7 @@ function limpiarFormSilent() {
   sv('f1-region','Metropolitana');
   autoProceso();
   autoEstadoRes();
-  anRows={V:[],H:[],B:[],F:[],E:[],N:[]};
+  anRows={V:[],H:[],B:[],F:[],E:[],N:[]}; _anRowsModified=false;
   verifRows=[];
   window._resEspRows=null;
   window._loadedEspData=null;
@@ -3139,7 +3140,7 @@ function delVerifRow(i) {
 let _lastLoadedRow = {}; // fallback for fields not rendered when saving
 
 function initAnRows() {
-  anRows={V:[],H:[],B:[],F:[],E:[],N:[]};
+  anRows={V:[],H:[],B:[],F:[],E:[],N:[]}; _anRowsModified=false;
 }
 
 function renderAnalisisTabs() {
@@ -3372,6 +3373,7 @@ function delAnSelected(key) {
   const chks = [...document.querySelectorAll(`.an-row-chk[data-key="${key}"]`)];
   const toDelete = new Set(chks.filter(c=>c.checked).map(c=>parseInt(c.dataset.idx)));
   if(!toDelete.size){ setS('Seleccione al menos una fila para eliminar.','warn'); return; }
+  _anRowsModified = true;
   anRows[key] = anRows[key].filter((_,i)=>!toDelete.has(i));
   const idx = Object.entries(AN_TYPES).find(([,v])=>v.key===key)?.[0]||0;
   renderAnTable(key, idx, AN_TYPES[idx]?.label||key, AN_TYPES[idx]?.tecnica||'');
@@ -3399,6 +3401,7 @@ function makeAnResizable(tableId) {
 
 function addAnRow(key) {
   syncAnFromDOM(key);
+  _anRowsModified = true;
   // Default patogeno for Entomologico rows
   const defaults = key==='E' ? {patogeno:'Insectos/Ácaros', tecnica:'Taxonomía'} : {};
   anRows[key].push(defaults);
@@ -3408,6 +3411,7 @@ function addAnRow(key) {
 
 function delAnRow(key,i) {
   syncAnFromDOM(key);
+  _anRowsModified = true;
   anRows[key].splice(i,1);
   const idx=Object.entries(AN_TYPES).find(([,v])=>v.key===key)?.[0]||0;
   renderAnTable(key,idx,AN_TYPES[idx]?.label||key,AN_TYPES[idx]?.tecnica||'');
@@ -5451,7 +5455,7 @@ function buildRows(nsol,imp) {
 
   // Safety net: if anRows produced no analysis but gsData has analysis rows
   // for this record, reload them rather than overwrite with blank
-  if(!allAn.length) {
+  if(!allAn.length && !_anRowsModified) {
     const res = v('f2-nres').trim();
     const resYear = fmtD(v('f2-fres')||_lastLoadedRow['Fecha Res.']||'').substring(0,4);
     const existingWithAn = gsData.filter(r => {
