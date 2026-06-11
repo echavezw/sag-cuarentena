@@ -1896,20 +1896,42 @@ function buscarPanelDefault() {
   if(!gsData.length) return;
   const thisYear = new Date().getFullYear();
   const prevYear = thisYear - 1;
+  const inRangeYr = y => y && (y===String(thisYear)||y===String(prevYear));
+
+  // Pre-index all rows by key so we can check ANY row of a record for year match
+  const allByKey = {};
+  gsData.forEach(r=>{
+    const rRes=String(r['Res.']||'').trim();
+    const rSol=String(r['Solicitud']||'').trim();
+    const key=rRes?rRes:('__sinres__'+rSol);
+    if(!allByKey[key]) allByKey[key]=[];
+    allByKey[key].push(r);
+  });
+
+  // Check if ANY row of a record falls in range
+  function recordInRange(rows) {
+    return rows.some(r=>{
+      const anioIng=String(r['Año de Ingreso']||r['Ano de Ingreso']||'').trim();
+      const anioRes=fmtD(r['Fecha Res.']||'').substring(0,4);
+      const anioSol=fmtD(r['Fecha Solicitud']||'').substring(0,4);
+      const anioAn=String(r['Año']||'').trim();
+      const anioIng2=fmtD(r['Fecha de Ingreso']||'').substring(0,4);
+      return [anioIng,anioRes,anioSol,anioAn,anioIng2].some(inRangeYr);
+    });
+  }
+
+  // Take representative row (first with most data) per key
   const seen=new Set(); const found=[];
   gsData.forEach(r=>{
     const rRes=String(r['Res.']||'').trim();
     const rSol=String(r['Solicitud']||'').trim();
     const key=rRes?rRes:('__sinres__'+rSol);
     if(seen.has(key)) return;
-    // Filter: año ingreso ECA o año resolución = thisYear o prevYear
-    const anioIng=String(r['Año de Ingreso']||r['Ano de Ingreso']||'').trim();
-    const anioRes=String(fmtD(r['Fecha Res.']||'').substring(0,4)||'');
-    const anioSol=String(fmtD(r['Fecha Solicitud']||'').substring(0,4)||'');
-    const anioAn=String(r['Año']||'').trim();
-    const inRange = [anioIng,anioRes,anioSol,anioAn].some(y=>y===String(thisYear)||y===String(prevYear));
-    if(!inRange) return;
-    seen.add(key); found.push(r);
+    const allRows=allByKey[key]||[r];
+    if(!recordInRange(allRows)) return;
+    // Use the row with most non-empty fields as representative
+    const best=allRows.reduce((a,b)=>Object.values(b).filter(x=>x).length>Object.values(a).filter(x=>x).length?b:a, allRows[0]);
+    seen.add(key); found.push(best);
   });
   if(!found.length) return;
   found.forEach(r => {
