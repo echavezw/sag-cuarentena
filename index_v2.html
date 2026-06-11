@@ -3830,10 +3830,24 @@ function getPlagasForEspecie(espNombre, anKey) {
   };
 
   const seen = new Set();
-  return allZoneData
+  const result = allZoneData
     .filter(p => tipoKey(p.tipo) === anKey)
     .filter(p => { if(seen.has(p.plaga)) return false; seen.add(p.plaga); return true; })
     .sort((a,b) => a.plaga.localeCompare(b.plaga, 'es'));
+
+  // Xylella fastidiosa es obligatoria para TODAS las especies — agregar al dropdown
+  // si el tipo es Bacteriológico y no está ya en la lista
+  if(anKey === 'B') {
+    const hasXylella = result.some(p => p.plaga.toLowerCase().includes('xylella fastidiosa'));
+    if(!hasXylella) {
+      result.push({
+        plaga: 'Xylella fastidiosa', tipo: 'BACTERIOLÓGICO',
+        tipo_plaga: 'Bacteria', via: 'Plantas, estacas y ramillas', esExtra: true
+      });
+      result.sort((a,b) => a.plaga.localeCompare(b.plaga, 'es'));
+    }
+  }
+  return result;
 }
 
 // Build <option> list for patógeno select given especie and anKey
