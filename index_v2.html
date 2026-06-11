@@ -230,8 +230,8 @@ input[type=number]{font-family:var(--mono)}
 .btn-nv:hover{background:var(--nv2)}
 .btn-gd{background:var(--gd);color:#fff;box-shadow:0 3px 12px rgba(184,151,90,.3)}
 .btn-gd:hover{background:#a6844a}
-.btn-gh{background:transparent;border:1.5px solid var(--g200);color:var(--g600)}
-.btn-gh:hover{border-color:var(--g400);color:var(--ink)}
+.btn-gh{background:var(--wh);border:1.5px solid var(--g300);color:var(--ink)}
+.btn-gh:hover{border-color:var(--nv);color:var(--nv);background:var(--g50)}
 .btn-sm{padding:5px 11px;font-size:11px}
 .btn-danger{background:var(--err);color:#fff}
 
@@ -1862,7 +1862,53 @@ function showPanelTab(idx) {
     if(pnl) pnl.classList.toggle('active', i===idx);
   });
   if(idx===0) { filterHist(); renderRecientes(); }
-  if(idx===1) { /* búsqueda ready */ }
+  if(idx===1) { buscarPanelDefault(); }
+}
+
+function buscarPanelDefault() {
+  if(!gsData.length) return;
+  const thisYear = new Date().getFullYear();
+  const prevYear = thisYear - 1;
+  const seen=new Set(); const found=[];
+  gsData.forEach(r=>{
+    const rRes=String(r['Res.']||'').trim();
+    const rSol=String(r['Solicitud']||'').trim();
+    const key=rRes?rRes:('__sinres__'+rSol);
+    if(seen.has(key)) return;
+    // Filter: año ingreso ECA o año resolución = thisYear o prevYear
+    const anioIng=String(r['Año de Ingreso']||r['Ano de Ingreso']||'').trim();
+    const anioRes=String(fmtD(r['Fecha Res.']||'').substring(0,4)||'');
+    const anioSol=String(fmtD(r['Fecha Solicitud']||'').substring(0,4)||'');
+    const inRange = [anioIng,anioRes,anioSol].some(y=>y===String(thisYear)||y===String(prevYear));
+    if(!inRange) return;
+    seen.add(key); found.push(r);
+  });
+  if(!found.length) return;
+  window._lastPanelFound = found;
+  const pThead=$('panel-thead'), pTbody=$('panel-tbody');
+  if(!pThead||!pTbody) return;
+  pThead.innerHTML=`<tr><th>Res.</th><th>Año Res.</th><th>Sol.</th><th>Año Ing.</th><th>Importador</th><th>Especie</th><th>Status</th></tr>`;
+  pTbody.innerHTML=found.map(r=>{
+    const _res=r['Res.']||'';
+    const _yr=fmtD(r['Fecha Res.']||'').substring(0,4);
+    const _sol=r['Solicitud']||'';
+    const _ing=r['Año de Ingreso']||r['Ano de Ingreso']||'—';
+    const _imp=r['Importador']||'—';
+    const _esp=(r['Especie']||'—').split(' ').slice(0,2).join(' ');
+    const _st=_res?(r['Status']||'En proceso'):(r['Estado Res.']||'Sin Firma');
+    const _sc=_st==='Entregada'?'badge-ok':_st==='A destruir'||_st==='No Recibida'?'badge-err':_st==='Sin Firma'?'badge-warn':'badge-nv';
+    const onclick=_res?`cargarFichaPanel('${_res.replace(/'/g,"\'")}','${_yr}','')`:(`cargarFichaPanel('','','${_sol}')`);
+    return `<tr onclick="${onclick}" style="cursor:pointer">
+      <td style="font-family:var(--mono);font-weight:700">${_res||'<span style="color:var(--g400);font-size:10px">sin res.</span>'}</td>
+      <td style="font-family:var(--mono)">${_yr||'—'}</td>
+      <td style="font-family:var(--mono)">${_sol||'—'}</td>
+      <td style="font-family:var(--mono)">${_ing}</td>
+      <td>${_imp}</td>
+      <td style="font-style:italic;font-size:11px">${_esp}</td>
+      <td><span class="badge ${_sc}">${_st}</span></td>
+    </tr>`;
+  }).join('');
+  setS(`${found.length} registros (${prevYear}-${thisYear}).`,'ok');
 }
 
 function toggleSidebar() {
@@ -5537,6 +5583,7 @@ function buscarPanel() {
       <td><span class="badge ${_sc}">${_st}</span></td>
     </tr>`;
   }).join('');
+  window._lastPanelFound = found;
   setS(`${found.length} registro(s) encontrado(s).`,'ok');
 }
 
@@ -7756,32 +7803,11 @@ function generarActaEntrega() {
 
 // ── EXPORTAR CSV desde Búsqueda Rápida ──
 function exportarCSVBusqueda() {
-  const pTbody = document.getElementById('panel-tbody');
-  if(!pTbody || !pTbody.children.length){ setS('Realice una búsqueda primero.','warn'); return; }
-  // Use found[] from last search — re-run with same criteria on gsData
+  const found = window._lastPanelFound;
+  if(!found || !found.length){ setS('Realice una búsqueda primero.','warn'); return; }
   const cols = ['Res.','Fecha Res.','Solicitud','Importador','Origen','Especie',
     'Variedades','Estado','Análisis','Patógenos','Status','Año de Ingreso',
     'Fecha de Ingreso','Cubículo','N° Plantas','Entregada'];
-  const seen=new Set(); const found=[];
-  const resVal=(document.getElementById('pb-res')?.value||'').trim();
-  const anioRes=(document.getElementById('pb-anio-res')?.value||'').trim();
-  const solVal=(document.getElementById('pb-sol')?.value||'').trim();
-  const texto=(document.getElementById('pb-texto')?.value||'').toLowerCase().trim();
-  const anioIng=(document.getElementById('pb-anio-ing')?.value||'').trim();
-  const anioSol=(document.getElementById('pb-anio-sol')?.value||'').trim();
-  gsData.forEach(r=>{
-    const rRes=String(r['Res.']||'').trim(), rSol=String(r['Solicitud']||'').trim();
-    const key=rRes?rRes:('__sinres__'+rSol);
-    if(seen.has(key)) return;
-    if(resVal&&rRes!==resVal) return;
-    if(anioRes&&fmtD(r['Fecha Res.']||'').substring(0,4)!==anioRes) return;
-    if(solVal&&rSol!==solVal) return;
-    if(anioIng&&String(r['Año de Ingreso']||'').trim()!==anioIng) return;
-    if(anioSol&&fmtD(r['Fecha Solicitud']||'').substring(0,4)!==anioSol) return;
-    if(texto){const t=[r['Importador'],r['Especie'],r['Res.'],r['Solicitud']].join(' ').toLowerCase();if(!t.includes(texto))return;}
-    seen.add(key); found.push(r);
-  });
-  if(!found.length){ setS('Sin resultados para exportar.','warn'); return; }
   const esc=v=>{const s=String(v||'');return s.includes(',')||s.includes('"')||s.includes('\n')?'"'+s.replace(/"/g,'""')+'"':s;};
   const csv='\uFEFF'+cols.join(',')+'\n'+found.map(r=>cols.map(c=>esc(r[c])).join(',')).join('\n');
   const a=document.createElement('a');
