@@ -2967,12 +2967,12 @@ function renderConsolidadoEspecies() {
     const estab = parseFloat(document.getElementById(`vnplan-${i}`)?.value  || '') || 0;
     const np = brot > 0 ? brot : estab;
     if (!esp) return;
-    if (!map[esp]) map[esp] = { variedades: new Set(), np: 0 };
+    if (!map[esp]) map[esp] = { variedades: new Set(), totalNplan: 0 };
     const vars = vari ? vari.split(/[,;]/).map(v => v.trim()).filter(Boolean) : ['__unnamed__' + i];
     vars.forEach(v => {
       if (!map[esp].variedades.has(v)) {
         map[esp].variedades.add(v);
-        if (np > 0 && map[esp].np === 0) map[esp].np = np; // plants per variety (same for all)
+        map[esp].totalNplan += np; // suma plantas de cada variedad individual
       }
     });
   });
@@ -2983,8 +2983,8 @@ function renderConsolidadoEspecies() {
   entries.forEach(([esp, d]) => {
     const nVars = [...d.variedades].filter(v => !v.startsWith('__unnamed__')).length
                   || [...d.variedades].filter(v => v.startsWith('__unnamed__')).length;
-    // Total plantas = N° variedades recibidas × plantas por variedad
-    d.nplan = nVars * d.np;
+    // Total plantas = suma de brotadas (o establ.) por cada variedad recibida
+    d.nplan = d.totalNplan;
     _consolidadoEspecies[esp] = { nVars, nplan: d.nplan };
   });
   if (!entries.length) { el.innerHTML = ''; return; }
