@@ -7459,7 +7459,7 @@ function _docStyle() {
 
 function _openDoc(html, title) {
   const w = window.open('', '_blank', 'width=900,height=700');
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>${_docStyle()}</head><body>${html}<script>window.onload=function(){window.print()}<\/script></body></html>`);
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>${_docStyle()}</head><body>${html}</body></html>`); w.document.addEventListener('DOMContentLoaded',function(){}); setTimeout(()=>w.print(),400);
   w.document.close();
 }
 
