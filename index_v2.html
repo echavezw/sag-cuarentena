@@ -1429,9 +1429,9 @@ input.field-blocked, select.field-blocked {
     </div>
     <!-- Busqueda -->
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr 2fr;gap:10px;margin-bottom:14px">
-      <div class="ff"><label class="lbl">N° Resolucion</label><input type="number" id="pb-res" placeholder="ej. 1590" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
-      <div class="ff"><label class="lbl">Ano Res.</label><input type="number" id="pb-anio-res" placeholder="2025" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
-      <div class="ff"><label class="lbl">N° Solicitud</label><input type="number" id="pb-sol" placeholder="ej. 263" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
+      <div class="ff"><label class="lbl">N° Resolucion</label><input type="number" id="p-res" placeholder="ej. 1590" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
+      <div class="ff"><label class="lbl">Ano Res.</label><input type="number" id="p-anio-res" placeholder="2025" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
+      <div class="ff"><label class="lbl">N° Solicitud</label><input type="number" id="p-sol" placeholder="ej. 263" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
       <div class="ff"><label class="lbl">Importador / texto libre</label><input id="p-texto" placeholder="Busqueda libre..." onkeydown="if(event.key==='Enter')buscarPanel()"></div>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:16px">
@@ -1500,10 +1500,10 @@ input.field-blocked, select.field-blocked {
   <div id="panel-content-1" class="tab-panel">
   <div class="tab-body" style="border-radius:0 0 var(--r) var(--r);padding:18px">
     <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:14px">
-      <div class="ff c1"><label class="lbl">N° Resolución</label><input type="number" id="pb-res" placeholder="ej. 1590" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
-      <div class="ff c1"><label class="lbl">Año Res.</label><input type="number" id="pb-anio-res" placeholder="2025" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
-      <div class="ff c1"><label class="lbl">N° Solicitud</label><input type="number" id="pb-sol" placeholder="ej. 263" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
-      <div class="ff c3"><label class="lbl">Importador / texto libre</label><input id="pb-texto" placeholder="Búsqueda libre..." onkeydown="if(event.key==='Enter')buscarPanel()"></div>
+      <div class="ff c1"><label class="lbl">N° Resolución</label><input type="number" id="p-res" placeholder="ej. 1590" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
+      <div class="ff c1"><label class="lbl">Año Res.</label><input type="number" id="p-anio-res" placeholder="2025" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
+      <div class="ff c1"><label class="lbl">N° Solicitud</label><input type="number" id="p-sol" placeholder="ej. 263" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
+      <div class="ff c3"><label class="lbl">Importador / texto libre</label><input id="p-texto" placeholder="Búsqueda libre..." onkeydown="if(event.key==='Enter')buscarPanel()"></div>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:16px">
       <button class="btn btn-nv btn-sm" onclick="buscarPanel()">Buscar</button>
@@ -5442,86 +5442,74 @@ function cargarFichaPanel(res,yr,sol) {
 }
 
 function buscarPanel() {
-  // Read from panel-busqueda tab inputs (pb-) or fallback to legacy p- inputs
-  const resVal=(v('pb-res')||v('p-res')).trim();
-  const solVal=(v('pb-sol')||v('p-sol')).trim();
-  const texto=(v('pb-texto')||v('p-texto')).toLowerCase().trim();
-  const anioRes=(v('pb-anio-res')||v('p-anio-res')).trim();
   if(!gsData.length){setS('Conecte Google Sheets.','warn');return;}
-  if(!resVal&&!solVal&&!texto&&!anioRes){setS('Ingrese un criterio.','warn');return;}
-  if(resVal&&!texto&&!solVal){
-    let rows=gsData.filter(r=>String(r['Res.']||'').trim()===resVal);
-    if(anioRes&&rows.length>1) rows=rows.filter(r=>fmtD(r['Fecha Res.']||'').substring(0,4)===anioRes)||rows;
-    if(!rows.length){setS('Sin resultados.','warn');return;}
-    cargarFilaMulti(rows); return;
+  const resVal  = (document.getElementById('pb-res')?.value||'').trim();
+  const anioRes = (document.getElementById('pb-anio-res')?.value||'').trim();
+  const solVal  = (document.getElementById('pb-sol')?.value||'').trim();
+  const texto   = (document.getElementById('pb-texto')?.value||'').toLowerCase().trim();
+  const anioIng = (document.getElementById('pb-anio-ing')?.value||'').trim();
+  const anioSol = (document.getElementById('pb-anio-sol')?.value||'').trim();
+
+  if(!resVal&&!solVal&&!texto&&!anioRes&&!anioIng&&!anioSol){
+    setS('Ingrese al menos un criterio de búsqueda.','warn'); return;
   }
-  if(solVal&&!texto&&!resVal){
-    const rows=gsData.filter(r=>String(r['Solicitud']||'').trim()===solVal);
-    if(!rows.length){setS('Sin resultados.','warn');return;}
-    const res=String(rows[0]['Res.']||'').trim();
-    if(res) {
-      // Has resolution — load all rows for that resolution
-      cargarFilaMulti(gsData.filter(r=>String(r['Res.']||'').trim()===res));
-    } else {
-      // Sin resolución — load ONLY rows with this solicitud AND empty Res.
-      cargarFilaMulti(rows.filter(r=>!String(r['Res.']||'').trim()));
-    }
-    return;
-  }
-  // Free-text search — dedup by composite key (res or solicitud+sinres)
+
   const seen=new Set(); const found=[];
   gsData.forEach(r=>{
-    const res=String(r['Res.']||'').trim();
-    const sol=String(r['Solicitud']||'').trim();
-    const k=res ? res : ('__sinres__'+sol);
-    if(seen.has(k)) return;
-    const t=[r['Importador'],r['Especie'],r['Res.'],r['Solicitud']].join(' ').toLowerCase();
-    if(texto&&!t.includes(texto)) return;
-    if(anioRes&&fmtD(r['Fecha Res.']||'').substring(0,4)!==anioRes) return;
-    seen.add(k); found.push(r);
+    const rRes=String(r['Res.']||'').trim();
+    const rSol=String(r['Solicitud']||'').trim();
+    const key=rRes?rRes:('__sinres__'+rSol);
+    if(seen.has(key)) return;
+    if(resVal && rRes!==resVal) return;
+    if(anioRes && fmtD(r['Fecha Res.']||'').substring(0,4)!==anioRes) return;
+    if(solVal && rSol!==solVal) return;
+    if(anioIng && String(r['Año de Ingreso']||r['Ano de Ingreso']||'').trim()!==anioIng) return;
+    if(anioSol && fmtD(r['Fecha Solicitud']||'').substring(0,4)!==anioSol) return;
+    if(texto){
+      const t=[r['Importador'],r['Especie'],r['Variedades'],r['Res.'],r['Solicitud'],r['Status']].join(' ').toLowerCase();
+      if(!t.includes(texto)) return;
+    }
+    seen.add(key); found.push(r);
   });
-  if(!found.length){setS('Sin resultados.','warn');return;}
-  if(found.length===1){
-    const res=String(found[0]['Res.']||'').trim();
-    const sol=String(found[0]['Solicitud']||'').trim();
-    if(res) cargarFilaMulti(gsData.filter(r=>String(r['Res.']||'').trim()===res));
-    else cargarFilaMulti(gsData.filter(r=>String(r['Solicitud']||'').trim()===sol&&!String(r['Res.']||'').trim()));
+
+  if(!found.length){setS('Sin resultados para los criterios ingresados.','warn');return;}
+
+  if(found.length===1&&(resVal||solVal)){
+    const rRes=String(found[0]['Res.']||'').trim();
+    const rSol=String(found[0]['Solicitud']||'').trim();
+    if(rRes) cargarFilaMulti(gsData.filter(r=>String(r['Res.']||'').trim()===rRes));
+    else cargarFilaMulti(gsData.filter(r=>String(r['Solicitud']||'').trim()===rSol&&!String(r['Res.']||'').trim()));
     return;
   }
-  // Show results table
-  // Write into new panel tab table
-  const pThead = $('panel-thead');
-  const pTbody = $('panel-tbody');
-  if(pThead && pTbody) {
-    pThead.innerHTML = `<tr>
-      <th>Res.</th><th>Año</th><th>Sol.</th>
-      <th>Importador</th><th>Status</th>
+
+  const pThead=$('panel-thead'),pTbody=$('panel-tbody');
+  if(!pThead||!pTbody) return;
+  pThead.innerHTML=`<tr><th>Res.</th><th>Año Res.</th><th>Sol.</th><th>Año Ing.</th><th>Importador</th><th>Especie</th><th>Status</th></tr>`;
+  pTbody.innerHTML=found.map(r=>{
+    const _res=r['Res.']||'';
+    const _yr=fmtD(r['Fecha Res.']||'').substring(0,4);
+    const _sol=r['Solicitud']||'';
+    const _ing=r['Año de Ingreso']||r['Ano de Ingreso']||'—';
+    const _imp=r['Importador']||'—';
+    const _esp=(r['Especie']||'—').split(' ').slice(0,2).join(' ');
+    const _st=_res?(r['Status']||'En proceso'):(r['Estado Res.']||'Sin Firma');
+    const _sc=_st==='Entregada'?'badge-ok':_st==='A destruir'||_st==='No Recibida'?'badge-err':_st==='Sin Firma'?'badge-warn':'badge-nv';
+    const onclick=_res?`cargarFichaPanel('${_res.replace(/'/g,"\'")}','${_yr}','')`:(`cargarFichaPanel('','','${_sol}')`);
+    return `<tr onclick="${onclick}" style="cursor:pointer">
+      <td style="font-family:var(--mono);font-weight:700">${_res||'<span style="color:var(--g400);font-size:10px">sin res.</span>'}</td>
+      <td style="font-family:var(--mono)">${_yr||'—'}</td>
+      <td style="font-family:var(--mono)">${_sol||'—'}</td>
+      <td style="font-family:var(--mono)">${_ing}</td>
+      <td>${_imp}</td>
+      <td style="font-style:italic;font-size:11px">${_esp}</td>
+      <td><span class="badge ${_sc}">${_st}</span></td>
     </tr>`;
-    pTbody.innerHTML = found.map(r=>{
-      const _res=r['Res.']||'';
-      const _yr=fmtD(r['Fecha Res.']||'').substring(0,4);
-      const _sol=r['Solicitud']||'';
-      const _st= _res ? (r['Status']||'En proceso') : (r['Estado Res.']||'Sin Firma');
-      const _sc=_st==='Entregada'?'badge-ok':_st==='A destruir'||_st==='No Recibida'?'badge-err':_st==='Sin Firma'?'badge-warn':'badge-nv';
-      const onclick=_res
-        ? `cargarFichaPanel('${_res}','${_yr}','')`
-        : `cargarFichaPanel('','','${_sol}')`;
-      return `<tr onclick="${onclick}" style="cursor:pointer">
-        <td style="font-family:var(--mono);font-weight:700">${_res||'<span style="color:var(--g400);font-size:10px">sin res.</span>'}</td>
-        <td style="font-family:var(--mono)">${_yr||'—'}</td>
-        <td style="font-family:var(--mono)">${_sol||'—'}</td>
-        <td>${r['Importador']||'—'}</td>
-        <td><span class="badge ${_sc}">${_st}</span></td>
-      </tr>`;
-    }).join('');
-    setS(`${found.length} resultado(s) encontrado(s).`,'ok');
-  }
-  // Also fallback for old panel-result div
-  const pr=$('panel-result'); if(pr) pr.style.display='none';
+  }).join('');
+  setS(`${found.length} registro(s) encontrado(s).`,'ok');
 }
 
 function limpiarBusqueda() {
-  ['p-res','p-sol','p-texto','p-anio-res','pb-res','pb-sol','pb-texto','pb-anio-res'].forEach(id=>{const e=$(id);if(e) e.value='';});
+  ['p-res','p-sol','p-texto','p-anio-res'].forEach(id=>{const e=$(id);if(e) e.value='';});
   const pr=$('panel-result'); if(pr) pr.style.display='none';
   const pTbody=$('panel-tbody'); if(pTbody) pTbody.innerHTML='';
   const pThead=$('panel-thead'); if(pThead) pThead.innerHTML='';
