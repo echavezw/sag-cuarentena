@@ -5761,7 +5761,7 @@ function buildRows(nsol,imp) {
     'Uso':             v('f1-uso'),
     'Cod. Registro Vivero': v('f1-vivero'),
     'N° CDA':            getCached('f1-cda',v('f1-cda'))||_lastLoadedRow['N° CDA']||'',
-    'N° Cert. Fitosanitario': v('f1-cert-fito')||'',
+    'N° Cert. Fitosanitario': getCached('f1-cert-fito',v('f1-cert-fito'))||_lastLoadedRow['N° Cert. Fitosanitario']||'',
     'Contraparte Importacion': v('f1-cp1-nombre'),
     'Tel Importacion': v('f1-cp1-tel'),
     'Email Importacion': v('f1-cp1-email'),
