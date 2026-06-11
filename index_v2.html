@@ -1941,22 +1941,9 @@ function _sortPanelFound(arr) {
     // When sorting by Sol.: registros sin resolución (filtro) go after those with same Año Ing.
     if(col.key==="sol") {
       var aHasRes=!!(a["Res."]||"").trim(), bHasRes=!!(b["Res."]||"").trim();
-      // Primary: año DESC — take max of all year fields available
-      function _bestYear(r){
-        var candidates=[
-          parseInt(r["Año de Ingreso"]||r["Ano de Ingreso"]||0)||0,
-          parseInt((fmtD(r["Fecha Res."]||"")).substring(0,4))||0,
-          parseInt((fmtD(r["Fecha Solicitud"]||"")).substring(0,4))||0,
-          parseInt(r["Año"]||0)||0
-        ];
-        return Math.max.apply(null,candidates);
-      }
-      var ya=_bestYear(a), yb=_bestYear(b);
-      if(ya!==yb) return ya>yb?-1:1;
-      // Secondary: sin resolución (filtro) always last within same year
+      // Primary: N° Solicitud DESC — registros sin resolución al final
       if(aHasRes&&!bHasRes) return -1;
       if(!aHasRes&&bHasRes) return 1;
-      // Tertiary: N° Solicitud DESC
       var va=col.fn(a), vb=col.fn(b);
       return va>vb?dir:va<vb?-dir:0;
     }
