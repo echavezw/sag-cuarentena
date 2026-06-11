@@ -5414,7 +5414,7 @@ function renderRecientes() {
       ? `<span style="font-weight:700;color:var(--nv)">${_res}</span>`
       : `<span style="color:var(--g400);font-size:10px;font-style:italic">sin res.</span>`;
     html+=`<tr onclick="${onclick}"
-      style="cursor:pointer" onmouseover="this.style.background='var(--gold-bg)'" onmouseout="this.style.background=''">
+      style="cursor:pointer" onmouseover="this.style.background='var(--g50)'" onmouseout="this.style.background=''">
       <td style="${tdS};font-family:var(--mono)">${resDisplay}</td>
       <td style="${tdS};font-family:var(--mono);font-size:11px;color:var(--g400)">${_yr||'—'}</td>
       <td style="${tdS};font-family:var(--mono);font-size:11px;color:var(--g400)">${_sol||'—'}</td>
@@ -5486,15 +5486,15 @@ function buscarPanel() {
     return;
   }
   // Show results table
-  const pr=$('panel-result');
-  if(pr){
-    pr.style.display='block';
-    const thS='padding:6px 9px;font-size:9.5px;font-weight:700;color:rgba(255,255,255,.7);background:var(--nv);border-bottom:2px solid var(--gd)';
-    pr.innerHTML=`<div style="font-size:12px;font-weight:600;margin-bottom:8px;color:var(--g600)">${found.length} resultados encontrados</div>
-    <table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>
-      <th style="${thS}">Res.</th><th style="${thS}">Ano</th><th style="${thS}">Sol.</th>
-      <th style="${thS}">Importador</th><th style="${thS}">Status</th>
-    </tr></thead><tbody>${found.map(r=>{
+  // Write into new panel tab table
+  const pThead = $('panel-thead');
+  const pTbody = $('panel-tbody');
+  if(pThead && pTbody) {
+    pThead.innerHTML = `<tr>
+      <th>Res.</th><th>Año</th><th>Sol.</th>
+      <th>Importador</th><th>Status</th>
+    </tr>`;
+    pTbody.innerHTML = found.map(r=>{
       const _res=r['Res.']||'';
       const _yr=fmtD(r['Fecha Res.']||'').substring(0,4);
       const _sol=r['Solicitud']||'';
@@ -5503,20 +5503,25 @@ function buscarPanel() {
       const onclick=_res
         ? `cargarFichaPanel('${_res}','${_yr}','')`
         : `cargarFichaPanel('','','${_sol}')`;
-      return `<tr onclick="${onclick}" style="cursor:pointer" onmouseover="this.style.background='var(--gold-bg)'" onmouseout="this.style.background=''">
-        <td style="padding:7px 9px;border-bottom:1px solid var(--g100);font-family:var(--mono);font-weight:700">${_res||'<span style="color:var(--g400);font-size:10px">sin res.</span>'}</td>
-        <td style="padding:7px 9px;border-bottom:1px solid var(--g100);font-family:var(--mono)">${_yr||'—'}</td>
-        <td style="padding:7px 9px;border-bottom:1px solid var(--g100);font-family:var(--mono)">${_sol||'—'}</td>
-        <td style="padding:7px 9px;border-bottom:1px solid var(--g100)">${r['Importador']||'—'}</td>
-        <td style="padding:7px 9px;border-bottom:1px solid var(--g100)"><span class="badge ${_sc}">${_st}</span></td>
+      return `<tr onclick="${onclick}" style="cursor:pointer">
+        <td style="font-family:var(--mono);font-weight:700">${_res||'<span style="color:var(--g400);font-size:10px">sin res.</span>'}</td>
+        <td style="font-family:var(--mono)">${_yr||'—'}</td>
+        <td style="font-family:var(--mono)">${_sol||'—'}</td>
+        <td>${r['Importador']||'—'}</td>
+        <td><span class="badge ${_sc}">${_st}</span></td>
       </tr>`;
-    }).join('')}</tbody></table>`;
+    }).join('');
+    setS(`${found.length} resultado(s) encontrado(s).`,'ok');
   }
+  // Also fallback for old panel-result div
+  const pr=$('panel-result'); if(pr) pr.style.display='none';
 }
 
 function limpiarBusqueda() {
   ['p-res','p-sol','p-texto','p-anio-res'].forEach(id=>{const e=$(id);if(e) e.value='';});
   const pr=$('panel-result'); if(pr) pr.style.display='none';
+  const pTbody=$('panel-tbody'); if(pTbody) pTbody.innerHTML='';
+  const pThead=$('panel-thead'); if(pThead) pThead.innerHTML='';
 }
 
 // ── GUARDAR ──
