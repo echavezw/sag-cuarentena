@@ -1885,40 +1885,74 @@ function buscarPanelDefault() {
   });
   if(!found.length) return;
   window._lastPanelFound = found;
-  // Sort: año ingreso DESC, N° Res ASC
-  found.sort((a,b)=>{
-    const ya=parseInt(a['Año de Ingreso']||a['Ano de Ingreso']||0)||0;
-    const yb=parseInt(b['Año de Ingreso']||b['Ano de Ingreso']||0)||0;
-    if(yb!==ya) return yb-ya;
-    const ra=parseInt(a['Res.']||0)||0, rb=parseInt(b['Res.']||0)||0;
-    return ra-rb;
-  });
+  _sortPanelFound(found);
   const pThead=$('panel-thead'), pTbody=$('panel-tbody');
   if(!pThead||!pTbody) return;
-  pThead.innerHTML=`<tr><th>Res.</th><th>Año Res.</th><th>Sol.</th><th>Año Ing.</th><th>Importador</th><th>Especie</th><th>Status</th></tr>`;
-  pTbody.innerHTML=found.map(r=>{
-    const _res=r['Res.']||'';
-    const _yr=fmtD(r['Fecha Res.']||'').substring(0,4);
-    const _sol=r['Solicitud']||'';
-    const _ing=r['Año de Ingreso']||r['Ano de Ingreso']||'—';
-    const _imp=r['Importador']||'—';
-    const _esp=(r['Especie']||'—').split(' ').slice(0,2).join(' ');
-    const _st=_res?(r['Status']||'En proceso'):(r['Estado Res.']||'Sin Firma');
-    const _sc=_st==='Entregada'?'badge-ok':_st==='A destruir'||_st==='No Recibida'?'badge-err':_st==='Sin Firma'?'badge-warn':'badge-nv';
-    const onclick=_res?`cargarFichaPanel('${_res.replace(/'/g,"\'")}','${_yr}','')`:(`cargarFichaPanel('','','${_sol}')`);
-    return `<tr onclick="${onclick}" style="cursor:pointer">
-      <td style="font-family:var(--mono);font-weight:700">${_res||'<span style="color:var(--g400);font-size:10px">sin res.</span>'}</td>
-      <td style="font-family:var(--mono)">${_yr||'—'}</td>
-      <td style="font-family:var(--mono)">${_sol||'—'}</td>
-      <td style="font-family:var(--mono)">${_ing}</td>
-      <td>${_imp}</td>
-      <td style="font-style:italic;font-size:11px">${_esp}</td>
-      <td><span class="badge ${_sc}">${_st}</span></td>
-    </tr>`;
-  }).join('');
+  pThead.innerHTML = _panelThead();
+  pTbody.innerHTML = _panelRows(found);
   setS(`${found.length} registros (${prevYear}-${thisYear}).`,'ok');
 }
 
+// ── PANEL TABLE SORT ──
+var _PANEL_COLS = [
+  {key:"res",  label:"Res.",      fn:function(r){return parseInt(r["Res."]||0)||0}},
+  {key:"anio", label:"Año Res.",  fn:function(r){return parseInt((fmtD(r["Fecha Res."]||"")).substring(0,4))||0}},
+  {key:"sol",  label:"Sol.",      fn:function(r){return parseInt(r["Solicitud"]||0)||0}},
+  {key:"ing",  label:"Año Ing.",  fn:function(r){return parseInt(r["Año de Ingreso"]||r["Ano de Ingreso"]||0)||0}},
+  {key:"imp",  label:"Importador",fn:function(r){return (r["Importador"]||"").toLowerCase()}},
+  {key:"esp",  label:"Especie",   fn:function(r){return (r["Especie"]||"").toLowerCase()}},
+  {key:"stat", label:"Status",    fn:function(r){return (r["Status"]||"").toLowerCase()}},
+];
+function _panelThead() {
+  var h="<tr>";
+  _PANEL_COLS.forEach(function(col){
+    var act=window._panelSortCol===col.key;
+    var dir=window._panelSortDir;
+    var arrow=act?(dir===1?" ↑":" ↓"):" ⇅";
+    var bg=act?"background:rgba(184,151,90,.15);":"";
+    h+="<th style=\"cursor:pointer;user-select:none;white-space:nowrap;"+bg+
+       "\" onclick=\"_panelSort('"+col.key+"')\">"
+       +col.label+"<span style=\"font-size:9px;opacity:"+(act?1:.35)+"\">"
+       +arrow+"</span></th>";
+  });
+  return h+"</tr>";
+}
+function _sortPanelFound(arr) {
+  if(!window._panelSortCol) { window._panelSortCol="sol"; window._panelSortDir=-1; }
+  var col=_PANEL_COLS.filter(function(c){return c.key===window._panelSortCol})[0]||_PANEL_COLS[2];
+  var dir=(window._panelSortDir!==undefined)?window._panelSortDir:-1;
+  arr.sort(function(a,b){var va=col.fn(a),vb=col.fn(b);return va<vb?dir:va>vb?-dir:0;});
+}
+function _panelSort(key) {
+  if(window._panelSortCol===key){window._panelSortDir=window._panelSortDir*-1;}
+  else{window._panelSortCol=key;window._panelSortDir=-1;}
+  var found=window._lastPanelFound;
+  if(!found||!found.length) return;
+  _sortPanelFound(found);
+  var pThead=$("panel-thead"),pTbody=$("panel-tbody");
+  if(!pThead||!pTbody) return;
+  pThead.innerHTML=_panelThead();
+  pTbody.innerHTML=_panelRows(found);
+}
+function _panelRows(found) {
+  return found.map(function(r){
+    var res=r["Res."]||"";
+    var yr=(fmtD(r["Fecha Res."]||"")).substring(0,4);
+    var sol=r["Solicitud"]||"";
+    var st=res?(r["Status"]||"En proceso"):(r["Estado Res."]||"Sin Firma");
+    var sc=st==="Entregada"?"badge-ok":st==="A destruir"||st==="No Recibida"?"badge-err":st==="Sin Firma"?"badge-warn":"badge-nv";
+    var oc=res?"cargarFichaPanel(\'"+res.replace(/'/g,"\\'")+"\'\,\'"+yr+"\',\'\')":"cargarFichaPanel(\'\',\'\',\'"+sol+"\')";
+    return "<tr onclick=\""+oc+"\" style=\"cursor:pointer\">"+
+      "<td style=\"font-family:var(--mono);font-weight:700\">"+(res||"<span style=\"color:var(--g400);font-size:10px\">sin res.</span>")+"</td>"+
+      "<td style=\"font-family:var(--mono)\">"+yr+"</td>"+
+      "<td style=\"font-family:var(--mono)\">"+sol+"</td>"+
+      "<td style=\"font-family:var(--mono)\">"+(r["Año de Ingreso"]||r["Ano de Ingreso"]||"—")+"</td>"+
+      "<td>"+(r["Importador"]||"—")+"</td>"+
+      "<td style=\"font-style:italic;font-size:11px\">"+(r["Especie"]||"—").split(" ").slice(0,2).join(" ")+"</td>"+
+      "<td><span class=\"badge "+sc+"\">"+st+"</span></td>"+
+    "</tr>";
+  }).join("");
+}
 function toggleSidebar() {
   const sb = document.getElementById('sidebar');
   const icon = document.getElementById('sb-toggle-icon');
@@ -5570,35 +5604,9 @@ function buscarPanel() {
 
   const pThead=$('panel-thead'),pTbody=$('panel-tbody');
   if(!pThead||!pTbody) return;
-  // Sort: año ingreso DESC, N° Res ASC
-  found.sort((a,b)=>{
-    const ya=parseInt(a['Año de Ingreso']||a['Ano de Ingreso']||0)||0;
-    const yb=parseInt(b['Año de Ingreso']||b['Ano de Ingreso']||0)||0;
-    if(yb!==ya) return yb-ya;
-    const ra=parseInt(a['Res.']||0)||0, rb=parseInt(b['Res.']||0)||0;
-    return ra-rb;
-  });
-  pThead.innerHTML=`<tr><th>Res.</th><th>Año Res.</th><th>Sol.</th><th>Año Ing.</th><th>Importador</th><th>Especie</th><th>Status</th></tr>`;
-  pTbody.innerHTML=found.map(r=>{
-    const _res=r['Res.']||'';
-    const _yr=fmtD(r['Fecha Res.']||'').substring(0,4);
-    const _sol=r['Solicitud']||'';
-    const _ing=r['Año de Ingreso']||r['Ano de Ingreso']||'—';
-    const _imp=r['Importador']||'—';
-    const _esp=(r['Especie']||'—').split(' ').slice(0,2).join(' ');
-    const _st=_res?(r['Status']||'En proceso'):(r['Estado Res.']||'Sin Firma');
-    const _sc=_st==='Entregada'?'badge-ok':_st==='A destruir'||_st==='No Recibida'?'badge-err':_st==='Sin Firma'?'badge-warn':'badge-nv';
-    const onclick=_res?`cargarFichaPanel('${_res.replace(/'/g,"\'")}','${_yr}','')`:(`cargarFichaPanel('','','${_sol}')`);
-    return `<tr onclick="${onclick}" style="cursor:pointer">
-      <td style="font-family:var(--mono);font-weight:700">${_res||'<span style="color:var(--g400);font-size:10px">sin res.</span>'}</td>
-      <td style="font-family:var(--mono)">${_yr||'—'}</td>
-      <td style="font-family:var(--mono)">${_sol||'—'}</td>
-      <td style="font-family:var(--mono)">${_ing}</td>
-      <td>${_imp}</td>
-      <td style="font-style:italic;font-size:11px">${_esp}</td>
-      <td><span class="badge ${_sc}">${_st}</span></td>
-    </tr>`;
-  }).join('');
+  _sortPanelFound(found);
+  pThead.innerHTML = _panelThead();
+  pTbody.innerHTML = _panelRows(found);
   window._lastPanelFound = found;
   setS(`${found.length} registro(s) encontrado(s).`,'ok');
 }
