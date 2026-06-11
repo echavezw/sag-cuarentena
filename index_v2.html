@@ -2228,7 +2228,10 @@ async function recargar() {
             tdm:x['Fecha muestreo/Indexaje']||'',tdm_est:x['Fecha Estimada Muestreo']||'',
             fecha_inf:x['Fecha Informe Fitosanitario']||''});
         });
-        anRows=_abt; _anRowsModified=false;
+        // Only replace anRows if user has NOT made unsaved edits to analysis
+        if(!_anRowsModified) {
+          anRows=_abt; _anRowsModified=false;
+        }
       }
     }
     setGSDot('ok',`${gsData.length} registros`);
@@ -5690,6 +5693,8 @@ async function guardarTodo() {
     setS('Autenticando con Google...','');
     await ensureToken();
     setS('Preparando datos...','');
+    // Snapshot anRows before building rows — safety net for data loss
+    window._anRowsSnapshot = JSON.parse(JSON.stringify(anRows));
     const rows=buildRows(nsol,imp);
     const res=v('f2-nres').trim();
     let existing=[];
@@ -5947,10 +5952,16 @@ async function doSave(rows,isUpdate,res,nsol) {
   const headers = CANONICAL_HEADERS;
   // If new rows have no analysis data but anRows has data, use anRows directly
   const newHasAnalysis = rows.some(r => r['Análisis']||r['Patógenos']);
-  if(!newHasAnalysis && Object.values(anRows).some(a=>a.length)) {
-    // Re-run buildRows — anRows is populated, something went wrong in first pass
-    // This is a safety net: rebuild rows from current anRows state
-    console.warn('doSave: rows had no analysis but anRows has data — this should not happen');
+  if(!newHasAnalysis) {
+    // Check snapshot — if analysis existed before buildRows, restore and abort with error
+    const snapHasAn = window._anRowsSnapshot &&
+      Object.values(window._anRowsSnapshot).some(a=>a&&a.length&&a.some(x=>x.patogeno||x.especie));
+    if(snapHasAn) {
+      // Restore snapshot and throw — prevents saving empty analysis over real data
+      anRows = JSON.parse(JSON.stringify(window._anRowsSnapshot));
+      _anRowsModified = true;
+      throw new Error('Error crítico: se detectó pérdida de datos de análisis. Datos restaurados desde snapshot. Intente guardar nuevamente.');
+    }
   }
   const valueRows=rows.map(r=>headers.map(h=>r[h]||''));
   // Use a fixed large range so Sheets appends after last non-empty row
@@ -5964,6 +5975,8 @@ async function doSave(rows,isUpdate,res,nsol) {
     throw new Error(`Error guardando (${appendResp.status}): ${errTxt.substring(0,200)}`);
   }
   setS(`Guardado correctamente (${rows.length} filas).`,'ok');
+  // Update snapshot to match what was just saved — prevents false alarms on next save
+  window._anRowsSnapshot = JSON.parse(JSON.stringify(anRows));
   clearDirty();
   saveProveedorIfNew(v('f1-prov'));
   // Save material/varieties to dedicated sheet
@@ -7936,6 +7949,19 @@ function flashAuto(id) {
   void el.offsetWidth;
   el.classList.add('auto-filled');
 }
+
+// ── ANALYSIS FIELD DIRTY TRACKING ──
+// Mark anRows as modified whenever user edits any analysis or cobro field
+document.addEventListener('input', function(e) {
+  const id = e.target?.id || '';
+  // Analysis table: ae-folio-*, ae-cd-*, ae-ch-*, ae-nm-*, ae-res-*, ae-est-*
+  // Cobro table: cobro-sps-*, cobro-core-*
+  if(/^ae-(folio|cd|ch|nm|res|est|ccaa|tdm|obs)-[A-Z]-\d+$/.test(id) ||
+     /^cobro-(sps|core)-[A-Z]-\d+$/.test(id)) {
+    _anRowsModified = true;
+    markDirty();
+  }
+});
 
 // ── KEYBOARD SHORTCUTS ──
 const _STAGE_ORDER=[1,2,3,4,5,6,7];
