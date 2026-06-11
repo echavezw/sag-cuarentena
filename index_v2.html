@@ -4317,7 +4317,7 @@ function renderEstimacionCobro() {
                     || PLAGAS_LOOKUP[genus]?.['CE']
                     || [];
 
-    // Obligatorias
+    // Obligatorias — buscar en todas las zonas del lookup
     const todasZonas = [
       ...(Object.values(PLAGAS_LOOKUP[esp]   || {})).flat(),
       ...(Object.values(PLAGAS_LOOKUP[genus] || {})).flat(),
@@ -4329,7 +4329,16 @@ function renderEstimacionCobro() {
     const seenObl = new Set();
     const plagasOblDedup = plagasObl.filter(p => { if(seenObl.has(p.plaga)) return false; seenObl.add(p.plaga); return true; });
 
-    const plagas = [...plagasZona, ...plagasOblDedup.map(p => ({...p, esExtra:true}))];
+    // Forzar Xylella fastidiosa como extra en TODAS las especies, sin excepción
+    // Si no está en plagasZona ni en plagasOblDedup, agregarla explícitamente
+    const xylInZona = plagasZona.some(z => z.plaga.toLowerCase().includes('xylella fastidiosa'));
+    const xylInObl  = plagasOblDedup.some(p => p.plaga.toLowerCase().includes('xylella fastidiosa'));
+    const xylExtra  = (!xylInZona && !xylInObl) ? [{
+      plaga: 'Xylella fastidiosa', tipo: 'BACTERIOLÓGICO', tipo_plaga: 'Bacteria',
+      via: 'Plantas, estacas y ramillas', esExtra: true
+    }] : [];
+
+    const plagas = [...plagasZona, ...plagasOblDedup.map(p => ({...p, esExtra:true})), ...xylExtra];
     plagas.forEach(p => {
       const tk = tipoKey(p.tipo);
       if (!tk) return;
