@@ -1885,6 +1885,14 @@ function buscarPanelDefault() {
   });
   if(!found.length) return;
   window._lastPanelFound = found;
+  // Sort: año ingreso DESC, N° Res ASC
+  found.sort((a,b)=>{
+    const ya=parseInt(a['Año de Ingreso']||a['Ano de Ingreso']||0)||0;
+    const yb=parseInt(b['Año de Ingreso']||b['Ano de Ingreso']||0)||0;
+    if(yb!==ya) return yb-ya;
+    const ra=parseInt(a['Res.']||0)||0, rb=parseInt(b['Res.']||0)||0;
+    return ra-rb;
+  });
   const pThead=$('panel-thead'), pTbody=$('panel-tbody');
   if(!pThead||!pTbody) return;
   pThead.innerHTML=`<tr><th>Res.</th><th>Año Res.</th><th>Sol.</th><th>Año Ing.</th><th>Importador</th><th>Especie</th><th>Status</th></tr>`;
@@ -5562,6 +5570,14 @@ function buscarPanel() {
 
   const pThead=$('panel-thead'),pTbody=$('panel-tbody');
   if(!pThead||!pTbody) return;
+  // Sort: año ingreso DESC, N° Res ASC
+  found.sort((a,b)=>{
+    const ya=parseInt(a['Año de Ingreso']||a['Ano de Ingreso']||0)||0;
+    const yb=parseInt(b['Año de Ingreso']||b['Ano de Ingreso']||0)||0;
+    if(yb!==ya) return yb-ya;
+    const ra=parseInt(a['Res.']||0)||0, rb=parseInt(b['Res.']||0)||0;
+    return ra-rb;
+  });
   pThead.innerHTML=`<tr><th>Res.</th><th>Año Res.</th><th>Sol.</th><th>Año Ing.</th><th>Importador</th><th>Especie</th><th>Status</th></tr>`;
   pTbody.innerHTML=found.map(r=>{
     const _res=r['Res.']||'';
@@ -5670,6 +5686,8 @@ function buildRows(nsol,imp) {
     'Recibida':        v('f2-recibida'),
     'Uso':             v('f1-uso'),
     'Cod. Registro Vivero': v('f1-vivero'),
+    'N° CDA':            v('f1-cda')||'',
+    'N° Cert. Fitosanitario': v('f1-cert-fito')||'',
     'Contraparte Importacion': v('f1-cp1-nombre'),
     'Tel Importacion': v('f1-cp1-tel'),
     'Email Importacion': v('f1-cp1-email'),
@@ -5760,7 +5778,7 @@ function buildRows(nsol,imp) {
       'SPS análisis':a.sps||'','CORE/Factura':a.core||'',
     }));
   } else {
-    esp.forEach(e=>rows.push({...base,'Especie':e.especie,'Variedades':e.variedad,'Tipo Material':e.tipo,'Cantidad':e.cant||'','Portainjerto':e.portainjerto||'','N° CDA':v('f1-cda')||'','N° Cert. Fitosanitario':v('f1-cert-fito')||''}));
+    esp.forEach(e=>rows.push({...base,'Especie':e.especie,'Variedades':e.variedad,'Tipo Material':e.tipo,'Cantidad':e.cant||'','Portainjerto':e.portainjerto||''}));
     if(!esp.length) rows.push({...base});
   }
   return rows;
