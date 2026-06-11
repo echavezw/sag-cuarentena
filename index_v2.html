@@ -2110,7 +2110,7 @@ function populateImportadores() {
   sel.innerHTML = '<option value="">— Seleccionar —</option>';
   [...refImportadores].sort((a,b)=>(a['Nombre']||'').localeCompare(b['Nombre']||'','es')).forEach(r => {
     const o = document.createElement('option');
-    o.value = r['Nombre']||''; o.textContent = r['Nombre']||'';
+    var _n=toTitleCase(r['Nombre']||''); o.value=_n; o.textContent=_n;
     sel.appendChild(o);
   });
   if(current) sel.value = current;
@@ -2327,7 +2327,7 @@ async function cargarFilaMulti(rows) {
   window._loadedEspKey = '__loading__'+_thisRes+'|'+_thisSol;
   _estabRows = []; // reset so renderEstablecimientoTable refreshes on next render
   // Etapa I
-  selEl('f1-imp', r['Importador']||'');
+  selEl('f1-imp', toTitleCase(r['Importador']||''));
   selEl('f1-pais', r['Origen']||''); onPais();
   sv('f1-fech-rec', fmtD(r['Fecha Recepcion']||r['Fecha Solicitud']||''));
   sv('f1-rut', r['Rut']||'');
@@ -2355,7 +2355,7 @@ async function cargarFilaMulti(rows) {
   if(refImportadores.length) {
     setTimeout(onImp, 150);
   } else {
-    loadRefData().then(()=>{ selEl('f1-imp', r['Importador']||''); setTimeout(onImp, 150); });
+    loadRefData().then(()=>{ selEl('f1-imp', toTitleCase(r['Importador']||'')); setTimeout(onImp, 150); });
   }
   // Etapa II
   sv('f2-nres', r['Res.']||'');
