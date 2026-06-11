@@ -1500,10 +1500,12 @@ input.field-blocked, select.field-blocked {
   <div id="panel-content-1" class="tab-panel">
   <div class="tab-body" style="border-radius:0 0 var(--r) var(--r);padding:18px">
     <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:14px">
-      <div class="ff c1"><label class="lbl">N° Resolución</label><input type="number" id="p-res" placeholder="ej. 1590" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
-      <div class="ff c1"><label class="lbl">Año Res.</label><input type="number" id="p-anio-res" placeholder="2025" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
-      <div class="ff c1"><label class="lbl">N° Solicitud</label><input type="number" id="p-sol" placeholder="ej. 263" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
-      <div class="ff c3"><label class="lbl">Importador / texto libre</label><input id="p-texto" placeholder="Búsqueda libre..." onkeydown="if(event.key==='Enter')buscarPanel()"></div>
+      <div class="ff c1"><label class="lbl">N° Resolución</label><input type="number" id="pb-res" placeholder="ej. 1590" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
+      <div class="ff c1"><label class="lbl">Año Res.</label><input type="number" id="pb-anio-res" placeholder="2025" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
+      <div class="ff c1"><label class="lbl">N° Solicitud</label><input type="number" id="pb-sol" placeholder="ej. 263" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
+      <div class="ff c1"><label class="lbl">Año Ingreso ECA</label><input type="number" id="pb-anio-ing" placeholder="2025" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
+      <div class="ff c1"><label class="lbl">Año Solicitud</label><input type="number" id="pb-anio-sol" placeholder="2025" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
+      <div class="ff c1"><label class="lbl">Texto libre</label><input id="pb-texto" placeholder="Importador, especie..." onkeydown="if(event.key==='Enter')buscarPanel()"></div>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:16px">
       <button class="btn btn-nv btn-sm" onclick="buscarPanel()">Buscar</button>
