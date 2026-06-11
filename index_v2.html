@@ -1912,6 +1912,22 @@ function buscarPanelDefault() {
     seen.add(key); found.push(r);
   });
   if(!found.length) return;
+  // Enrich each found record with best Año de Ingreso from any row of that record
+  found.forEach(r => {
+    if(r['Año de Ingreso'] && r['Año de Ingreso'].trim()) return; // already has it
+    const rRes = String(r['Res.']||'').trim();
+    const rSol = String(r['Solicitud']||'').trim();
+    const allForRecord = gsData.filter(x =>
+      rRes ? String(x['Res.']||'').trim()===rRes
+           : String(x['Solicitud']||'').trim()===rSol
+    );
+    const bestAnio = allForRecord.map(x =>
+      x['Año de Ingreso'] ||
+      fmtD(x['Fecha de Ingreso']||'').substring(0,4) ||
+      fmtD(x['Fecha Res.']||'').substring(0,4) || ''
+    ).find(y => y && y.trim()) || '';
+    if(bestAnio) r['Año de Ingreso'] = bestAnio;
+  });
   window._lastPanelFound = found;
   _sortPanelFound(found);
   const pThead=$('panel-thead'), pTbody=$('panel-tbody');
@@ -2425,7 +2441,12 @@ async function cargarFilaMulti(rows) {
   selEl('f2-recibida', r['Recibida']||r['Muestreada?']||'');
   // Etapa III
   sv('f3-fing', fmtD(r['Fecha de Ingreso']||''));
-  sv('f3-anio', r['Año de Ingreso']||'');
+  // Derive Año de Ingreso if empty — from Fecha de Ingreso, then Fecha Res., then Fecha Solicitud
+  const _anioIng = r['Año de Ingreso'] ||
+    (fmtD(r['Fecha de Ingreso']||'').substring(0,4)) ||
+    (fmtD(r['Fecha Res.']||'').substring(0,4)) ||
+    (fmtD(r['Fecha Solicitud']||'').substring(0,4)) || '';
+  sv('f3-anio', _anioIng);
   selEl('f3-cub', r['Cubículo']||r['Cubiculo']||'');
   selEl('f3-cub2', r['Cubículo2']||r['Cubiculo2']||'');
   sv('f3-nplan', r['N° Plantas']||'');
@@ -5679,6 +5700,22 @@ function buscarPanel() {
   _sortPanelFound(found);
   pThead.innerHTML = _panelThead();
   pTbody.innerHTML = _panelRows(found);
+  // Enrich each found record with best Año de Ingreso from any row
+  found.forEach(r => {
+    if(r['Año de Ingreso'] && r['Año de Ingreso'].trim()) return;
+    const rRes = String(r['Res.']||'').trim();
+    const rSol = String(r['Solicitud']||'').trim();
+    const allR = gsData.filter(x =>
+      rRes ? String(x['Res.']||'').trim()===rRes
+           : String(x['Solicitud']||'').trim()===rSol
+    );
+    const best = allR.map(x =>
+      x['Año de Ingreso'] ||
+      fmtD(x['Fecha de Ingreso']||'').substring(0,4) ||
+      fmtD(x['Fecha Res.']||'').substring(0,4) || ''
+    ).find(y => y&&y.trim()) || '';
+    if(best) r['Año de Ingreso'] = best;
+  });
   window._lastPanelFound = found;
   setS(`${found.length} registro(s) encontrado(s).`,'ok');
 }
@@ -5748,7 +5785,14 @@ function buildRows(nsol,imp) {
     'Cubículo':        v('f3-cub'),
     'Cubículo2':       v('f3-cub2'),
     'Fecha de Ingreso':fmtDisplay(v('f3-fing')),
-    'Año de Ingreso':  v('f3-anio')||_lastLoadedRow['Año de Ingreso']||'',
+    'Año de Ingreso':  (()=>{
+      const _a = v('f3-anio') ||
+        _lastLoadedRow['Año de Ingreso'] ||
+        fmtD(_lastLoadedRow['Fecha de Ingreso']||'').substring(0,4) ||
+        fmtD(_lastLoadedRow['Fecha Res.']||'').substring(0,4) ||
+        fmtD(_lastLoadedRow['Fecha Solicitud']||'').substring(0,4) || '';
+      return _a;
+    })(),
     'Fecha Injertación':fmtDisplay(v('f3-finj')),
     'N° Plantas':      v('f3-nplan')||_lastLoadedRow['N° Plantas']||'',
     'Fecha aprox. Levant.':fmtDisplay(v('f3-flev')),
