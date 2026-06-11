@@ -1429,9 +1429,9 @@ input.field-blocked, select.field-blocked {
     </div>
     <!-- Busqueda -->
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr 2fr;gap:10px;margin-bottom:14px">
-      <div class="ff"><label class="lbl">N° Resolucion</label><input type="number" id="p-res" placeholder="ej. 1590" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
-      <div class="ff"><label class="lbl">Ano Res.</label><input type="number" id="p-anio-res" placeholder="2025" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
-      <div class="ff"><label class="lbl">N° Solicitud</label><input type="number" id="p-sol" placeholder="ej. 263" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
+      <div class="ff"><label class="lbl">N° Resolucion</label><input type="number" id="pb-res" placeholder="ej. 1590" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
+      <div class="ff"><label class="lbl">Ano Res.</label><input type="number" id="pb-anio-res" placeholder="2025" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
+      <div class="ff"><label class="lbl">N° Solicitud</label><input type="number" id="pb-sol" placeholder="ej. 263" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
       <div class="ff"><label class="lbl">Importador / texto libre</label><input id="p-texto" placeholder="Busqueda libre..." onkeydown="if(event.key==='Enter')buscarPanel()"></div>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:16px">
@@ -1500,10 +1500,10 @@ input.field-blocked, select.field-blocked {
   <div id="panel-content-1" class="tab-panel">
   <div class="tab-body" style="border-radius:0 0 var(--r) var(--r);padding:18px">
     <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:14px">
-      <div class="ff c1"><label class="lbl">N° Resolución</label><input type="number" id="p-res" placeholder="ej. 1590" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
-      <div class="ff c1"><label class="lbl">Año Res.</label><input type="number" id="p-anio-res" placeholder="2025" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
-      <div class="ff c1"><label class="lbl">N° Solicitud</label><input type="number" id="p-sol" placeholder="ej. 263" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
-      <div class="ff c3"><label class="lbl">Importador / texto libre</label><input id="p-texto" placeholder="Búsqueda libre..." onkeydown="if(event.key==='Enter')buscarPanel()"></div>
+      <div class="ff c1"><label class="lbl">N° Resolución</label><input type="number" id="pb-res" placeholder="ej. 1590" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
+      <div class="ff c1"><label class="lbl">Año Res.</label><input type="number" id="pb-anio-res" placeholder="2025" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
+      <div class="ff c1"><label class="lbl">N° Solicitud</label><input type="number" id="pb-sol" placeholder="ej. 263" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
+      <div class="ff c3"><label class="lbl">Importador / texto libre</label><input id="pb-texto" placeholder="Búsqueda libre..." onkeydown="if(event.key==='Enter')buscarPanel()"></div>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:16px">
       <button class="btn btn-nv btn-sm" onclick="buscarPanel()">Buscar</button>
@@ -5442,8 +5442,11 @@ function cargarFichaPanel(res,yr,sol) {
 }
 
 function buscarPanel() {
-  const resVal=v('p-res').trim(),solVal=v('p-sol').trim(),
-        texto=v('p-texto').toLowerCase().trim(),anioRes=v('p-anio-res').trim();
+  // Read from panel-busqueda tab inputs (pb-) or fallback to legacy p- inputs
+  const resVal=(v('pb-res')||v('p-res')).trim();
+  const solVal=(v('pb-sol')||v('p-sol')).trim();
+  const texto=(v('pb-texto')||v('p-texto')).toLowerCase().trim();
+  const anioRes=(v('pb-anio-res')||v('p-anio-res')).trim();
   if(!gsData.length){setS('Conecte Google Sheets.','warn');return;}
   if(!resVal&&!solVal&&!texto&&!anioRes){setS('Ingrese un criterio.','warn');return;}
   if(resVal&&!texto&&!solVal){
@@ -5518,7 +5521,7 @@ function buscarPanel() {
 }
 
 function limpiarBusqueda() {
-  ['p-res','p-sol','p-texto','p-anio-res'].forEach(id=>{const e=$(id);if(e) e.value='';});
+  ['p-res','p-sol','p-texto','p-anio-res','pb-res','pb-sol','pb-texto','pb-anio-res'].forEach(id=>{const e=$(id);if(e) e.value='';});
   const pr=$('panel-result'); if(pr) pr.style.display='none';
   const pTbody=$('panel-tbody'); if(pTbody) pTbody.innerHTML='';
   const pThead=$('panel-thead'); if(pThead) pThead.innerHTML='';
