@@ -7624,12 +7624,17 @@ function generarRecuentoPlantas() {
     const i = parseInt(inp.id.replace('pf-',''));
     if(!isNaN(i) && mat[i]) pfRows[i] = inp.value||'';
   });
-  const rows = mat.map((r,i)=>`<tr>
-    <td style="font-style:italic">${r.esp}</td>
-    <td>${r.vari}</td>
-    <td style="text-align:center">${r.nplan||r.cantR||'—'}</td>
-    <td style="text-align:center">${pfRows[i]??_v('f6-total-fin')||'—'}</td>
-  </tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:#888">Sin datos</td></tr>';
+  const _pfTotal = (document.getElementById('pf-total')||{}).value||'';
+  const rows = mat.map((r,i)=>{
+    const _ini = r.nplan||r.cantR||'—';
+    const _fin = (pfRows[i]!==undefined && pfRows[i]!=='') ? pfRows[i] : _pfTotal||'—';
+    return '<tr>' +
+      '<td style="font-style:italic">' + r.esp + '</td>' +
+      '<td>' + r.vari + '</td>' +
+      '<td style="text-align:center">' + _ini + '</td>' +
+      '<td style="text-align:center">' + _fin + '</td>' +
+    '</tr>';
+  }).join('') || '<tr><td colspan="4" style="text-align:center;color:#888">Sin datos</td></tr>';
   const totalIni = mat.reduce((s,r)=>s+(parseInt(r.nplan||r.cantR)||0),0);
   const totalFin = document.getElementById('pf-total')?.value||
     pfRows.reduce((s,v)=>s+(parseInt(v)||0),0)||'';
