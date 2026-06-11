@@ -1909,10 +1909,11 @@ function _panelThead() {
     var act=window._panelSortCol===col.key;
     var dir=window._panelSortDir;
     var arrow=act?(dir===1?" ↑":" ↓"):" ⇅";
-    var bg=act?"background:rgba(184,151,90,.15);":"";
-    h+="<th style=\"cursor:pointer;user-select:none;white-space:nowrap;"+bg+
-       "\" onclick=\"_panelSort('"+col.key+"')\">"
-       +col.label+"<span style=\"font-size:9px;opacity:"+(act?1:.35)+"\">"
+    h+="<th onclick=\"_panelSort('"+col.key+"')\" "
+       +"style=\"cursor:pointer;user-select:none;white-space:nowrap;"
+       +(act?"border-bottom:2px solid var(--gd);":"")+"\">"
+       +col.label+"<span style=\"font-size:9px;margin-left:2px;opacity:"
+       +(act?"0.9":"0.4")+";color:"+(act?"var(--gd)":"inherit")+"\">"
        +arrow+"</span></th>";
   });
   return h+"</tr>";
@@ -1921,7 +1922,13 @@ function _sortPanelFound(arr) {
   if(!window._panelSortCol) { window._panelSortCol="sol"; window._panelSortDir=-1; }
   var col=_PANEL_COLS.filter(function(c){return c.key===window._panelSortCol})[0]||_PANEL_COLS[2];
   var dir=(window._panelSortDir!==undefined)?window._panelSortDir:-1;
-  arr.sort(function(a,b){var va=col.fn(a),vb=col.fn(b);return va<vb?dir:va>vb?-dir:0;});
+  // dir=-1 → DESC (mayor a menor), dir=1 → ASC (menor a mayor)
+  arr.sort(function(a,b){
+    var va=col.fn(a),vb=col.fn(b);
+    if(va>vb) return -dir;
+    if(va<vb) return dir;
+    return 0;
+  });
 }
 function _panelSort(key) {
   if(window._panelSortCol===key){window._panelSortDir=window._panelSortDir*-1;}
