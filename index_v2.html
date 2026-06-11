@@ -1940,12 +1940,17 @@ function _sortPanelFound(arr) {
   arr.sort(function(a,b){
     // When sorting by Sol.: registros sin resolución (filtro) go after those with same Año Ing.
     if(col.key==="sol") {
-      var aHasRes=!!(a["Res."]||"").trim(), bHasRes=!!(b["Res."]||"").trim();
-      // Primary: N° Solicitud DESC — registros sin resolución al final
-      if(aHasRes&&!bHasRes) return -1;
-      if(!aHasRes&&bHasRes) return 1;
+      // 1. N° Solicitud DESC
       var va=col.fn(a), vb=col.fn(b);
-      return va>vb?dir:va<vb?-dir:0;
+      if(va!==vb) return va>vb?dir:va<vb?-dir:0;
+      // 2. Año ingreso DESC
+      var ya=parseInt(a["Año de Ingreso"]||a["Ano de Ingreso"]||0)||0;
+      var yb=parseInt(b["Año de Ingreso"]||b["Ano de Ingreso"]||0)||0;
+      if(ya!==yb) return ya>yb?-1:1;
+      // 3. Año resolución DESC
+      var ra=parseInt((fmtD(a["Fecha Res."]||"")).substring(0,4))||0;
+      var rb=parseInt((fmtD(b["Fecha Res."]||"")).substring(0,4))||0;
+      return ra>rb?-1:ra<rb?1:0;
     }
     var va=col.fn(a), vb=col.fn(b);
     return va>vb?dir:va<vb?-dir:0;
