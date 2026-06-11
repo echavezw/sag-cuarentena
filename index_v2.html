@@ -196,6 +196,20 @@ body{font-family:var(--font);font-weight:300;background:var(--g100);color:var(--
   box-shadow:none;background:#fff}
 .lbl .req{color:var(--gd)}.lbl .auto{background:var(--gold-bg);color:var(--gd);font-size:8px;padding:1px 5px;border-radius:99px;font-weight:700;text-transform:none;letter-spacing:0;border:1px solid var(--gold-bd)}
 .lbl .ro{background:var(--g100);color:var(--g400);font-size:8px;padding:1px 5px;border-radius:99px;font-weight:700;text-transform:none}
+
+/* ── MODO COMPACTO ── */
+body.compact .tbl{font-size:11px}
+body.compact .tbl thead th{padding:4px 6px;font-size:8.5px}
+body.compact .tbl tbody td{padding:2px 4px}
+body.compact .tbl select,body.compact .tbl input{font-size:11px;padding:3px 4px}
+body.compact .tab-body{padding:12px}
+body.compact .fg{gap:8px 10px}
+body.compact .ff{gap:2px}
+body.compact input,body.compact select{padding:5px 7px;font-size:12px}
+#compact-btn{transition:all .15s}
+body.compact #compact-btn{background:var(--nv);color:rgba(255,255,255,.8)}
+@keyframes auto-flash{0%{background:rgba(184,151,90,.25)}100%{background:var(--g50)}}
+input.auto-filled{animation:auto-flash .6s ease-out}
 input,select,textarea{padding:7px 9px;border:1.5px solid var(--g300,#b0b8c4);border-radius:var(--rs);
   font-size:13px;font-family:var(--font);width:100%;color:var(--ink);background:var(--wh);
   outline:none;-webkit-appearance:none;transition:border .12s,box-shadow .12s}
@@ -763,6 +777,7 @@ input.field-blocked, select.field-blocked {
   <div class="sb-item" id="nav-config" onclick="goStage('config')"><span class="sb-num">C</span>Configuracion</div>
   <div class="sb-actions">
     <button class="btn btn-gd btn-sm" onclick="nuevaSolicitud()">+ Nueva Solicitud</button>
+    <button class="btn btn-gh btn-sm" id="compact-btn" onclick="toggleCompact()" title="Alternar modo compacto" style="width:100%;justify-content:center;margin-bottom:6px">⊟ Compacto</button>
     <div id="unsaved-banner">⬤ Cambios sin guardar</div>
     <button onclick="guardarTodo()" style="width:100%;padding:10px 0;background:linear-gradient(135deg,var(--nv),var(--nv2));color:var(--gd);border:1.5px solid var(--gd);border-radius:var(--rs);font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;transition:all .15s;font-family:var(--font)" onmouseover="this.style.background='var(--gd)';this.style.color='var(--nv)'" onmouseout="this.style.background='linear-gradient(135deg,var(--nv),var(--nv2))';this.style.color='var(--gd)'">Guardar</button>
   </div>
@@ -7401,6 +7416,49 @@ function renderInvernaderoGrid() {
 
   cc.innerHTML = html;
 }
+// ══════════════════════════════════════════════════════════════════
+
+// ── MODO COMPACTO ──
+function toggleCompact() {
+  const on = document.body.classList.toggle('compact');
+  const btn = document.getElementById('compact-btn');
+  if(btn) btn.textContent = on ? '⊞ Normal' : '⊟ Compacto';
+  localStorage.setItem('sag_compact', on ? '1' : '');
+}
+(function(){
+  if(localStorage.getItem('sag_compact')==='1'){
+    document.body.classList.add('compact');
+    const btn=document.getElementById('compact-btn');
+    if(btn) btn.textContent='⊞ Normal';
+  }
+})();
+
+// ── FLASH en campos AUTO/CALC ──
+function flashAuto(id) {
+  const el = document.getElementById(id);
+  if(!el || !el.value) return;
+  el.classList.remove('auto-filled');
+  void el.offsetWidth;
+  el.classList.add('auto-filled');
+}
+
+// ── KEYBOARD SHORTCUTS ──
+const _STAGE_ORDER=[1,2,3,4,5,6,7];
+document.addEventListener('keydown',function(e){
+  if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();guardarTodo();return;}
+  if(e.altKey&&e.key==='ArrowRight'){
+    e.preventDefault();
+    const idx=_STAGE_ORDER.indexOf(currentStage);
+    if(idx>=0&&idx<_STAGE_ORDER.length-1)goStage(_STAGE_ORDER[idx+1]);
+    return;
+  }
+  if(e.altKey&&e.key==='ArrowLeft'){
+    e.preventDefault();
+    const idx=_STAGE_ORDER.indexOf(currentStage);
+    if(idx>0)goStage(_STAGE_ORDER[idx-1]);
+    return;
+  }
+});
 // ══════════════════════════════════════════════════════════════════
 </script>
 </body>
