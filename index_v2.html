@@ -928,7 +928,7 @@ input.field-blocked, select.field-blocked {
     <div class="fg">
       <div class="ff c2"><label class="lbl">Nombre Proveedor</label>
         <div style="display:flex;gap:6px">
-        <input id="f1-prov" list="prov-dl" placeholder="Ingrese o seleccione" style="flex:1" oninput="onProv()">
+        <input id="f1-prov" oninput="cacheField('f1-prov')" list="prov-dl" placeholder="Ingrese o seleccione" style="flex:1" oninput="onProv()">
         <button class="btn btn-gh btn-sm" onclick="agregarNuevo('proveedor')" title="Agregar nuevo proveedor">+</button>
       </div>
         <datalist id="prov-dl"></datalist></div>
@@ -939,8 +939,8 @@ input.field-blocked, select.field-blocked {
       <div class="ff c1"><label class="lbl">Uso Propuesto</label>
         <select id="f1-uso"><option value="">—</option><option>Investigacion</option><option>Otro</option><option>Propagacion</option></select></div>
       <div class="ff c1 ff-secondary"><label class="lbl">N° Reg. Vivero</label><input id="f1-vivero"></div>
-      <div class="ff c1"><label class="lbl">N° CDA</label><input id="f1-cda" style="font-family:var(--mono)" placeholder="ej. 1234/2025"></div>
-      <div class="ff c1"><label class="lbl">N° Cert. Fitosanitario</label><input id="f1-cert-fito" style="font-family:var(--mono)" placeholder="ej. 5678/2025"></div>
+      <div class="ff c1"><label class="lbl">N° CDA</label><input id="f1-cda" style="font-family:var(--mono)" oninput="cacheField('f1-cda')" placeholder="ej. 1234/2025"></div>
+      <div class="ff c1"><label class="lbl">N° Cert. Fitosanitario</label><input id="f1-cert-fito" style="font-family:var(--mono)" oninput="cacheField('f1-cert-fito')" placeholder="ej. 5678/2025"></div>
       <div class="ff c1"><label class="lbl">Pto. Ingreso</label>
         <select id="f1-pto"><option value="">—</option><option>AMB</option><option>Maritimo</option><option>Otro</option><option>Terrestre</option></select></div>
       <div class="ff c1"><label class="lbl">Fecha Est. Ingreso</label><input type="date" id="f1-fing" oninput="autoFillFingAsig(this.value)"></div>
@@ -2378,6 +2378,14 @@ async function cargarFilaMulti(rows) {
   sv('f1-cp2-nombre', r['Contraparte Territorial']||'');
   sv('f1-cp2-tel',    r['Tel Territorial']||'');
   sv('f1-cp2-email',  r['Email Territorial']||'');
+  // Populate field cache from loaded record — protects values if DOM not rendered at save time
+  const _cacheIds = ['f1-prov','f1-vivero','f1-rep','f1-cda','f1-cert-fito',
+    'f6-obs','f6-stat','f6-term','f6-lib','f6-nrest','f6-frterm','f6-fent','f6-afirma'];
+  if(!window._fieldCache) window._fieldCache={};
+  _cacheIds.forEach(id=>{
+    const el=document.getElementById(id);
+    if(el && el.value) window._fieldCache[id]=el.value;
+  });
   // Call onImp AFTER loading sheet values — fills any remaining empty contraparte fields
   // setTimeout ensures DOM is settled and refImportadores fully available
   if(refImportadores.length) {
@@ -2638,11 +2646,12 @@ function onImp() {
     //   6=Contraparte Imp,7=Tel Cp Imp,8=Email Cp Imp,9=Contraparte Cuar,10=Tel Cp Cuar,11=Email Cp Cuar
     const gpos = (obj, idx) => obj[String(idx)]||obj[idx]||'';
     const hasNamedKeys = Object.keys(found).some(k=>isNaN(k));
-    sv('f1-rut',        get(found,'RUT','Rut','rut'));
-    sv('f1-tel',        get(found,'Telefono','Teléfono','Tel','telefono'));
-    sv('f1-email',      get(found,'Email','email','Correo'));
-    sv('f1-dir',        get(found,'Direccion','Dirección','direccion'));
-    sv('f1-ciudad',     get(found,'Ciudad','ciudad'));
+    // Only fill if empty — preserve values already loaded from Sheet record
+    if(!v('f1-rut'))    sv('f1-rut',    get(found,'RUT','Rut','rut'));
+    if(!v('f1-tel'))    sv('f1-tel',    get(found,'Telefono','Teléfono','Tel','telefono'));
+    if(!v('f1-email'))  sv('f1-email',  get(found,'Email','email','Correo'));
+    if(!v('f1-dir'))    sv('f1-dir',    get(found,'Direccion','Dirección','direccion'));
+    if(!v('f1-ciudad')) sv('f1-ciudad', get(found,'Ciudad','ciudad'));
     // Contraparte Importacion — try multiple column name variants that SAG sheets may use
     sv('f1-cp1-nombre', v('f1-cp1-nombre') || get(found,
       'Contraparte Importacion','Contraparte Importación','ContraparteImportacion',
@@ -5722,7 +5731,7 @@ function buildRows(nsol,imp) {
     'Cubículo':        v('f3-cub'),
     'Cubículo2':       v('f3-cub2'),
     'Fecha de Ingreso':fmtDisplay(v('f3-fing')),
-    'Año de Ingreso':  v('f3-anio'),
+    'Año de Ingreso':  v('f3-anio')||_lastLoadedRow['Año de Ingreso']||'',
     'Fecha Injertación':fmtDisplay(v('f3-finj')),
     'N° Plantas':      v('f3-nplan'),
     'Fecha aprox. Levant.':fmtDisplay(v('f3-flev')),
@@ -5738,7 +5747,7 @@ function buildRows(nsol,imp) {
     'Obs.':            getCached('f6-obs',v('f6-obs'))||_lastLoadedRow['Obs.']||'',
     'Status':          getCached('f6-stat',v('f6-stat'))||_lastLoadedRow['Status']||'',
     'A Firma Res. Termino': getCached('f6-afirma',v('f6-afirma'))||_lastLoadedRow['A Firma Res. Termino']||'',
-    'Proveedor':       v('f1-prov'),
+    'Proveedor':       getCached('f1-prov',v('f1-prov'))||_lastLoadedRow['Proveedor']||'',
     'Representante':   v('f1-rep'),
     'Tipo Material':   '',
     'Fecha Ing. Solicitada': fmtDisplay(v('f1-fing')),
@@ -5751,7 +5760,7 @@ function buildRows(nsol,imp) {
     'Recibida':        v('f2-recibida'),
     'Uso':             v('f1-uso'),
     'Cod. Registro Vivero': v('f1-vivero'),
-    'N° CDA':            v('f1-cda')||'',
+    'N° CDA':            getCached('f1-cda',v('f1-cda'))||_lastLoadedRow['N° CDA']||'',
     'N° Cert. Fitosanitario': v('f1-cert-fito')||'',
     'Contraparte Importacion': v('f1-cp1-nombre'),
     'Tel Importacion': v('f1-cp1-tel'),
