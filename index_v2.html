@@ -1966,7 +1966,7 @@ function _panelRows(found) {
       "<td style=\"font-family:var(--mono)\">"+yr+"</td>"+
       "<td style=\"font-family:var(--mono)\">"+sol+"</td>"+
       "<td style=\"font-family:var(--mono)\">"+(r["Año de Ingreso"]||r["Ano de Ingreso"]||"—")+"</td>"+
-      "<td>"+(r["Importador"]||"—")+"</td>"+
+      "<td>"+(toTitleCase(r["Importador"])||"—")+"</td>"+
       "<td style=\"font-style:italic;font-size:11px\">"+(r["Especie"]||"—").split(" ").slice(0,2).join(" ")+"</td>"+
       "<td><span class=\"badge "+sc+"\">"+st+"</span></td>"+
     "</tr>";
@@ -5678,7 +5678,7 @@ function buildRows(nsol,imp) {
     'Fecha Solicitud': fmtDisplay(v('f1-fech-rec')),
     'Res.':            v('f2-nres'),
     'Fecha Res.':      fmtDisplay(v('f2-fres')),
-    'Importador':      imp,
+    'Importador':      toTitleCase(imp),
     'Rut':             v('f1-rut'),
     'Origen':          v('f1-pais'),
     'Cubículo':        v('f3-cub'),
