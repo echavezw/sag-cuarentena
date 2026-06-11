@@ -1379,20 +1379,20 @@ input.field-blocked, select.field-blocked {
   <div class="tab-body">
     <div class="info-box">Complete los datos de la resolución de término y el estado de cierre del proceso.</div>
     <div class="fg" style="grid-template-columns:repeat(6,1fr);gap:10px 14px">
-      <div class="ff c1 ff-primary"><label class="lbl">N° Res. Término <span class="req">*</span></label><input id="f6-nrest" style="font-family:var(--mono)" placeholder="Ej: 1234"></div>
-      <div class="ff c2"><label class="lbl">Fecha Res. Término</label><input type="date" id="f6-frterm"></div>
+      <div class="ff c1 ff-primary"><label class="lbl">N° Res. Término <span class="req">*</span></label><input id="f6-nrest" oninput="cacheField('f6-nrest')" style="font-family:var(--mono)" placeholder="Ej: 1234"></div>
+      <div class="ff c2"><label class="lbl">Fecha Res. Término</label><input type="date" id="f6-frterm" oninput="cacheField('f6-frterm')"></div>
       <div class="ff c2"><label class="lbl">Estado A Firma</label>
-        <select id="f6-afirma"><option value="">—</option><option>Pendiente Envío a Firma</option><option>Enviado a Firma</option><option>Firmada</option></select></div>
+        <select id="f6-afirma" onchange="cacheField('f6-afirma')"><option value="">—</option><option>Pendiente Envío a Firma</option><option>Enviado a Firma</option><option>Firmada</option></select></div>
       <div class="ff c1"><label class="lbl">Terminada</label>
-        <select id="f6-term"><option value="">—</option><option>SI</option><option>NO</option></select></div>
+        <select id="f6-term" onchange="cacheField('f6-term')"><option value="">—</option><option>SI</option><option>NO</option></select></div>
     </div>
     <hr class="divider">
     <div class="fg" style="grid-template-columns:repeat(6,1fr);gap:10px 14px">
       <div class="ff c1"><label class="lbl">Liberada</label>
-        <select id="f6-lib"><option value="">—</option><option>SI</option><option>NO</option></select></div>
-      <div class="ff c2"><label class="lbl">Fecha Entrega</label><input type="date" id="f6-fent"></div>
+        <select id="f6-lib" onchange="cacheField('f6-lib')"><option value="">—</option><option>SI</option><option>NO</option></select></div>
+      <div class="ff c2"><label class="lbl">Fecha Entrega</label><input type="date" id="f6-fent" oninput="cacheField('f6-fent')"></div>
       <div class="ff c2"><label class="lbl">Status Final</label>
-        <select id="f6-stat" onchange="updateStatusBadge()">
+        <select id="f6-stat" onchange="updateStatusBadge();cacheField('f6-stat')" onchange="updateStatusBadge()">
           <option value="">—</option><option>A destruir</option><option>Destruida</option>
           <option>Entregada</option><option>Liberada</option><option>No Recibida</option>
           <option>Perdida</option><option>Terminada</option>
@@ -1403,7 +1403,7 @@ input.field-blocked, select.field-blocked {
           <span id="status-badge-display" class="badge badge-nv" style="display:none"></span>
         </div>
       </div>
-      <div class="ff c4"><label class="lbl">Observaciones</label><textarea id="f6-obs" rows="3" placeholder="Observaciones generales del cierre..."></textarea></div>
+      <div class="ff c4"><label class="lbl">Observaciones</label><textarea id="f6-obs" oninput="cacheField('f6-obs')" rows="3" placeholder="Observaciones generales del cierre..."></textarea></div>
     </div>
     <hr class="divider">
     <!-- Firma section -->
@@ -2517,6 +2517,7 @@ async function cargarFilaMulti(rows) {
 }
 
 function limpiarFormSilent() {
+  clearFieldCache();
   _lastLoadedRow = {};
   ['f1-fech-rec','f1-rut','f1-rep','f1-tel','f1-dir','f1-ciudad','f1-reg-imp',
    'f1-email','f1-cp1-nombre','f1-cp1-email','f1-cp1-tel','f1-cp2-nombre','f1-cp2-email','f1-cp2-tel',
@@ -5653,10 +5654,14 @@ function limpiarBusqueda() {
 
 // ── GUARDAR ──
 async function guardarTodo() {
+  if(window._saving){setS('Guardado en curso, espere...','warn');return;}
   if(!GS.sheetId){setS('Configure la conexion a Google Sheets.','warn');goStage('config');return;}
   const nsol=parseInt(v('f1-nsol'))||calcNextSol();
   const imp=v('f1-imp');
   if(!imp){setS('El importador es obligatorio.','warn');goStage(1);return;}
+  window._saving=true;
+  const saveBtn=document.querySelector('.sb-save');
+  if(saveBtn){saveBtn.disabled=true;saveBtn.textContent='Guardando...';}
   setS('Guardando...','');
   try {
     setS('Autenticando con Google...','');
@@ -5684,6 +5689,11 @@ async function guardarTodo() {
     }
     await doSave(rows,false,'',nsol);
   } catch(e){ setS('Error guardando: '+e.message,'err'); }
+  finally {
+    window._saving=false;
+    const _sb=document.querySelector('.sb-save');
+    if(_sb){_sb.disabled=false;_sb.textContent='GUARDAR';}
+  }
 }
 
 function buildRows(nsol,imp) {
@@ -5706,14 +5716,14 @@ function buildRows(nsol,imp) {
     'Muestreada?':     v('f2-recibida'),
     'SPS estadía':     (()=>{ const el=document.getElementById('est-sps-0'); return el ? (el.value||'') : (_lastLoadedRow['SPS estadía']||_lastLoadedRow['SPS estadia']||''); })(),
     'CORE/Factura3':   (()=>{ const el=document.getElementById('est-core-0'); return el ? (el.value||'') : (_lastLoadedRow['CORE/Factura3']||''); })(),
-    'Terminada':       v('f6-term')||_lastLoadedRow['Terminada']||'',
-    'Res. Término':    v('f6-nrest')||_lastLoadedRow['Res. Término']||'',
-    'Fecha Res.4':     fmtDisplay(v('f6-frterm'))||_lastLoadedRow['Fecha Res.4']||'',
-    'Liberada':        v('f6-lib')||_lastLoadedRow['Liberada']||'',
-    'Entregada':       fmtDisplay(v('f6-fent'))||_lastLoadedRow['Entregada']||'',
-    'Obs.':            v('f6-obs')||_lastLoadedRow['Obs.']||'',
-    'Status':          v('f6-stat')||_lastLoadedRow['Status']||'',
-    'A Firma Res. Termino': v('f6-afirma')||_lastLoadedRow['A Firma Res. Termino']||'',
+    'Terminada':       getCached('f6-term',v('f6-term'))||_lastLoadedRow['Terminada']||'',
+    'Res. Término':    getCached('f6-nrest',v('f6-nrest'))||_lastLoadedRow['Res. Término']||'',
+    'Fecha Res.4':     fmtDisplay(getCached('f6-frterm',v('f6-frterm')))||_lastLoadedRow['Fecha Res.4']||'',
+    'Liberada':        getCached('f6-lib',v('f6-lib'))||_lastLoadedRow['Liberada']||'',
+    'Entregada':       fmtDisplay(getCached('f6-fent',v('f6-fent')))||_lastLoadedRow['Entregada']||'',
+    'Obs.':            getCached('f6-obs',v('f6-obs'))||_lastLoadedRow['Obs.']||'',
+    'Status':          getCached('f6-stat',v('f6-stat'))||_lastLoadedRow['Status']||'',
+    'A Firma Res. Termino': getCached('f6-afirma',v('f6-afirma'))||_lastLoadedRow['A Firma Res. Termino']||'',
     'Proveedor':       v('f1-prov'),
     'Representante':   v('f1-rep'),
     'Tipo Material':   '',
@@ -5850,8 +5860,10 @@ const CANONICAL_HEADERS = [
 ];
 
 async function doSave(rows,isUpdate,res,nsol) {
+  // Cancel any pending recargar to avoid race conditions during delete/append
+  if(window._recargarTimer) { clearTimeout(window._recargarTimer); window._recargarTimer=null; }
   if(isUpdate) {
-    const allRows=await fetchAllRows();
+    const allRows=await fetchAllRows(); // Always fresh read from Sheet for delete index calculation
     const toDelete=[];
     // Determine column indices from actual sheet header row (don't assume positions)
     const hdr = allRows[0]||[];
@@ -5946,7 +5958,7 @@ async function doSave(rows,isUpdate,res,nsol) {
       });
     }
   } catch(e){ console.warn('saveMaterial error:',e); }
-  setTimeout(()=>recargar(),800);
+  window._recargarTimer = setTimeout(()=>{ window._recargarTimer=null; recargar(); },1200);
 }
 
 async function fetchAllRows() {
