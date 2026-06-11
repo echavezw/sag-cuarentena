@@ -859,7 +859,7 @@ input.field-blocked, select.field-blocked {
 
     <!-- ── Info ECA ── -->
     <div style="font-family:var(--serif);font-size:14px;font-weight:700;color:var(--nv);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--gd)">Info ECA</div>
-    <div class="fg">
+    <div class="fg" style="grid-template-columns:repeat(6,1fr);gap:10px 14px">
       <div class="ff c2 ff-primary"><label class="lbl"><span class="req">*</span> N° Solicitud</label>
         <div style="display:flex;gap:6px;align-items:center">
           <input id="f1-nsol" readonly style="font-size:17px;font-weight:700;font-family:var(--mono)">
@@ -888,22 +888,22 @@ input.field-blocked, select.field-blocked {
         </div>
       </div>
     </div>
-    <div class="fg">
-      <div class="ff c1"><label class="lbl">RUT <span class="auto">AUTO</span></label><input id="f1-rut"></div>
-      <div class="ff c2 ff-secondary"><label class="lbl">Telefono <span class="auto">AUTO</span></label><input id="f1-tel" type="tel" placeholder="+56 9 XXXX XXXX"></div>
+    <div class="fg" style="grid-template-columns:repeat(6,1fr);gap:10px 14px">
+      <div class="ff c1 ff-secondary"><label class="lbl">RUT <span class="auto">AUTO</span></label><input id="f1-rut"></div>
+      <div class="ff c1 ff-secondary"><label class="lbl">Teléfono <span class="auto">AUTO</span></label><input id="f1-tel" type="tel" placeholder="+56 9 XXXX XXXX"></div>
       <div class="ff c1 ff-secondary"><label class="lbl">Ciudad <span class="auto">AUTO</span></label><input id="f1-ciudad"></div>
-      <div class="ff c2 ff-secondary"><label class="lbl">Direccion <span class="auto">AUTO</span></label><input id="f1-dir" placeholder="Calle y numero"></div>
-      <div class="ff c2 ff-secondary"><label class="lbl">Correo Electronico <span class="auto">AUTO</span></label><input id="f1-email" type="email"></div>
+      <div class="ff c3 ff-secondary"><label class="lbl">Dirección <span class="auto">AUTO</span></label><input id="f1-dir" placeholder="Calle y número"></div>
+      <div class="ff c3 ff-secondary"><label class="lbl">Correo Electrónico <span class="auto">AUTO</span></label><input id="f1-email" type="email"></div>
     </div>
     <hr class="divider">
     <p style="font-size:11.5px;font-weight:600;color:var(--g600);margin-bottom:12px">Contrapartes</p>
-    <div class="fg">
-      <div class="ff c2"><label class="lbl">Contraparte Importacion</label><input id="f1-cp1-nombre" list="cp-dl"></div>
-      <div class="ff c1 ff-secondary"><label class="lbl">Telefono</label><input id="f1-cp1-tel"></div>
-      <div class="ff c1 ff-secondary"><label class="lbl">Email</label><input id="f1-cp1-email" type="email"></div>
-      <div class="ff c2"><label class="lbl">Contraparte Cuarentena</label><input id="f1-cp2-nombre" list="cp-dl"></div>
-      <div class="ff c1 ff-secondary"><label class="lbl">Telefono</label><input id="f1-cp2-tel"></div>
-      <div class="ff c1 ff-secondary"><label class="lbl">Email</label><input id="f1-cp2-email" type="email"></div>
+    <div class="fg" style="grid-template-columns:repeat(6,1fr);gap:10px 14px">
+      <div class="ff c3"><label class="lbl">Contraparte Importación</label><input id="f1-cp1-nombre" list="cp-dl"></div>
+      <div class="ff c1 ff-secondary"><label class="lbl">Teléfono</label><input id="f1-cp1-tel"></div>
+      <div class="ff c2 ff-secondary"><label class="lbl">Email</label><input id="f1-cp1-email" type="email"></div>
+      <div class="ff c3"><label class="lbl">Contraparte Cuarentena</label><input id="f1-cp2-nombre" list="cp-dl"></div>
+      <div class="ff c1 ff-secondary"><label class="lbl">Teléfono</label><input id="f1-cp2-tel"></div>
+      <div class="ff c2 ff-secondary"><label class="lbl">Email</label><input id="f1-cp2-email" type="email"></div>
     </div>
     <datalist id="cp-dl"></datalist>
 
@@ -998,24 +998,27 @@ input.field-blocked, select.field-blocked {
     <!-- ── Datos Resolución ── -->
     <div style="font-family:var(--serif);font-size:14px;font-weight:700;color:var(--nv);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--gd)">Datos Resolución</div>
     <div class="info-box">Al ingresar el N° de resolucion y el año, se cargaran automaticamente todos los datos desde Google Sheets.</div>
-    <div class="fg">
-      <div class="ff c1 ff-primary"><label class="lbl"><span class="req">*</span> N° Resolucion</label>
+    <div class="fg" style="grid-template-columns:repeat(6,1fr);gap:10px 14px">
+      <!-- Fila 1: N° Res · Año · Fecha Emisión · Vigencia Desde · Vigencia Hasta -->
+      <div class="ff c1 ff-primary"><label class="lbl"><span class="req">*</span> N° Resolución</label>
         <input type="number" id="f2-nres" oninput="onRes();autoEstadoRes()" style="font-size:16px;font-weight:700;font-family:var(--mono)"></div>
-      <div class="ff c1"><label class="lbl">Año Emision</label>
+      <div class="ff c1"><label class="lbl">Año Emisión</label>
         <input type="number" id="f2-anio-res" placeholder="ej. 2025" oninput="onRes()" style="font-family:var(--mono)"></div>
-      <div class="ff c2"><label class="lbl">Fecha Emision</label><input type="date" id="f2-fres" oninput="onFRes()"></div>
+      <div class="ff c2"><label class="lbl">Fecha Emisión</label><input type="date" id="f2-fres" oninput="onFRes()"></div>
       <div class="ff c2"><label class="lbl">Vigencia Desde</label><input type="date" id="f2-vigdesde" oninput="calcVigencia()"></div>
-      <div class="ff c2"><label class="lbl">Vigencia Hasta (inicial) <span class="auto">CALC</span></label><input type="date" id="f2-vighasta" readonly></div>
-      <div class="ff c1"><label class="lbl">Prorr. +15d</label><input type="date" id="f2-prorroga" oninput="onProrroga()"></div>
-      <div class="ff c2"><label class="lbl">Res. Modificacion N°</label><input id="f2-res-mod" style="font-family:var(--mono)"></div>
-      <div class="ff c1"><label class="lbl">Fec. Mod.</label><input type="date" id="f2-fres-mod"></div>
+      <!-- Fila 2: Vigencia Hasta · Prórroga · Res. Mod · Fec. Mod -->
+      <div class="ff c2"><label class="lbl">Vigencia Hasta <span class="auto">CALC</span></label><input type="date" id="f2-vighasta" readonly></div>
+      <div class="ff c2"><label class="lbl">Prórroga +15d</label><input type="date" id="f2-prorroga" oninput="onProrroga()"></div>
+      <div class="ff c1"><label class="lbl">N° Res. Modificación</label><input id="f2-res-mod" style="font-family:var(--mono)"></div>
+      <div class="ff c1"><label class="lbl">Fec. Modificación</label><input type="date" id="f2-fres-mod"></div>
+      <!-- Fila 3: Vigencia Final Desde · Hasta · Estado · Recibida · Proceso -->
       <div class="ff c2"><label class="lbl">Vigencia Final Desde</label><input type="date" id="f2-vfin-desde"></div>
       <div class="ff c2"><label class="lbl">Vigencia Final Hasta</label><input type="date" id="f2-vfin-hasta" oninput="onVfinHasta()"></div>
-      <div class="ff c2"><label class="lbl">Estado Resolucion</label>
+      <div class="ff c1"><label class="lbl">Estado Resolución</label>
         <select id="f2-estado"><option value="">—</option><option>Sin Firma</option><option>Vencida</option><option>Vigente</option></select></div>
       <div class="ff c1 ff-secondary"><label class="lbl">Recibida</label>
         <select id="f2-recibida"><option value="">—</option><option>Si</option><option>No</option></select></div>
-      <div class="ff c1 ff-secondary"><label class="lbl">Proceso</label>
+      <div class="ff c2 ff-secondary"><label class="lbl">Proceso <span class="auto">AUTO</span></label>
         <select id="f2-proceso"><option value="Sin Res.">Sin Res.</option><option value="Con Res.">Con Res.</option></select></div>
     </div>
 
@@ -1023,16 +1026,16 @@ input.field-blocked, select.field-blocked {
 
     <!-- ── Solicitud Asociada ── -->
     <div style="font-family:var(--serif);font-size:14px;font-weight:700;color:var(--nv);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--gd)">Solicitud Asociada</div>
-    <div class="fg">
-      <div class="ff c1"><label class="lbl"><span class="ro">READ</span> N° Solicitud</label><input id="r-nsol" readonly></div>
-      <div class="ff c2"><label class="lbl"><span class="ro">READ</span> Fecha Solicitud</label><input id="r-fsol" readonly></div>
-      <div class="ff c1"><label class="lbl"><span class="ro">READ</span> Transito</label><input id="r-transito" readonly></div>
-      <div class="ff c3"><label class="lbl"><span class="ro">READ</span> Importador</label><input id="r-imp" readonly></div>
-      <div class="ff c1"><label class="lbl"><span class="ro">READ</span> RUT</label><input id="r-rut" readonly></div>
-      <div class="ff c2"><label class="lbl"><span class="ro">READ</span> Pais Origen</label><input id="r-pais" readonly></div>
-      <div class="ff c2"><label class="lbl"><span class="ro">READ</span> Proveedor</label><input id="r-prov" readonly></div>
-      <div class="ff c2"><label class="lbl"><span class="ro">READ</span> Uso</label><input id="r-uso" readonly></div>
-      <div class="ff c2"><label class="lbl"><span class="ro">READ</span> Cod. Vivero</label><input id="r-vivero" readonly></div>
+    <div class="fg" style="grid-template-columns:repeat(6,1fr);gap:10px 14px">
+      <div class="ff c1"><label class="lbl"><span class="ro">REF</span> N° Solicitud</label><input id="r-nsol" readonly></div>
+      <div class="ff c1"><label class="lbl"><span class="ro">REF</span> Fecha Solicitud</label><input id="r-fsol" readonly></div>
+      <div class="ff c1"><label class="lbl"><span class="ro">REF</span> Tránsito</label><input id="r-transito" readonly></div>
+      <div class="ff c3"><label class="lbl"><span class="ro">REF</span> Importador</label><input id="r-imp" readonly></div>
+      <div class="ff c1"><label class="lbl"><span class="ro">REF</span> RUT</label><input id="r-rut" readonly></div>
+      <div class="ff c2"><label class="lbl"><span class="ro">REF</span> País Origen</label><input id="r-pais" readonly></div>
+      <div class="ff c2"><label class="lbl"><span class="ro">REF</span> Proveedor</label><input id="r-prov" readonly></div>
+      <div class="ff c1"><label class="lbl"><span class="ro">REF</span> Uso</label><input id="r-uso" readonly></div>
+      <div class="ff c1"><label class="lbl"><span class="ro">REF</span> Cod. Vivero</label><input id="r-vivero" readonly></div>
     </div>
 
   </div>
@@ -1353,17 +1356,17 @@ input.field-blocked, select.field-blocked {
   <div class="tab-panel" id="t7-0">
   <div class="tab-body">
     <div class="info-box">Complete los datos de la resolución de término y el estado de cierre del proceso.</div>
-    <div class="fg">
-      <div class="ff c2"><label class="lbl">N° Res. Término <span class="req">*</span></label><input id="f6-nrest" style="font-family:var(--mono)" placeholder="Ej: 1234"></div>
+    <div class="fg" style="grid-template-columns:repeat(6,1fr);gap:10px 14px">
+      <div class="ff c1 ff-primary"><label class="lbl">N° Res. Término <span class="req">*</span></label><input id="f6-nrest" style="font-family:var(--mono)" placeholder="Ej: 1234"></div>
       <div class="ff c2"><label class="lbl">Fecha Res. Término</label><input type="date" id="f6-frterm"></div>
       <div class="ff c2"><label class="lbl">Estado A Firma</label>
         <select id="f6-afirma"><option value="">—</option><option>Pendiente Envío a Firma</option><option>Enviado a Firma</option><option>Firmada</option></select></div>
-      <div class="ff c2"><label class="lbl">Terminada</label>
+      <div class="ff c1"><label class="lbl">Terminada</label>
         <select id="f6-term"><option value="">—</option><option>SI</option><option>NO</option></select></div>
     </div>
     <hr class="divider">
-    <div class="fg">
-      <div class="ff c2"><label class="lbl">Liberada</label>
+    <div class="fg" style="grid-template-columns:repeat(6,1fr);gap:10px 14px">
+      <div class="ff c1"><label class="lbl">Liberada</label>
         <select id="f6-lib"><option value="">—</option><option>SI</option><option>NO</option></select></div>
       <div class="ff c2"><label class="lbl">Fecha Entrega</label><input type="date" id="f6-fent"></div>
       <div class="ff c2"><label class="lbl">Status Final</label>
@@ -1372,8 +1375,8 @@ input.field-blocked, select.field-blocked {
           <option>Entregada</option><option>Liberada</option><option>No Recibida</option>
           <option>Perdida</option><option>Terminada</option>
         </select></div>
-      <div class="ff c2">
-        <label class="lbl">Badge Status</label>
+      <div class="ff c1">
+        <label class="lbl">Status</label>
         <div id="f6-stat-badge" style="padding:6px 8px;min-height:34px;display:flex;align-items:center">
           <span id="status-badge-display" class="badge badge-nv" style="display:none"></span>
         </div>
@@ -1384,11 +1387,11 @@ input.field-blocked, select.field-blocked {
     <!-- Firma section -->
     <div style="background:var(--gold-bg);border:1px solid var(--gold-bd);border-radius:var(--rs);padding:14px;margin-top:4px">
       <div style="font-family:var(--serif);font-size:14px;font-weight:700;color:var(--nv);margin-bottom:12px">Datos de Firma</div>
-      <div class="fg">
-        <div class="ff c2"><label class="lbl">Responsable SAG</label><input id="f6-firma-resp" placeholder="Nombre del funcionario..."></div>
+      <div class="fg" style="grid-template-columns:repeat(6,1fr);gap:10px 14px">
+        <div class="ff c3"><label class="lbl">Responsable SAG</label><input id="f6-firma-resp" placeholder="Nombre del funcionario..."></div>
         <div class="ff c2"><label class="lbl">Cargo</label><input id="f6-firma-cargo" placeholder="Inspector, Profesional..."></div>
-        <div class="ff c2"><label class="lbl">Teléfono contacto</label><input id="f6-firma-tel" placeholder="+56 2 ..."></div>
-        <div class="ff c2"><label class="lbl">Email</label><input type="email" id="f6-firma-email" placeholder="correo@sag.gob.cl"></div>
+        <div class="ff c1"><label class="lbl">Teléfono</label><input id="f6-firma-tel" placeholder="+56 2 ..."></div>
+        <div class="ff c3"><label class="lbl">Email</label><input type="email" id="f6-firma-email" placeholder="correo@sag.gob.cl"></div>
       </div>
     </div>
   </div>
