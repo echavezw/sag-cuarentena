@@ -2199,8 +2199,22 @@ async function cargarFilaMulti(rows) {
         cantReal:    x['Cant. Real'] !== undefined ? x['Cant. Real'] : (x['Cantidad']||''),
         ok:          x['Recibida']   !== undefined ? x['Recibida']!=='0' : true,
         nplanEstab:  x['N° Plantas Establ.']||x['N° Plantas']||'',
-        obs:         x['Observaciones']||'',
-        nplanBrot:   x['N° Plantas Brotadas']||'',
+        // Guard against old column-shift: if Observaciones contains a number
+        // and N° Plantas Brotadas is empty, the data was written before the
+        // Brotadas column existed — move the value to nplanBrot, clear obs.
+        obs:         (()=>{
+          const rawObs  = x['Observaciones']||'';
+          const rawBrot = x['N° Plantas Brotadas']||'';
+          if(!rawBrot && rawObs !== '' && !isNaN(parseFloat(rawObs)) && isFinite(rawObs)) return '';
+          return rawObs;
+        })(),
+        nplanBrot:   (()=>{
+          const rawObs  = x['Observaciones']||'';
+          const rawBrot = x['N° Plantas Brotadas']||'';
+          if(rawBrot) return rawBrot;
+          if(rawObs !== '' && !isNaN(parseFloat(rawObs)) && isFinite(rawObs)) return rawObs;
+          return '';
+        })(),
         nplanEstadia: x['N° Plantas Estadía']||x['N° Plantas Estadia']||x['N° Plantas']||'',
         nplanFin:     x['N° Plantas Finales']||'',
       }));
