@@ -184,7 +184,7 @@ body{font-family:var(--font);font-weight:300;background:var(--g100);color:var(--
 /* ── Field hierarchy ── */
 /* Primary: larger input, darker label, subtle gold-left border */
 .ff-primary .lbl{font-size:10px;font-weight:800;color:var(--nv);letter-spacing:.08em}
-.ff-primary input,.ff-primary select{border-color:var(--gd);background:#fff;
+.ff-primary input,.ff-primary select{border-color:var(--nv);background:#fff;
   font-size:14px;font-weight:500;padding:9px 11px}
 .ff-primary input:focus,.ff-primary select:focus{border-color:var(--nv);
   box-shadow:0 0 0 3px rgba(10,22,40,.12)}
@@ -217,7 +217,7 @@ input[type=number]{font-family:var(--mono)}
 .btn-gd{background:var(--gd);color:#fff;box-shadow:0 3px 12px rgba(184,151,90,.3)}
 .btn-gd:hover{background:#a6844a}
 .btn-gh{background:transparent;border:1.5px solid var(--g200);color:var(--g600)}
-.btn-gh:hover{border-color:var(--gd);color:var(--gd)}
+.btn-gh:hover{border-color:var(--g400);color:var(--ink)}
 .btn-sm{padding:5px 11px;font-size:11px}
 .btn-danger{background:var(--err);color:#fff}
 
@@ -226,16 +226,16 @@ input[type=number]{font-family:var(--mono)}
 .tbl{width:100%;border-collapse:collapse;font-size:12px}
 .tbl tbody tr:nth-child(even){background:var(--g50)}
 .tbl tbody tr:nth-child(odd){background:var(--wh)}
-.tbl tbody tr:hover{background:var(--gold-bg)}
+.tbl tbody tr:hover{background:var(--g50)}
 .tbl thead th{background:var(--nv);color:rgba(255,255,255,.75);padding:7px 9px;
   font-size:9.5px;font-weight:600;letter-spacing:.4px;text-align:left;
-  border-bottom:2px solid var(--gd);white-space:nowrap;position:sticky;top:0}
+  border-bottom:2px solid rgba(255,255,255,.15);white-space:nowrap;position:sticky;top:0}
 .tbl tbody td{border-bottom:1px solid var(--g100);padding:3px 6px;vertical-align:middle}
 .tbl tbody tr:last-child td{border-bottom:none}
-.tbl tbody tr:hover td{background:var(--gold-bg)}
+.tbl tbody tr:hover td{background:var(--g50)}
 .tbl select,.tbl input{border:none;background:transparent;padding:5px 6px;font-size:12px;
   width:100%;border-radius:3px;outline:none;font-family:var(--font)}
-.tbl select:focus,.tbl input:focus{background:var(--gold-bg)}
+.tbl select:focus,.tbl input:focus{background:var(--g100)}
 .tbl input[type=number]{font-family:var(--mono)}
 #cobro-tbl input[type=number]{text-align:center;display:block;margin:0 auto}
 .tbl input[type=checkbox]{width:14px;height:14px;accent-color:var(--gd);cursor:pointer}
@@ -373,7 +373,7 @@ input[type=number]{font-family:var(--mono)}
   border: 1px solid var(--g100);
   border-left-width: 3px;
 }
-.al-card:hover { background: var(--gold-bg); transform: translateX(2px); }
+.al-card:hover { background: var(--g50); transform: translateX(2px); }
 .al-card.al-r { border-left-color: #dc2626; }
 .al-card.al-o { border-left-color: #ea580c; }
 .al-card.al-b { border-left-color: #2563eb; }
@@ -418,7 +418,7 @@ input[type=number]{font-family:var(--mono)}
   transition: all .15s;
 }
 .al-filter-btn:hover, .al-filter-btn.active {
-  background: var(--gold-bg); color: var(--ink); border-color: var(--gd);
+  background: var(--g100); color: var(--ink); border-color: var(--g400);
 }
 .al-table-wrap {
   border-radius: 0 0 var(--r) var(--r);
@@ -1407,13 +1407,10 @@ input.field-blocked, select.field-blocked {
 <!-- ════════════════════════════════════
      PANEL CONSULTA
 ════════════════════════════════════ -->
-<div class="stage" id="stage-panel">
+<div class="stage" id="stage-panel" style="display:none">
   <div class="sec-h">
     <div class="sec-n">P</div>
-    <div><div class="sec-t">Busqueda</div><div class="sec-s">Busqueda rapida por resolucion, solicitud o importador</div></div>
-    <div class="sec-actions">
-      <button class="btn btn-gh btn-sm" onclick="recargar()">Actualizar</button>
-    </div>
+    <div><div class="sec-t">Búsqueda</div></div>
   </div>
   <div class="tab-body" style="border-radius:0 0 var(--r) var(--r)">
     <!-- Stats -->
@@ -1460,13 +1457,18 @@ input.field-blocked, select.field-blocked {
 <div class="stage" id="stage-hist">
   <div class="sec-h">
     <div class="sec-n">H</div>
-    <div><div class="sec-t">Panel de Consulta</div><div class="sec-s">Todos los registros — filtros, columnas y exportacion</div></div>
+    <div><div class="sec-t">Panel de Consulta</div><div class="sec-s">Registros, búsqueda y exportación</div></div>
     <div class="sec-actions">
       <button class="btn btn-gh btn-sm" onclick="recargar()">Actualizar</button>
       <button class="btn btn-gh btn-sm" onclick="limpiarFiltrosHist()">Limpiar filtros</button>
       <button class="btn btn-gh btn-sm" onclick="descargarExcelHistorial()">Excel</button>
     </div>
   </div>
+  <div class="tabs">
+    <button class="tab active" id="panel-tab-0" onclick="showPanelTab(0)">Todos los Registros</button>
+    <button class="tab" id="panel-tab-1" onclick="showPanelTab(1)">Búsqueda Rápida</button>
+  </div>
+  <div id="panel-content-0" class="tab-panel active">
   <div class="tab-body" style="border-radius:0 0 var(--r) var(--r);padding:14px">
     <!-- Filtros globales -->
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
@@ -1804,6 +1806,17 @@ function init() {
 }
 
 // ── NAVIGATION ──
+function showPanelTab(idx) {
+  [0,1].forEach(i => {
+    const tab = document.getElementById('panel-tab-'+i);
+    const pnl = document.getElementById('panel-content-'+i);
+    if(tab) tab.classList.toggle('active', i===idx);
+    if(pnl) pnl.classList.toggle('active', i===idx);
+  });
+  if(idx===0) { filterHist(); renderRecientes(); }
+  if(idx===1) { /* búsqueda ready */ }
+}
+
 function toggleSidebar() {
   const sb = document.getElementById('sidebar');
   const icon = document.getElementById('sb-toggle-icon');
@@ -1816,6 +1829,7 @@ function goStage(n) {
   document.querySelectorAll('.stage').forEach(e=>e.classList.remove('active'));
   document.querySelectorAll('.sb-item').forEach(e=>e.classList.remove('active'));
   if(n===3) setTimeout(renderEstablecimientoTable, 80);
+  if(n==='panel') { n='hist'; setTimeout(()=>{ showPanelTab(1); }, 50); }
   if(n==='alerts') { setTimeout(()=>{ buildAlerts(); renderAlertsStage(); }, 80); }
   if(n===6) setTimeout(()=>{ renderCierreTabs(); }, 50);
   const stEl=$('stage-'+n); if(stEl) stEl.classList.add('active');
