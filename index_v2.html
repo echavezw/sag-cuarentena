@@ -2417,7 +2417,11 @@ async function cargarFilaMulti(rows) {
   }
   // Etapa II
   sv('f2-nres', r['Res.']||'');
-  sv('f2-anio-res', fmtD(r['Fecha Res.']||'').substring(0,4));
+  // Derive año resolución — from Fecha Res., fallback to Fecha Solicitud year, then current year
+  const _anioRes = fmtD(r['Fecha Res.']||'').substring(0,4) ||
+                   fmtD(r['Fecha Solicitud']||'').substring(0,4) ||
+                   String(new Date().getFullYear());
+  sv('f2-anio-res', _anioRes);
   sv('f2-fres', fmtD(r['Fecha Res.']||''));
   sv('f2-vigdesde', fmtD(r['Vigencia Desde']||''));
   sv('f2-vfin-desde', fmtD(r['Vigencia Final Desde']||''));
@@ -3014,9 +3018,14 @@ function onRes() {
   if(gsData.length) {
     const rows=gsData.filter(r=>{
       if(String(r['Res.']||'').trim()!==res) return false;
-      return !yr||fmtD(r['Fecha Res.']||'').substring(0,4)===yr;
+      if(!yr) return true; // no year constraint — load all rows with this res number
+      const rYr = fmtD(r['Fecha Res.']||'').substring(0,4);
+      return !rYr || rYr===yr; // if sheet row has no year, include it too
     });
     if(rows.length){ cargarFilaMulti(rows); return; }
+    // If still not found, try without year constraint at all
+    const rowsNoYr=gsData.filter(r=>String(r['Res.']||'').trim()===res);
+    if(rowsNoYr.length){ cargarFilaMulti(rowsNoYr); return; }
   }
   updateResBars();
 }
@@ -5636,8 +5645,12 @@ function cargarFichaPanel(res,yr,sol) {
   if(res) {
     rows=gsData.filter(r=>{
       if(String(r['Res.']||'').trim()!==res) return false;
-      return !yr||fmtD(r['Fecha Res.']||'').substring(0,4)===yr;
+      if(!yr) return true;
+      const rYr=fmtD(r['Fecha Res.']||'').substring(0,4);
+      return !rYr||rYr===yr;
     });
+    // Fallback: if no rows found with year filter, load all with this res number
+    if(!rows.length) rows=gsData.filter(r=>String(r['Res.']||'').trim()===res);
   } else if(sol) {
     rows=gsData.filter(r=>String(r['Solicitud']||'').trim()===sol && !String(r['Res.']||'').trim());
   }
