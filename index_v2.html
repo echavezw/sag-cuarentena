@@ -2382,8 +2382,20 @@ async function cargarFilaMulti(rows) {
   sv('f1-cp2-tel',    r['Tel Territorial']||'');
   sv('f1-cp2-email',  r['Email Territorial']||'');
   // Populate field cache from loaded record — protects values if DOM not rendered at save time
-  const _cacheIds = ['f1-prov','f1-vivero','f1-rep','f1-cda','f1-cert-fito',
-    'f6-obs','f6-stat','f6-term','f6-lib','f6-nrest','f6-frterm','f6-fent','f6-afirma'];
+  const _cacheIds = [
+    // E1
+    'f1-prov','f1-vivero','f1-rep','f1-cda','f1-cert-fito',
+    'f1-rut','f1-tel','f1-email','f1-dir','f1-ciudad',
+    'f1-prov-ciudad','f1-horas-frio','f1-cp1-nombre','f1-cp1-tel','f1-cp1-email',
+    'f1-cp2-nombre','f1-cp2-tel','f1-cp2-email',
+    // E2
+    'f2-nres','f2-anio-res','f2-fres','f2-vigdesde','f2-vighasta',
+    'f2-vfin-desde','f2-vfin-hasta','f2-res-mod','f2-fres-mod','f2-prorroga',
+    // E3
+    'f3-fing','f3-anio','f3-nplan','f3-finj','f3-flev',
+    // E6/E7
+    'f6-obs','f6-stat','f6-term','f6-lib','f6-nrest','f6-frterm','f6-fent','f6-afirma',
+  ];
   if(!window._fieldCache) window._fieldCache={};
   _cacheIds.forEach(id=>{
     const el=document.getElementById(id);
@@ -5728,20 +5740,20 @@ function buildRows(nsol,imp) {
   const esp=getEspecies(); const base={
     'Solicitud':       String(nsol),
     'Fecha Solicitud': fmtDisplay(v('f1-fech-rec')),
-    'Res.':            v('f2-nres'),
-    'Fecha Res.':      fmtDisplay(v('f2-fres')),
+    'Res.':            v('f2-nres')||_lastLoadedRow['Res.']||'',
+    'Fecha Res.':      fmtDisplay(v('f2-fres'))||_lastLoadedRow['Fecha Res.']||'',
     'Importador':      toTitleCase(imp),
-    'Rut':             v('f1-rut'),
-    'Origen':          v('f1-pais'),
+    'Rut':             v('f1-rut')||_lastLoadedRow['Rut']||'',
+    'Origen':          v('f1-pais')||_lastLoadedRow['Origen']||'',
     'Cubículo':        v('f3-cub'),
     'Cubículo2':       v('f3-cub2'),
     'Fecha de Ingreso':fmtDisplay(v('f3-fing')),
     'Año de Ingreso':  v('f3-anio')||_lastLoadedRow['Año de Ingreso']||'',
     'Fecha Injertación':fmtDisplay(v('f3-finj')),
-    'N° Plantas':      v('f3-nplan'),
+    'N° Plantas':      v('f3-nplan')||_lastLoadedRow['N° Plantas']||'',
     'Fecha aprox. Levant.':fmtDisplay(v('f3-flev')),
-    'Estado':          v('f3-estado')||'Sin muestrear',
-    'Muestreada?':     v('f2-recibida'),
+    'Estado':          v('f3-estado')||_lastLoadedRow['Estado']||'Sin muestrear',
+    'Muestreada?':     v('f2-recibida')||_lastLoadedRow['Muestreada?']||'',
     'SPS estadía':     (()=>{ const el=document.getElementById('est-sps-0'); return el ? (el.value||'') : (_lastLoadedRow['SPS estadía']||_lastLoadedRow['SPS estadia']||''); })(),
     'CORE/Factura3':   (()=>{ const el=document.getElementById('est-core-0'); return el ? (el.value||'') : (_lastLoadedRow['CORE/Factura3']||''); })(),
     'Terminada':       getCached('f6-term',v('f6-term'))||_lastLoadedRow['Terminada']||'',
@@ -5757,27 +5769,27 @@ function buildRows(nsol,imp) {
     'Tipo Material':   '',
     'Fecha Ing. Solicitada': fmtDisplay(v('f1-fing')),
     'Fecha Recepcion': fmtDisplay(v('f1-fech-rec')),
-    'Proceso':         v('f2-proceso'),
-    'Vigencia Desde':  fmtDisplay(v('f2-vigdesde')),
-    'Vigencia Final Desde': fmtDisplay(v('f2-vfin-desde')),
-    'Vigencia Final Hasta': fmtDisplay(v('f2-vfin-hasta')),
-    'Estado Res.':     v('f2-estado'),
-    'Recibida':        v('f2-recibida'),
-    'Uso':             v('f1-uso'),
+    'Proceso':         v('f2-proceso')||_lastLoadedRow['Proceso']||'',
+    'Vigencia Desde':  fmtDisplay(v('f2-vigdesde'))||_lastLoadedRow['Vigencia Desde']||'',
+    'Vigencia Final Desde': fmtDisplay(v('f2-vfin-desde'))||_lastLoadedRow['Vigencia Final Desde']||'',
+    'Vigencia Final Hasta': fmtDisplay(v('f2-vfin-hasta'))||_lastLoadedRow['Vigencia Final Hasta']||'',
+    'Estado Res.':     v('f2-estado')||_lastLoadedRow['Estado Res.']||'',
+    'Recibida':        v('f2-recibida')||_lastLoadedRow['Recibida']||'',
+    'Uso':             v('f1-uso')||_lastLoadedRow['Uso']||'',
     'Cod. Registro Vivero': v('f1-vivero'),
     'N° CDA':            getCached('f1-cda',v('f1-cda'))||_lastLoadedRow['N° CDA']||'',
     'N° Cert. Fitosanitario': getCached('f1-cert-fito',v('f1-cert-fito'))||_lastLoadedRow['N° Cert. Fitosanitario']||'',
-    'Contraparte Importacion': v('f1-cp1-nombre'),
-    'Tel Importacion': v('f1-cp1-tel'),
-    'Email Importacion': v('f1-cp1-email'),
-    'Contraparte Territorial': v('f1-cp2-nombre'),
-    'Tel Territorial': v('f1-cp2-tel'),
-    'Email Territorial': v('f1-cp2-email'),
-    'Ciudad Proveedor': v('f1-prov-ciudad'),
-    'Req Frio':        v('f1-frio'),
-    'Horas Frio':      v('f1-horas-frio'),
-    'Pto Ingreso':     v('f1-pto'),
-    'Res. Modificacion': v('f2-res-mod'),
+    'Contraparte Importacion': v('f1-cp1-nombre')||_lastLoadedRow['Contraparte Importacion']||'',
+    'Tel Importacion': v('f1-cp1-tel')||_lastLoadedRow['Tel Importacion']||'',
+    'Email Importacion': v('f1-cp1-email')||_lastLoadedRow['Email Importacion']||'',
+    'Contraparte Territorial': v('f1-cp2-nombre')||_lastLoadedRow['Contraparte Territorial']||'',
+    'Tel Territorial': v('f1-cp2-tel')||_lastLoadedRow['Tel Territorial']||'',
+    'Email Territorial': v('f1-cp2-email')||_lastLoadedRow['Email Territorial']||'',
+    'Ciudad Proveedor': v('f1-prov-ciudad')||_lastLoadedRow['Ciudad Proveedor']||'',
+    'Req Frio':        v('f1-frio')||_lastLoadedRow['Req Frio']||'',
+    'Horas Frio':      v('f1-horas-frio')||_lastLoadedRow['Horas Frio']||'',
+    'Pto Ingreso':     v('f1-pto')||_lastLoadedRow['Pto Ingreso']||'',
+    'Res. Modificacion': v('f2-res-mod')||_lastLoadedRow['Res. Modificacion']||'',
     'Fec. Mod.':       fmtDisplay(v('f2-fres-mod')),
     'N° Plantas Finales': (()=>{
       // Prefer live DOM sum; fallback to _loadedEspData sum; then f6-total-fin
@@ -6463,7 +6475,21 @@ async function fileToB64(file){ return new Promise((res,rej)=>{ const r=new File
 function saveProveedorIfNew(prov) {
   if(!prov?.trim()) return;
   const saved=JSON.parse(localStorage.getItem('eca_proveedores')||'[]');
-  if(!saved.includes(prov.trim())){ saved.push(prov.trim()); saved.sort(); localStorage.setItem('eca_proveedores',JSON.stringify(saved)); loadProveedores(); }
+  if(!saved.includes(prov.trim())){
+    saved.push(prov.trim()); saved.sort();
+    localStorage.setItem('eca_proveedores',JSON.stringify(saved));
+    loadProveedores();
+    // Also write to Proveedores sheet if we have a token and ciudad data
+    if(accessToken && GS.sheetId) {
+      const ciudad = v('f1-prov-ciudad')||'';
+      const rowData = [prov.trim(), ciudad];
+      fetch(`${BASE_URL}/${GS.sheetId}/values/Proveedores!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+        {method:'POST',
+         headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+         body:JSON.stringify({values:[rowData]})})
+        .catch(e=>console.warn('saveProveedorIfNew sheet error:',e));
+    }
+  }
 }
 
 // ── LIMPIAR ETAPA ──
