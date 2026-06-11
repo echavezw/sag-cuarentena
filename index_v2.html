@@ -6748,8 +6748,8 @@ function getAllCobroRows() {
 }
 
 function checkCoreBlocks() {
-  // Sync DOM → anRows first
-  Object.values(AN_TYPES).forEach(({key}) => { if(key) syncAnFromDOM(key); });
+  // Disabled — CORE blocking logic removed per user request
+  return;
 
   const rows = getAllCobroRows();
   if (!rows.length) return;
