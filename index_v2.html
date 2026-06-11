@@ -1506,11 +1506,11 @@ input.field-blocked, select.field-blocked {
   <div class="tab-body" style="border-radius:0 0 var(--r) var(--r)">
     <div class="cfg-step">
       <div class="cfg-step-title"><span class="cfg-num">1</span>Google Sheets</div>
-      <div class="fg">
-        <div class="ff c2"><label class="lbl">Sheet ID</label><input id="cfg-sheet-id" placeholder="1_L7hz3..."></div>
-        <div class="ff c2"><label class="lbl">API Key (lectura)</label><input id="cfg-api-key" type="password" placeholder="AIzaSy..."></div>
-        <div class="ff c2"><label class="lbl">OAuth Client ID (escritura)</label><input id="cfg-oauth-id" placeholder="xxxxx.apps.googleusercontent.com"></div>
-        <div class="ff c2"><label class="lbl">Anthropic API Key (documentos)</label><input id="cfg-anthropic-key" type="password" placeholder="sk-ant-..."></div>
+      <div class="fg" style="grid-template-columns:repeat(6,1fr);gap:10px 14px">
+        <div class="ff c3"><label class="lbl">Sheet ID</label><input id="cfg-sheet-id" placeholder="1_L7hz3..."></div>
+        <div class="ff c3"><label class="lbl">API Key (lectura)</label><input id="cfg-api-key" type="password" placeholder="AIzaSy..."></div>
+        <div class="ff c3"><label class="lbl">OAuth Client ID (escritura)</label><input id="cfg-oauth-id" placeholder="xxxxx.apps.googleusercontent.com"></div>
+        <div class="ff c3"><label class="lbl">Anthropic API Key (documentos)</label><input id="cfg-anthropic-key" type="password" placeholder="sk-ant-..."></div>
       </div>
       <div style="display:flex;gap:8px;margin-top:12px">
         <button class="btn btn-nv btn-sm" onclick="guardarConfig()">Guardar configuracion</button>
