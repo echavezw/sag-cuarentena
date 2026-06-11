@@ -2941,20 +2941,23 @@ function renderConsolidadoEspecies() {
   if (!verifBody || !verifBody.children.length) { el.innerHTML = ''; return; }
 
   // Aggregate by especie
-  const map = {}; // especie → { variedades: Set, nplan: number }
+  // N° Total Plantas = N° Variedades × brotadas (fallback: N° Plantas Establ.)
+  const map = {}; // especie → { variedades: Set, plantasPorVar: number[] }
   [...verifBody.children].forEach((_, i) => {
     const esp  = document.getElementById(`ve-${i}`)?.value?.trim() || '';
     const vari = document.getElementById(`vv-${i}`)?.value?.trim() || '';
-    const np   = parseFloat(document.getElementById(`vcr-${i}`)?.value || '0') || 0;
-    if (!esp || np <= 0) return; // only count varieties that actually arrived
-    if (!map[esp]) map[esp] = { variedades: new Set(), nplan: 0 };
-    if (vari) {
-      vari.split(/[,;]/).map(v => v.trim()).filter(Boolean)
-          .forEach(v => map[esp].variedades.add(v));
-    } else {
-      map[esp].variedades.add('__unnamed__' + i);
-    }
-    map[esp].nplan += np;
+    const brot  = parseFloat(document.getElementById(`vbrot-${i}`)?.value || '') || 0;
+    const estab = parseFloat(document.getElementById(`vcr-${i}`)?.value   || '') || 0;
+    const np = brot > 0 ? brot : estab;
+    if (!esp) return;
+    if (!map[esp]) map[esp] = { variedades: new Set(), plantasPorVar: [] };
+    const vars = vari ? vari.split(/[,;]/).map(v => v.trim()).filter(Boolean) : ['__unnamed__' + i];
+    vars.forEach(v => {
+      if (!map[esp].variedades.has(v)) {
+        map[esp].variedades.add(v);
+        map[esp].plantasPorVar.push(np);
+      }
+    });
   });
 
   const entries = Object.entries(map);
