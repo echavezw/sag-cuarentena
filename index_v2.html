@@ -2941,21 +2941,24 @@ function renderConsolidadoEspecies() {
   if (!verifBody || !verifBody.children.length) { el.innerHTML = ''; return; }
 
   // Aggregate by especie
-  // N° Total Plantas = N° Variedades × brotadas (fallback: N° Plantas Establ.)
-  const map = {}; // especie → { variedades: Set, plantasPorVar: number[] }
+  // N° Total Plantas = N° Variedades recibidas (ticket ✓) × plantas brotadas
+  // Fallback: si brotadas vacío → usar N° Plantas Establ.
+  const map = {}; // especie → { variedades: Set, np: number }
   [...verifBody.children].forEach((_, i) => {
+    const chk  = document.getElementById(`vchk-${i}`);
+    if (!chk || !chk.checked) return; // solo variedades recibidas (ticket marcado)
     const esp  = document.getElementById(`ve-${i}`)?.value?.trim() || '';
     const vari = document.getElementById(`vv-${i}`)?.value?.trim() || '';
     const brot  = parseFloat(document.getElementById(`vbrot-${i}`)?.value || '') || 0;
-    const estab = parseFloat(document.getElementById(`vcr-${i}`)?.value   || '') || 0;
+    const estab = parseFloat(document.getElementById(`vnplan-${i}`)?.value  || '') || 0;
     const np = brot > 0 ? brot : estab;
     if (!esp) return;
-    if (!map[esp]) map[esp] = { variedades: new Set(), plantasPorVar: [] };
+    if (!map[esp]) map[esp] = { variedades: new Set(), np: 0 };
     const vars = vari ? vari.split(/[,;]/).map(v => v.trim()).filter(Boolean) : ['__unnamed__' + i];
     vars.forEach(v => {
       if (!map[esp].variedades.has(v)) {
         map[esp].variedades.add(v);
-        map[esp].plantasPorVar.push(np);
+        if (np > 0 && map[esp].np === 0) map[esp].np = np; // plants per variety (same for all)
       }
     });
   });
@@ -2966,8 +2969,8 @@ function renderConsolidadoEspecies() {
   entries.forEach(([esp, d]) => {
     const nVars = [...d.variedades].filter(v => !v.startsWith('__unnamed__')).length
                   || [...d.variedades].filter(v => v.startsWith('__unnamed__')).length;
-    // Total plantas = sum of plantas per variety (brotadas or establ.)
-    d.nplan = d.plantasPorVar.reduce((s, v) => s + v, 0);
+    // Total plantas = N° variedades recibidas × plantas por variedad
+    d.nplan = nVars * d.np;
     _consolidadoEspecies[esp] = { nVars, nplan: d.nplan };
   });
   if (!entries.length) { el.innerHTML = ''; return; }
