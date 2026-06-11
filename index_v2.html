@@ -1908,7 +1908,7 @@ function _panelThead() {
   _PANEL_COLS.forEach(function(col){
     var act=window._panelSortCol===col.key;
     var dir=window._panelSortDir;
-    var arrow=act?(dir===1?" ↑":" ↓"):" ⇅";
+    var arrow=act?(dir===1?" ↑":" ↓"):" ⇅"; // dir=-1=DESC(↓), dir=1=ASC(↑)
     h+="<th onclick=\"_panelSort('"+col.key+"')\" "
        +"style=\"cursor:pointer;user-select:none;white-space:nowrap;"
        +(act?"border-bottom:2px solid var(--gd);":"")+"\">"
@@ -1924,10 +1924,22 @@ function _sortPanelFound(arr) {
   var dir=(window._panelSortDir!==undefined)?window._panelSortDir:-1;
   // dir=-1 → DESC (mayor a menor), dir=1 → ASC (menor a mayor)
   arr.sort(function(a,b){
-    var va=col.fn(a),vb=col.fn(b);
-    if(va>vb) return -dir;
-    if(va<vb) return dir;
-    return 0;
+    // When sorting by Sol.: registros sin resolución (filtro) go after those with same Año Ing.
+    if(col.key==="sol") {
+      var aHasRes=!!(a["Res."]||"").trim(), bHasRes=!!(b["Res."]||"").trim();
+      // Primary: año ingreso DESC
+      var ya=parseInt(a["Año de Ingreso"]||a["Ano de Ingreso"]||0)||0;
+      var yb=parseInt(b["Año de Ingreso"]||b["Ano de Ingreso"]||0)||0;
+      if(ya!==yb) return ya>yb?-1:1;
+      // Secondary: sin resolución (filtro) always last within same year
+      if(aHasRes&&!bHasRes) return -1;
+      if(!aHasRes&&bHasRes) return 1;
+      // Tertiary: N° Solicitud DESC
+      var va=col.fn(a), vb=col.fn(b);
+      return va>vb?dir:va<vb?-dir:0;
+    }
+    var va=col.fn(a), vb=col.fn(b);
+    return va>vb?dir:va<vb?-dir:0;
   });
 }
 function _panelSort(key) {
