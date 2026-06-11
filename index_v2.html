@@ -939,6 +939,8 @@ input.field-blocked, select.field-blocked {
       <div class="ff c1"><label class="lbl">Uso Propuesto</label>
         <select id="f1-uso"><option value="">—</option><option>Investigacion</option><option>Otro</option><option>Propagacion</option></select></div>
       <div class="ff c1 ff-secondary"><label class="lbl">N° Reg. Vivero</label><input id="f1-vivero"></div>
+      <div class="ff c1"><label class="lbl">N° CDA</label><input id="f1-cda" style="font-family:var(--mono)" placeholder="ej. 1234/2025"></div>
+      <div class="ff c1"><label class="lbl">N° Cert. Fitosanitario</label><input id="f1-cert-fito" style="font-family:var(--mono)" placeholder="ej. 5678/2025"></div>
       <div class="ff c1"><label class="lbl">Pto. Ingreso</label>
         <select id="f1-pto"><option value="">—</option><option>AMB</option><option>Maritimo</option><option>Otro</option><option>Terrestre</option></select></div>
       <div class="ff c1"><label class="lbl">Fecha Est. Ingreso</label><input type="date" id="f1-fing" oninput="autoFillFingAsig(this.value)"></div>
@@ -1188,9 +1190,14 @@ input.field-blocked, select.field-blocked {
   </div>
   </div>
 
-  <div class="stage-nav">
+  <div class="stage-nav" style="flex-wrap:wrap;gap:6px">
     <button class="btn btn-gh btn-sm" onclick="goStage(2)">&#8592; II. Resolucion</button>
     <span class="stage-pg">3 / 6</span>
+    <div style="display:flex;gap:5px">
+      <button class="btn btn-gh btn-sm" onclick="generarActaRecepcion()" title="PDF">📄 Acta Recepción</button>
+      <button class="btn btn-gh btn-sm" onclick="generarActaInjertacion()" title="PDF">📄 Acta Injertación</button>
+      <button class="btn btn-gh btn-sm" onclick="generarFichaCPE()" title="PDF">📄 Ficha CPE</button>
+    </div>
     <button class="btn btn-nv btn-sm" onclick="goStage(4)">IV. Analisis &#8594;</button>
   </div>
 </div>
@@ -1340,9 +1347,10 @@ input.field-blocked, select.field-blocked {
   </div>
 
 
-  <div class="stage-nav">
+  <div class="stage-nav" style="flex-wrap:wrap;gap:6px">
     <button class="btn btn-gh btn-sm" onclick="goStage(5)">&#8592; V. Cobro</button>
     <span class="stage-pg">6 / 7</span>
+    <button class="btn btn-gh btn-sm" onclick="generarRecuentoPlantas()" title="PDF">📄 Recuento Plantas</button>
     <button class="btn btn-nv btn-sm" onclick="goStage(7)">VII. Término &#8594;</button>
   </div>
 </div>
@@ -1411,9 +1419,13 @@ input.field-blocked, select.field-blocked {
   </div>
   </div>
 
-  <div class="stage-nav">
+  <div class="stage-nav" style="flex-wrap:wrap;gap:6px">
     <button class="btn btn-gh btn-sm" onclick="goStage(6)">&#8592; VI. Recuento Final</button>
     <span class="stage-pg">7 / 7</span>
+    <div style="display:flex;gap:5px">
+      <button class="btn btn-gh btn-sm" onclick="generarInformeTermino()" title="PDF">📄 Informe Término</button>
+      <button class="btn btn-gh btn-sm" onclick="generarActaEntrega()" title="PDF">📄 Acta Entrega</button>
+    </div>
   </div>
 </div>
 
@@ -2221,6 +2233,8 @@ async function cargarFilaMulti(rows) {
   selEl('f1-frio', r['Req Frio']||'');
   sv('f1-horas-frio', r['Horas Frio']||'');
   selEl('f1-pto', r['Pto Ingreso']||'');
+  sv('f1-cda',       r['N° CDA']||'');
+  sv('f1-cert-fito', r['N° Cert. Fitosanitario']||'');
   sv('f1-fing', fmtD(r['Fecha Ing. Solicitada']||''));
   // Contraparte — load from saved record first; onImp() fills what's still empty
   sv('f1-cp1-nombre', r['Contraparte Importacion']||'');
@@ -2389,6 +2403,7 @@ function limpiarFormSilent() {
    'f2-nres','f2-anio-res','f2-fres','f2-vigdesde','f2-vighasta','f2-prorroga',
    'f2-res-mod','f2-fres-mod','f2-vfin-desde','f2-vfin-hasta',
    'f3-fing','f3-anio','f3-nplan','f3-nvar','f3-finj','f3-flev',
+   'f1-cda','f1-cert-fito',
    'f6-nrest','f6-frterm','f6-fent','f6-obs','f6-firma-resp','f6-firma-cargo','f6-firma-tel','f6-firma-email'
   ].forEach(id=>{ const e=$(id); if(e) e.value=''; });
   ['f1-imp','f1-pais','f1-uso','f1-frio','f1-pto',
@@ -5698,7 +5713,7 @@ function buildRows(nsol,imp) {
       'SPS análisis':a.sps||'','CORE/Factura':a.core||'',
     }));
   } else {
-    esp.forEach(e=>rows.push({...base,'Especie':e.especie,'Variedades':e.variedad,'Tipo Material':e.tipo,'Cantidad':e.cant||'','Portainjerto':e.portainjerto||''}));
+    esp.forEach(e=>rows.push({...base,'Especie':e.especie,'Variedades':e.variedad,'Tipo Material':e.tipo,'Cantidad':e.cant||'','Portainjerto':e.portainjerto||'','N° CDA':v('f1-cda')||'','N° Cert. Fitosanitario':v('f1-cert-fito')||''}));
     if(!esp.length) rows.push({...base});
   }
   return rows;
@@ -5724,7 +5739,8 @@ const CANONICAL_HEADERS = [
   'Ciudad Proveedor','Req Frio','Horas Frio','Pto Ingreso',
   'Res. Modificacion','Fec. Mod.','Vigencia Final Desde','Vigencia Final Hasta',
   'Estado Res.','Recibida','A Firma Res. Termino','N° Plantas Finales',
-  'Meses ECA','Cantidad','Portainjerto'
+  'Meses ECA','Cantidad','Portainjerto',
+  'N° CDA','N° Cert. Fitosanitario'
 ];
 
 async function doSave(rows,isUpdate,res,nsol) {
@@ -7416,6 +7432,360 @@ function renderInvernaderoGrid() {
 
   cc.innerHTML = html;
 }
+// ══════════════════════════════════════════════════════════════════
+//  GENERACIÓN DE DOCUMENTOS — print-to-PDF via window.print()
+// ══════════════════════════════════════════════════════════════════
+
+// Helpers compartidos
+function _docStyle() {
+  return `<style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Arial',sans-serif;font-size:11pt;color:#000;background:#fff}
+    .doc{max-width:780px;margin:0 auto;padding:20px}
+    table{width:100%;border-collapse:collapse;margin-bottom:10px}
+    td,th{border:1px solid #000;padding:4px 7px;vertical-align:top;font-size:10pt}
+    th{background:#e8e8e8;font-weight:700;text-align:left}
+    .hdr-logo{display:flex;align-items:center;gap:12px;border:2px solid #000;padding:8px 12px;margin-bottom:12px}
+    .hdr-logo .sag{font-size:22pt;font-weight:900;color:#0A1628;letter-spacing:1px}
+    .hdr-title{text-align:center;font-size:13pt;font-weight:700;text-transform:uppercase;line-height:1.4}
+    .hdr-code{font-size:8pt;text-align:right;color:#555;border:1px solid #ccc;padding:4px 7px}
+    .firma-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:24px}
+    .firma-box{border-top:1px solid #000;padding-top:6px;font-size:9pt;text-align:center}
+    .section-title{background:#0A1628;color:#fff;padding:4px 8px;font-weight:700;font-size:10pt;margin:10px 0 4px}
+    .nota{font-size:8.5pt;color:#444;margin-top:8px;padding:4px;border-left:3px solid #0A1628}
+    @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+  </style>`;
+}
+
+function _openDoc(html, title) {
+  const w = window.open('', '_blank', 'width=900,height=700');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>${_docStyle()}</head><body>${html}<script>window.onload=function(){window.print()}<\/script></body></html>`);
+  w.document.close();
+}
+
+function _regLabel() {
+  const res = (document.getElementById('f2-nres')?.value||'').trim();
+  const yr  = (document.getElementById('f2-anio-res')?.value||'').trim();
+  const sol = (document.getElementById('f1-nsol')?.value||'').trim();
+  return res ? `Res. ${res}/${yr||''}` : `Sol. ${sol}`;
+}
+
+function _matRows() {
+  // Read from verif-body DOM or _loadedEspData
+  const rows = [];
+  const tb = document.getElementById('verif-body');
+  if(tb && tb.children.length) {
+    [...tb.children].forEach((_,i)=>{
+      const chk = document.getElementById(`vchk-${i}`);
+      const esp = document.getElementById(`ve-${i}`)?.value?.trim()||'';
+      const vari= document.getElementById(`vv-${i}`)?.value?.trim()||'';
+      const tipo= document.getElementById(`vt-${i}`)?.value?.trim()||'';
+      const cant= document.getElementById(`vcd-${i}`)?.value?.trim()||'';
+      const cantR=document.getElementById(`vcr-${i}`)?.value?.trim()||'';
+      const brot= document.getElementById(`vbrot-${i}`)?.value?.trim()||'';
+      const nplan=document.getElementById(`vnplan-${i}`)?.value?.trim()||'';
+      const pi  = document.getElementById(`vpi-${i}`)?.value?.trim()||'';
+      const obs = document.getElementById(`vobs-${i}`)?.value?.trim()||'';
+      if(esp) rows.push({esp,vari,tipo,cant,cantR,brot,nplan,pi,obs,recibida:chk?.checked});
+    });
+  } else if(window._loadedEspData) {
+    window._loadedEspData.forEach(e=>rows.push({
+      esp:e.especie||'',vari:e.variedad||'',tipo:e.tipo||'',
+      cant:e.cant||'',cantR:e.cantReal||e.cant||'',
+      brot:e.nplanBrot||'',nplan:e.nplanEstab||'',
+      pi:e.portainjerto||'',obs:e.obs||'',recibida:true
+    }));
+  }
+  return rows;
+}
+
+function _v(id){ return (document.getElementById(id)?.value||'').trim(); }
+
+function _today() {
+  return new Date().toLocaleDateString('es-CL',{day:'2-digit',month:'long',year:'numeric'});
+}
+
+// ── DOC 1: ACTA RECEPCIÓN (F-IIT-IMP-PA-007) — Etapa III ──
+function generarActaRecepcion() {
+  const mat = _matRows();
+  if(!_v('f1-imp')){ setS('Complete datos del registro primero.','warn'); return; }
+  const rows = mat.map(r=>`<tr><td>${r.esp}</td><td>${r.vari}</td><td>${r.cantR||r.cant}</td><td>${r.obs}</td></tr>`).join('') ||
+    '<tr><td colspan="4" style="text-align:center;color:#888">Sin filas</td></tr>';
+  const html = `<div class="doc">
+    <div class="hdr-logo">
+      <div class="sag">SAG</div>
+      <div style="flex:1"><div class="hdr-title">ACTA RECEPCIÓN<br>CUARENTENA POSENTRADA<br>ESTACIÓN CUARENTENARIA ABSOLUTA</div></div>
+      <div class="hdr-code">Código: F-IIT-IMP-PA-007<br>Versión: 02<br>Fecha Vigencia: 02/01/2017<br>Página: 1 de 1</div>
+    </div>
+    <table><tr><th colspan="2">FECHA RECEPCIÓN</th><td colspan="3">${_v('f3-fing')||_today()}</td></tr>
+      <tr><th>RESOLUCIÓN AUTORIZACIÓN</th><th>NÚMERO</th><td>${_v('f2-nres')}</td><th>FECHA</th><td>${_v('f2-fres')}</td></tr>
+      <tr><th>CDA</th><th>NÚMERO</th><td>${_v('f1-cda')}</td><th>FECHA</th><td></td></tr>
+      <tr><th>CERT. FITOSANITARIO</th><th>NÚMERO</th><td>${_v('f1-cert-fito')}</td><th>FECHA</th><td></td></tr>
+    </table>
+    <div class="section-title">ANTECEDENTES IMPORTADOR</div>
+    <table>
+      <tr><th>NOMBRE COMPLETO</th><td>${_v('f1-imp')}</td><th>REPRESENTANTE</th><td>${_v('f1-rep')}</td></tr>
+      <tr><th>RUT</th><td>${_v('f1-rut')}</td><th>PAÍS ORIGEN</th><td>${_v('f1-pais')}</td></tr>
+    </table>
+    <div class="section-title">DETALLE MATERIAL RECEPCIONADO</div>
+    <table>
+      <tr><th>ESPECIE</th><th>VARIEDAD</th><th>CANTIDAD</th><th>OBSERVACIONES</th></tr>
+      ${rows}
+    </table>
+    <div class="firma-row">
+      <div class="firma-box">NOMBRE INSPECTOR SAG<br><br>${_v('f6-firma-resp')||'&nbsp;'.repeat(30)}</div>
+      <div class="firma-box">FIRMA INSPECTOR SAG<br><br>&nbsp;</div>
+      <div class="firma-box">TIMBRE SAG<br><br>&nbsp;</div>
+    </div>
+    <div class="nota">Servicio Agrícola y Ganadero / SAG — División Protección Agrícola y Forestal</div>
+  </div>`;
+  _openDoc(html, 'Acta Recepción CPE — '+_regLabel());
+}
+
+// ── DOC 2: ACTA ESTABLECIMIENTO / INJERTACIÓN (F-IIT-IMP-PA-09) — Etapa III ──
+function generarActaInjertacion() {
+  const mat = _matRows();
+  if(!_v('f1-imp')){ setS('Complete datos del registro primero.','warn'); return; }
+  const rows = mat.map(r=>`<tr>
+    <td>${r.esp}</td><td>${r.vari}</td><td>${r.tipo}</td>
+    <td>${r.pi}</td><td>${r.nplan}</td><td>${r.brot||r.nplan}</td><td>${r.obs}</td>
+  </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:#888">Sin filas</td></tr>';
+  const total_gen  = mat.reduce((s,r)=>s+(parseInt(r.nplan)||0),0);
+  const total_brot = mat.reduce((s,r)=>s+(parseInt(r.brot||r.nplan)||0),0);
+  const html = `<div class="doc">
+    <div class="hdr-logo">
+      <div class="sag">SAG</div>
+      <div style="flex:1"><div class="hdr-title">ACTA RESULTADO DE INJERTACIÓN O PLANTACIÓN<br>CUARENTENA POSENTRADA — ESTACIÓN CUARENTENARIA 1</div></div>
+      <div class="hdr-code">Código: F-IIT-IMP-PA-09<br>Versión: 01<br>Página: 2 de 2</div>
+    </div>
+    <table>
+      <tr><th>NIVEL DE CUARENTENA</th><td>ABSOLUTA</td></tr>
+      <tr><th>RESOLUCIÓN N° / FECHA</th><td>${_v('f2-nres')}/${_v('f2-anio-res')||''} — ${_v('f2-fres')}</td></tr>
+      <tr><th>NOMBRE IMPORTADOR</th><td>${_v('f1-imp')}</td></tr>
+      <tr><th>ESTABLECIMIENTO/INJERTACIÓN FECHA</th><td>${_v('f3-finj')}</td></tr>
+      <tr><th>EVALUACIÓN FECHA</th><td>${_v('f3-flev')}</td></tr>
+    </table>
+    <div class="section-title">RESULTADO EVALUACIÓN</div>
+    <table>
+      <tr><th>ESPECIE</th><th>VARIEDAD</th><th>CALIDAD MATERIAL</th><th>PATRÓN</th><th>PLANTAS GENERADAS</th><th>PLANTAS C/ BROTACIÓN</th><th>OBSERVACIONES</th></tr>
+      ${rows}
+      <tr><td colspan="3"></td><th>TOTAL</th><td><strong>${total_gen}</strong></td><td><strong>${total_brot}</strong></td><td></td></tr>
+    </table>
+    <div class="firma-row">
+      <div class="firma-box">ENCARGADO/SUPERVISOR<br>PROPAGACIÓN ECA<br><br>&nbsp;</div>
+      <div class="firma-box">&nbsp;</div>
+      <div class="firma-box">NOMBRE Y TIMBRE<br>PROFESIONAL ECA<br><br>&nbsp;</div>
+    </div>
+  </div>`;
+  _openDoc(html, 'Acta Injertación CPE — '+_regLabel());
+}
+
+// ── DOC 3: FICHA CPE (resumen) — Etapas I-III ──
+function generarFichaCPE() {
+  if(!_v('f1-imp')){ setS('Complete datos del registro primero.','warn'); return; }
+  const mat = _matRows();
+  const vars = [...new Set(mat.map(r=>r.vari).filter(Boolean))].join(', ') || '—';
+  const tipo = mat.find(r=>r.tipo)?.tipo || _v('f1-tipo-mat') || '—';
+  const totalCant = mat.reduce((s,r)=>s+(parseInt(r.cant)||0),0);
+  const html = `<div class="doc">
+    <div class="hdr-logo">
+      <div class="sag">SAG</div>
+      <div style="flex:1"><div class="hdr-title">FICHA CUARENTENA POSENTRADA<br>ESTACIÓN CUARENTENARIA AGRÍCOLA</div></div>
+    </div>
+    <table>
+      <tr><th>NIVEL DE CUARENTENA</th><td>ABSOLUTA</td></tr>
+      <tr><th>RESOLUCIÓN AUTORIZA CPE N°</th><td>${_v('f2-nres')}</td></tr>
+      <tr><th>FECHA RESOLUCIÓN</th><td>${_v('f2-fres')}</td></tr>
+      <tr><th>PAÍS DE ORIGEN</th><td>${_v('f1-pais')}</td></tr>
+      <tr><th>IMPORTADOR</th><td>${_v('f1-imp')}</td></tr>
+      <tr><th>CONTRAPARTE TÉCNICA</th><td>${_v('f1-cp2-nombre')}</td></tr>
+      <tr><th>FECHA RECEPCIÓN ECA</th><td>${_v('f3-fing')}</td></tr>
+      <tr><th>FECHA INJERTACIÓN</th><td>${_v('f3-finj')}</td></tr>
+      <tr><th>VARIEDAD(ES)</th><td>${vars}</td></tr>
+      <tr><th>TIPO MATERIAL</th><td>${tipo}</td></tr>
+      <tr><th>CANTIDAD DE MATERIAL</th><td>${totalCant||_v('f3-nplan')}</td></tr>
+      <tr><th>N° CDA</th><td>${_v('f1-cda')}</td></tr>
+      <tr><th>N° CERT. FITOSANITARIO</th><td>${_v('f1-cert-fito')}</td></tr>
+      <tr><th>CUBÍCULO ECA</th><td>${_v('f3-cub')}${_v('f3-cub2')?' / '+_v('f3-cub2'):''}</td></tr>
+      <tr><th>OBSERVACIONES</th><td>${_v('f1-obs')||'—'}</td></tr>
+    </table>
+  </div>`;
+  _openDoc(html, 'Ficha CPE — '+_regLabel());
+}
+
+// ── DOC 4: RECUENTO DE PLANTAS (F-IIT-IMP-PA-032) — Etapa VI ──
+function generarRecuentoPlantas() {
+  if(!_v('f2-nres')&&!_v('f1-nsol')){ setS('Complete datos del registro primero.','warn'); return; }
+  // Read plantas finales from pf- inputs or _loadedEspData
+  const mat = _matRows();
+  const pfRows = [];
+  document.querySelectorAll('[id^="pf-"]').forEach(inp=>{
+    if(inp.id==='pf-total'||inp.id.startsWith('pf-obs')) return;
+    const i = parseInt(inp.id.replace('pf-',''));
+    if(!isNaN(i) && mat[i]) pfRows[i] = inp.value||'';
+  });
+  const rows = mat.map((r,i)=>`<tr>
+    <td style="font-style:italic">${r.esp}</td>
+    <td>${r.vari}</td>
+    <td style="text-align:center">${r.nplan||r.cantR||'—'}</td>
+    <td style="text-align:center">${pfRows[i]??_v('f6-total-fin')||'—'}</td>
+  </tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:#888">Sin datos</td></tr>';
+  const totalIni = mat.reduce((s,r)=>s+(parseInt(r.nplan||r.cantR)||0),0);
+  const totalFin = document.getElementById('pf-total')?.value||
+    pfRows.reduce((s,v)=>s+(parseInt(v)||0),0)||'';
+  const html = `<div class="doc">
+    <div class="hdr-logo">
+      <div class="sag">SAG</div>
+      <div style="flex:1"><div class="hdr-title">UBICACIÓN Y RECUENTO DE PLANTAS EC1</div></div>
+      <div class="hdr-code">Código: F-IIT-IMP-PA-032<br>Versión: 02<br>Página: 1 de 1</div>
+    </div>
+    <table>
+      <tr><th>FECHA</th><td>${_today()}</td><th>N° RES./AÑO</th><td>${_v('f2-nres')}/${_v('f2-anio-res')||''}</td></tr>
+      <tr><th>IMPORTADOR</th><td colspan="3">${_v('f1-imp')}</td></tr>
+    </table>
+    <div class="section-title">DETALLE DEL MATERIAL</div>
+    <table>
+      <tr><th>ESPECIE (Nombre científico)</th><th>VARIEDADES / CLON</th><th>N° PLANTAS INICIALES</th><th>VERIFICACIÓN FINAL SAG</th></tr>
+      ${rows}
+      <tr><td colspan="1"></td><th>TOTAL</th><td style="text-align:center"><strong>${totalIni||'—'}</strong></td><td style="text-align:center"><strong>${totalFin||'—'}</strong></td></tr>
+    </table>
+    <div class="firma-row">
+      <div class="firma-box">&nbsp;</div>
+      <div class="firma-box">FIRMA ENCARGADO<br>ESTACIÓN CUARENTENARIA AGRÍCOLA<br><br>&nbsp;</div>
+      <div class="firma-box">&nbsp;</div>
+    </div>
+  </div>`;
+  _openDoc(html, 'Recuento Plantas — '+_regLabel());
+}
+
+// ── DOC 5: INFORME TÉRMINO CPE (F-IIT-IMP-PA-016) — Etapa VII ──
+function generarInformeTermino() {
+  if(!_v('f2-nres')){ setS('Complete N° Resolución primero.','warn'); return; }
+  // Collect analysis folios
+  const allAn = Object.values(anRows).flat();
+  const folios = [...new Set(allAn.map(a=>a.folio).filter(Boolean))].join(', ')||'—';
+  const html = `<div class="doc">
+    <div class="hdr-logo">
+      <div class="sag">SAG</div>
+      <div style="flex:1"><div class="hdr-title">INFORME TÉRMINO CUARENTENA POSENTRADA</div></div>
+      <div class="hdr-code">Código: F-IIT IMP-PA-016<br>Versión: 02<br>Página: 1 de 1</div>
+    </div>
+    <table>
+      <tr><th>REGIÓN</th><td>Metropolitana</td><th>OFICINA</th><td>ECA</td></tr>
+    </table>
+    <div class="section-title">ANTECEDENTES GENERALES</div>
+    <table>
+      <tr><th>N° RESOLUCIÓN / AÑO</th><td>${_v('f2-nres')}/${_v('f2-anio-res')||''}</td>
+          <th>FECHA INGRESO</th><td>${_v('f3-fing')}</td></tr>
+      <tr><th>FECHA ESTABLECIMIENTO</th><td>${_v('f3-finj')}</td>
+          <th>CÓDIGO REGISTRO VIVERO</th><td>${_v('f1-vivero')}</td></tr>
+      <tr><th>N° CERT. FITOSANITARIO / AÑO</th><td>${_v('f1-cert-fito')}</td>
+          <th>N° CDA / AÑO</th><td>${_v('f1-cda')}</td></tr>
+      <tr><th>NIVEL CUARENTENA</th><td>Absoluta</td>
+          <th>TIPO EC</th><td>A</td></tr>
+      <tr><th>IMPORTADOR</th><td>${_v('f1-imp')}</td>
+          <th>PAÍS DE ORIGEN</th><td>${_v('f1-pais')}</td></tr>
+      <tr><th>FOLIOS ANÁLISIS</th><td colspan="3">${folios}</td></tr>
+    </table>
+    <div class="section-title">OBSERVACIONES</div>
+    <table><tr><td style="min-height:60px">${_v('f6-obs')||'Sin observaciones.'}</td></tr></table>
+    <p style="margin:12px 0;font-size:10pt;line-height:1.5">habiéndose dado cumplimiento a todas las inspecciones y verificaciones analíticas disponibles tendientes a confirmar que el material vegetal se encuentra libre de todas las plagas cuarentenarias establecidas como declaración adicional en la resolución que autoriza cuarentena posentrada y que se encuentra libre además, de otras plagas reglamentarias, se solicita evaluar el término de las restricciones cuarentenarias.</p>
+    <div class="firma-row">
+      <div class="firma-box">&nbsp;</div>
+      <div class="firma-box">NOMBRE ENCARGADO ECA<br><br>${_v('f6-firma-resp')||'&nbsp;'.repeat(20)}<br><br>FIRMA ENCARGADO ECA</div>
+      <div class="firma-box">&nbsp;</div>
+    </div>
+    <div class="nota">EL INFORME SOLICITUD TÉRMINO CUARENTENA POS ENTRADA ES VÁLIDO ANEXANDO:<br>
+    • FICHA CAPTACIÓN DE MUESTRAS EN CUARENTENA POSENTRADA<br>
+    • ÚLTIMO RECUENTO MATERIAL VEGETAL (F-IIT-IMP-PA-032)</div>
+  </div>`;
+  _openDoc(html, 'Informe Término CPE — '+_regLabel());
+}
+
+// ── DOC 6: ACTA ENTREGA MATERIAL — Etapa VII ──
+function generarActaEntrega() {
+  if(!_v('f1-imp')){ setS('Complete datos del registro primero.','warn'); return; }
+  const mat = _matRows();
+  const rows = mat.filter(r=>r.recibida).map(r=>`<tr>
+    <td style="font-style:italic">${r.esp}</td><td>${r.vari}</td>
+    <td style="text-align:center">${r.cantR||r.cant}</td><td>${r.obs}</td>
+  </tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:#888">Sin filas</td></tr>';
+  const allAn = Object.values(anRows).flat();
+  const folios = [...new Set(allAn.map(a=>a.folio).filter(Boolean))].map(f=>`<li>${f}</li>`).join('')||'<li>—</li>';
+  const html = `<div class="doc">
+    <div class="hdr-logo">
+      <div class="sag">SAG</div>
+      <div style="flex:1"><div class="hdr-title">ACTA ENTREGA MATERIAL VEGETAL<br>ESTACIÓN CUARENTENARIA AGRÍCOLA</div></div>
+    </div>
+    <table>
+      <tr><th>SANTIAGO,</th><td>${_today()}</td></tr>
+    </table>
+    <p style="margin:10px 0;font-size:10pt">Por cuanto el material más adelante individualizado ha cumplido satisfactoriamente con la verificación fitosanitaria y el período de cuarentena establecido para Cuarentena Posentrada Absoluta/Filtro, se hace entrega de él, a la persona individualizada más adelante, en representación del Importador.</p>
+    <table>
+      <tr><th>RESOLUCIÓN AUTORIZA CPE</th><td>${_v('f2-nres')}/${_v('f2-anio-res')||''}</td></tr>
+      <tr><th>RESOLUCIÓN TÉRMINO CPE</th><td>${_v('f6-nrest')||'—'}</td></tr>
+      <tr><th>IMPORTADOR</th><td>${_v('f1-imp')}</td></tr>
+      <tr><th>CONTRAPARTE TÉCNICA SAG</th><td>${_v('f1-cp2-nombre')}</td></tr>
+    </table>
+    <div class="section-title">DETALLE DEL MATERIAL ENTREGADO</div>
+    <table>
+      <tr><th>ESPECIE</th><th>VARIEDAD</th><th>CANTIDAD</th><th>OBSERVACIONES</th></tr>
+      ${rows}
+    </table>
+    <div class="section-title">INFORMES FITOSANITARIOS ENTREGADOS</div>
+    <ul style="padding-left:20px;font-size:10pt;margin:6px 0">${folios}</ul>
+    <div class="section-title">DECLARACIÓN DE ACEPTACIÓN</div>
+    <table>
+      <tr><td>Yo</td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td>recibí conforme el material vegetal entregado por el/la</td></tr>
+      <tr><td>Sr.(a)</td><td>${_v('f6-firma-resp')||''}</td><td>Encargado/a de la Estación Cuarentenaria Agrícola del SAG.</td></tr>
+    </table>
+    <div class="firma-row">
+      <div class="firma-box">FIRMA EN REPRESENTACIÓN<br>DEL IMPORTADOR<br><br>&nbsp;</div>
+      <div class="firma-box">&nbsp;</div>
+      <div class="firma-box">FIRMA ENCARGADO/A<br>ESTACIÓN CUARENTENARIA<br>AGRÍCOLA, SAG<br><br>&nbsp;</div>
+    </div>
+    <div class="nota">POR INTERMEDIO DE ESTA ACTA SE NOTIFICA SIMULTÁNEAMENTE LA RESOLUCIÓN TÉRMINO CUARENTENA POSENTRADA ABSOLUTA.</div>
+  </div>`;
+  _openDoc(html, 'Acta Entrega Material — '+_regLabel());
+}
+
+// ── EXPORTAR CSV desde Búsqueda Rápida ──
+function exportarCSVBusqueda() {
+  const pTbody = document.getElementById('panel-tbody');
+  if(!pTbody || !pTbody.children.length){ setS('Realice una búsqueda primero.','warn'); return; }
+  // Use found[] from last search — re-run with same criteria on gsData
+  const cols = ['Res.','Fecha Res.','Solicitud','Importador','Origen','Especie',
+    'Variedades','Estado','Análisis','Patógenos','Status','Año de Ingreso',
+    'Fecha de Ingreso','Cubículo','N° Plantas','Entregada'];
+  const seen=new Set(); const found=[];
+  const resVal=(document.getElementById('pb-res')?.value||'').trim();
+  const anioRes=(document.getElementById('pb-anio-res')?.value||'').trim();
+  const solVal=(document.getElementById('pb-sol')?.value||'').trim();
+  const texto=(document.getElementById('pb-texto')?.value||'').toLowerCase().trim();
+  const anioIng=(document.getElementById('pb-anio-ing')?.value||'').trim();
+  const anioSol=(document.getElementById('pb-anio-sol')?.value||'').trim();
+  gsData.forEach(r=>{
+    const rRes=String(r['Res.']||'').trim(), rSol=String(r['Solicitud']||'').trim();
+    const key=rRes?rRes:('__sinres__'+rSol);
+    if(seen.has(key)) return;
+    if(resVal&&rRes!==resVal) return;
+    if(anioRes&&fmtD(r['Fecha Res.']||'').substring(0,4)!==anioRes) return;
+    if(solVal&&rSol!==solVal) return;
+    if(anioIng&&String(r['Año de Ingreso']||'').trim()!==anioIng) return;
+    if(anioSol&&fmtD(r['Fecha Solicitud']||'').substring(0,4)!==anioSol) return;
+    if(texto){const t=[r['Importador'],r['Especie'],r['Res.'],r['Solicitud']].join(' ').toLowerCase();if(!t.includes(texto))return;}
+    seen.add(key); found.push(r);
+  });
+  if(!found.length){ setS('Sin resultados para exportar.','warn'); return; }
+  const esc=v=>{const s=String(v||'');return s.includes(',')||s.includes('"')||s.includes('\n')?'"'+s.replace(/"/g,'""')+'"':s;};
+  const csv='\uFEFF'+cols.join(',')+'\n'+found.map(r=>cols.map(c=>esc(r[c])).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download='ECA_Busqueda_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+  setS(`${found.length} registros exportados.`,'ok');
+}
+
 // ══════════════════════════════════════════════════════════════════
 
 // ── MODO COMPACTO ──
