@@ -1488,6 +1488,7 @@ input.field-blocked, select.field-blocked {
       <button class="btn btn-gh btn-sm" onclick="recargar()">Actualizar</button>
       <button class="btn btn-gh btn-sm" onclick="limpiarFiltrosHist()">Limpiar filtros</button>
       <button class="btn btn-gh btn-sm" onclick="descargarExcelHistorial()">Excel</button>
+      <button class="btn btn-danger btn-sm" onclick="confirmarEliminarSeleccionados()">🗑 Eliminar selec.</button>
     </div>
   </div>
   <div class="tabs">
@@ -2033,6 +2034,109 @@ function _panelRows(found) {
     "</tr>";
   }).join("");
 }
+// ── ELIMINAR REGISTROS SELECCIONADOS (Panel de Consulta) ──
+function toggleAllRecientesChk(master) {
+  document.querySelectorAll('.recientes-chk').forEach(c => c.checked = master.checked);
+}
+
+function confirmarEliminarSeleccionados() {
+  const checked = [...document.querySelectorAll('.recientes-chk:checked')];
+  if(!checked.length) { setS('Seleccione al menos un registro para eliminar.','warn'); return; }
+  const items = checked.map(c => ({res: c.dataset.res||'', sol: c.dataset.sol||''}));
+  const labels = items.map(it => it.res ? `Res. ${it.res}` : `Sol. ${it.sol} (sin res.)`);
+  showModal(
+    '¿Eliminar ' + items.length + ' registro(s)?',
+    'Se eliminarán PERMANENTEMENTE todos los datos asociados (Detalle y Material) de: ' +
+      labels.join(', ') + '. Esta acción no se puede deshacer.',
+    () => { closeModal(); eliminarRegistrosCompletos(items); },
+    'Eliminar definitivamente',
+    'btn-danger'
+  );
+}
+
+async function eliminarRegistrosCompletos(items) {
+  if(!GS.sheetId){ setS('Configure la conexión a Google Sheets.','warn'); return; }
+  if(window._saving){ setS('Hay un guardado en curso, espere.','warn'); return; }
+  window._saving = true;
+  setS('Eliminando registros...','');
+  try {
+    await ensureToken();
+    // Get tab IDs for Detalle and Material
+    const sheetMeta = await fetch(`${BASE_URL}/${GS.sheetId}?fields=sheets.properties&key=${GS.apiKey}`);
+    const sheetMetaJson = await sheetMeta.json();
+    const detailSheet = (sheetMetaJson.sheets||[]).find(s=>s.properties?.title===SHEET_DETALLE);
+    const matSheet     = (sheetMetaJson.sheets||[]).find(s=>s.properties?.title===SHEET_MATERIAL);
+    const detailTabId  = detailSheet?.properties?.sheetId ?? 0;
+    const matTabId     = matSheet?.properties?.sheetId;
+
+    // Fetch fresh rows from both sheets
+    const detailRows = await fetchAllRows();
+    const matRows = matTabId!==undefined ? await fetchSheetRows(SHEET_MATERIAL) : [];
+
+    const detHdr = detailRows[0]||[];
+    const iRes = detHdr.indexOf('Res.'), iSol = detHdr.indexOf('Solicitud');
+    const matHdr = matRows[0]||[];
+    const iMRes = matHdr.indexOf('Res.'), iMSol = matHdr.indexOf('Solicitud');
+
+    const detailToDelete = [];
+    const matToDelete = [];
+
+    items.forEach(({res, sol}) => {
+      detailRows.slice(1).forEach((row,i) => {
+        const rRes = iRes>=0 ? String(row[iRes]||'').trim() : '';
+        const rSol = iSol>=0 ? String(row[iSol]||'').trim() : '';
+        const matches = res ? rRes===res.trim() : (rSol===sol.trim() && !rRes);
+        if(matches) detailToDelete.push(i+1);
+      });
+      if(matTabId!==undefined) {
+        matRows.slice(1).forEach((row,i) => {
+          const rRes = iMRes>=0 ? String(row[iMRes]||'').trim() : '';
+          const rSol = iMSol>=0 ? String(row[iMSol]||'').trim() : '';
+          const matches = res ? rRes===res.trim() : (rSol===sol.trim() && !rRes);
+          if(matches) matToDelete.push(i+1);
+        });
+      }
+    });
+
+    const requests = [];
+    [...new Set(detailToDelete)].sort((a,b)=>b-a).forEach(idx => {
+      requests.push({deleteDimension:{range:{sheetId:detailTabId,dimension:'ROWS',startIndex:idx,endIndex:idx+1}}});
+    });
+    if(matTabId!==undefined) {
+      [...new Set(matToDelete)].sort((a,b)=>b-a).forEach(idx => {
+        requests.push({deleteDimension:{range:{sheetId:matTabId,dimension:'ROWS',startIndex:idx,endIndex:idx+1}}});
+      });
+    }
+
+    if(!requests.length) { setS('No se encontraron filas para eliminar.','warn'); return; }
+
+    await fetch(`${BASE_URL}/${GS.sheetId}:batchUpdate`,
+      {method:'POST',
+       headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+       body:JSON.stringify({requests})});
+
+    setS(`${items.length} registro(s) eliminado(s) correctamente.`,'ok');
+    // Clear cache for deleted records if currently loaded
+    items.forEach(({res, sol}) => {
+      const activeRes = (v('f2-nres')||'').trim();
+      const activeSol = (v('f1-nsol')||'').trim();
+      if((res && res===activeRes) || (sol && sol===activeSol && !activeRes)) {
+        limpiarFormSilent();
+      }
+    });
+    await recargar();
+  } catch(e) {
+    if(/401/.test(e.message)) {
+      accessToken = null;
+      setS('Token expirado. Intente eliminar nuevamente.','err');
+    } else {
+      setS('Error eliminando: '+e.message,'err');
+    }
+  } finally {
+    window._saving = false;
+  }
+}
+
 function toggleSidebar() {
   const sb = document.getElementById('sidebar');
   const icon = document.getElementById('sb-toggle-icon');
@@ -5665,6 +5769,7 @@ function renderRecientes() {
   const thS='padding:6px 9px;font-size:9.5px;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase;background:var(--nv);border-bottom:2px solid var(--gd)';
   const tdS='padding:7px 9px;border-bottom:1px solid var(--g100);font-weight:300';
   let html=`<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>
+    <th style="${thS};width:28px"><input type="checkbox" id="recientes-chk-all" onclick="toggleAllRecientesChk(this)" title="Seleccionar todos"></th>
     <th style="${thS}">Res.</th><th style="${thS}">Ano</th><th style="${thS}">Sol.</th>
     <th style="${thS}">Importador</th><th style="${thS}">Especie</th><th style="${thS}">Pais</th>
     <th style="${thS}">Status</th>
@@ -5681,15 +5786,18 @@ function renderRecientes() {
     const resDisplay=_res
       ? `<span style="font-weight:700;color:var(--nv)">${_res}</span>`
       : `<span style="color:var(--g400);font-size:10px;font-style:italic">sin res.</span>`;
-    html+=`<tr onclick="${onclick}"
-      style="cursor:pointer" onmouseover="this.style.background='var(--g50)'" onmouseout="this.style.background=''">
-      <td style="${tdS};font-family:var(--mono)">${resDisplay}</td>
-      <td style="${tdS};font-family:var(--mono);font-size:11px;color:var(--g400)">${_yr||'—'}</td>
-      <td style="${tdS};font-family:var(--mono);font-size:11px;color:var(--g400)">${_sol||'—'}</td>
-      <td style="${tdS};max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r['Importador']||''}">${r['Importador']||'—'}</td>
-      <td style="${tdS};font-style:italic;font-size:11px;color:var(--g600)">${r['Especie']||'—'}</td>
-      <td style="${tdS}">${r['Origen']||'—'}</td>
-      <td style="${tdS}"><span class="badge ${sc}">${st}</span></td>
+    html+=`<tr
+      style="cursor:default" onmouseover="this.style.background='var(--g50)'" onmouseout="this.style.background=''">
+      <td style="${tdS};text-align:center" onclick="event.stopPropagation()">
+        <input type="checkbox" class="recientes-chk" data-res="${_res}" data-sol="${_sol}" onclick="event.stopPropagation()">
+      </td>
+      <td style="${tdS};font-family:var(--mono);cursor:pointer" onclick="${onclick}">${resDisplay}</td>
+      <td style="${tdS};font-family:var(--mono);font-size:11px;color:var(--g400);cursor:pointer" onclick="${onclick}">${_yr||'—'}</td>
+      <td style="${tdS};font-family:var(--mono);font-size:11px;color:var(--g400);cursor:pointer" onclick="${onclick}">${_sol||'—'}</td>
+      <td style="${tdS};max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer" title="${r['Importador']||''}" onclick="${onclick}">${r['Importador']||'—'}</td>
+      <td style="${tdS};font-style:italic;font-size:11px;color:var(--g600);cursor:pointer" onclick="${onclick}">${r['Especie']||'—'}</td>
+      <td style="${tdS};cursor:pointer" onclick="${onclick}">${r['Origen']||'—'}</td>
+      <td style="${tdS};cursor:pointer" onclick="${onclick}"><span class="badge ${sc}">${st}</span></td>
     </tr>`;
   });
   html+='</tbody></table>';
