@@ -1966,7 +1966,7 @@ var _PANEL_COLS = [
   {key:"stat", label:"Status",    fn:function(r){return (r["Status"]||"").toLowerCase()}},
 ];
 function _panelThead() {
-  var h="<tr>";
+  var h='<tr><th style="width:28px;cursor:default" onclick="event.stopPropagation()"><input type="checkbox" id="panel-chk-all" onclick="toggleAllPanelChk(this)" title="Seleccionar todos"></th>';
   _PANEL_COLS.forEach(function(col){
     var act=window._panelSortCol===col.key;
     var dir=window._panelSortDir;
@@ -2023,18 +2023,38 @@ function _panelRows(found) {
     var st=res?(r["Status"]||"En proceso"):(r["Estado Res."]||"Sin Firma");
     var sc=st==="Entregada"?"badge-ok":st==="A destruir"||st==="No Recibida"?"badge-err":st==="Sin Firma"?"badge-warn":"badge-nv";
     var oc=res?"cargarFichaPanel(\'"+res.replace(/'/g,"\\'")+"\'\,\'"+yr+"\',\'\')":"cargarFichaPanel(\'\',\'\',\'"+sol+"\')";
-    return "<tr onclick=\""+oc+"\" style=\"cursor:pointer\">"+
-      "<td style=\"font-family:var(--mono);font-weight:700\">"+(res||"<span style=\"color:var(--g400);font-size:10px\">sin res.</span>")+"</td>"+
-      "<td style=\"font-family:var(--mono)\">"+yr+"</td>"+
-      "<td style=\"font-family:var(--mono)\">"+sol+"</td>"+
-      "<td style=\"font-family:var(--mono)\">"+(r["Año de Ingreso"]||r["Ano de Ingreso"]||"—")+"</td>"+
-      "<td>"+(toTitleCase(r["Importador"])||"—")+"</td>"+
-      "<td style=\"font-style:italic;font-size:11px\">"+(r["Especie"]||"—").split(" ").slice(0,2).join(" ")+"</td>"+
-      "<td><span class=\"badge "+sc+"\">"+st+"</span></td>"+
+    return "<tr style=\"cursor:default\">"+
+      "<td style=\"text-align:center\" onclick=\"event.stopPropagation()\"><input type=\"checkbox\" class=\"panel-chk\" data-res=\""+res+"\" data-sol=\""+sol+"\" onclick=\"event.stopPropagation()\"></td>"+
+      "<td style=\"font-family:var(--mono);font-weight:700;cursor:pointer\" onclick=\""+oc+"\">"+(res||"<span style=\"color:var(--g400);font-size:10px\">sin res.</span>")+"</td>"+
+      "<td style=\"font-family:var(--mono);cursor:pointer\" onclick=\""+oc+"\">"+yr+"</td>"+
+      "<td style=\"font-family:var(--mono);cursor:pointer\" onclick=\""+oc+"\">"+sol+"</td>"+
+      "<td style=\"font-family:var(--mono);cursor:pointer\" onclick=\""+oc+"\">"+(r["Año de Ingreso"]||r["Ano de Ingreso"]||"—")+"</td>"+
+      "<td style=\"cursor:pointer\" onclick=\""+oc+"\">"+(toTitleCase(r["Importador"])||"—")+"</td>"+
+      "<td style=\"font-style:italic;font-size:11px;cursor:pointer\" onclick=\""+oc+"\">"+(r["Especie"]||"—").split(" ").slice(0,2).join(" ")+"</td>"+
+      "<td style=\"cursor:pointer\" onclick=\""+oc+"\"><span class=\"badge "+sc+"\">"+st+"</span></td>"+
     "</tr>";
   }).join("");
 }
 // ── ELIMINAR REGISTROS SELECCIONADOS (Panel de Consulta) ──
+function toggleAllPanelChk(master) {
+  document.querySelectorAll('.panel-chk').forEach(c => c.checked = master.checked);
+}
+
+function confirmarEliminarSeleccionadosPanel() {
+  const checked = [...document.querySelectorAll('.panel-chk:checked')];
+  if(!checked.length) { setS('Seleccione al menos un registro para eliminar.','warn'); return; }
+  const items = checked.map(c => ({res: c.dataset.res||'', sol: c.dataset.sol||''}));
+  const labels = items.map(it => it.res ? `Res. ${it.res}` : `Sol. ${it.sol} (sin res.)`);
+  showModal(
+    '¿Eliminar ' + items.length + ' registro(s)?',
+    'Se eliminarán PERMANENTEMENTE todos los datos asociados (Detalle y Material) de: ' +
+      labels.join(', ') + '. Esta acción no se puede deshacer.',
+    () => { closeModal(); eliminarRegistrosCompletos(items); },
+    'Eliminar definitivamente',
+    'btn-danger'
+  );
+}
+
 function toggleAllRecientesChk(master) {
   document.querySelectorAll('.recientes-chk').forEach(c => c.checked = master.checked);
 }
