@@ -7974,10 +7974,16 @@ function generarInformeTermino() {
 function generarActaEntrega() {
   if(!_v('f1-imp')){ setS('Complete datos del registro primero.','warn'); return; }
   const mat = _matRows();
-  const rows = mat.filter(r=>r.recibida).map(r=>`<tr>
+  // N° Plantas Finales viene de la tabla de Recuento (Etapa VI), inputs pf-{i}
+  const pfTotal = (document.getElementById('pf-total')||{}).value||'';
+  const rows = mat.filter(r=>r.recibida).map((r,i)=>{
+    const pfEl = document.getElementById('pf-'+i);
+    const nFinal = pfEl && pfEl.value!=='' ? pfEl.value : (pfTotal||r.cantR||r.cant);
+    return `<tr>
     <td style="font-style:italic">${r.esp}</td><td>${r.vari}</td>
-    <td style="text-align:center">${r.cantR||r.cant}</td><td>${r.obs}</td>
-  </tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:#888">Sin filas</td></tr>';
+    <td style="text-align:center">${nFinal}</td><td>${r.obs}</td>
+  </tr>`;
+  }).join('') || '<tr><td colspan="4" style="text-align:center;color:#888">Sin filas</td></tr>';
   const allAn = Object.values(anRows).flat();
   const folios = [...new Set(allAn.map(a=>a.folio).filter(Boolean))].map(f=>`<li>${f}</li>`).join('')||'<li>—</li>';
   const html = `<div class="doc">
