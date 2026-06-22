@@ -7975,10 +7975,13 @@ function generarActaEntrega() {
   if(!_v('f1-imp')){ setS('Complete datos del registro primero.','warn'); return; }
   const mat = _matRows();
   // N° Plantas Finales viene de la tabla de Recuento (Etapa VI), inputs pf-{i}
-  const pfTotal = (document.getElementById('pf-total')||{}).value||'';
+  // Fallback: si la etapa VI no está renderizada, usar _lastLoadedRow['N° Plantas Finales']
+  const pfTotalDom = (document.getElementById('pf-total')||{}).value||'';
+  const pfTotalSheet = (window._lastLoadedRow && window._lastLoadedRow['N° Plantas Finales']) || '';
+  const pfTotal = pfTotalDom || pfTotalSheet;
   const rows = mat.filter(r=>r.recibida).map((r,i)=>{
     const pfEl = document.getElementById('pf-'+i);
-    const nFinal = pfEl && pfEl.value!=='' ? pfEl.value : (pfTotal||r.cantR||r.cant);
+    const nFinal = (pfEl && pfEl.value!=='') ? pfEl.value : (pfTotal || r.cantR || r.cant);
     return `<tr>
     <td style="font-style:italic">${r.esp}</td><td>${r.vari}</td>
     <td style="text-align:center">${nFinal}</td><td>${r.obs}</td>
@@ -7986,6 +7989,11 @@ function generarActaEntrega() {
   }).join('') || '<tr><td colspan="4" style="text-align:center;color:#888">Sin filas</td></tr>';
   const allAn = Object.values(anRows).flat();
   const folios = [...new Set(allAn.map(a=>a.folio).filter(Boolean))].map(f=>`<li>${f}</li>`).join('')||'<li>—</li>';
+  // Año Res. Término — derivado de Fecha Res. Término (f6-frterm) o del Sheet
+  const fRterm = _v('f6-frterm') || (window._lastLoadedRow && window._lastLoadedRow['Fecha Res.4']) || '';
+  const anioRterm = fmtD(fRterm||'').substring(0,4) || '';
+  const nrest = _v('f6-nrest') || (window._lastLoadedRow && window._lastLoadedRow['Res. Término']) || '';
+  const resTerminoLabel = nrest ? (anioRterm ? `${nrest}/${anioRterm}` : nrest) : '—';
   const html = `<div class="doc">
     <div class="hdr-logo">
       <div class="sag">SAG</div>
@@ -7997,7 +8005,7 @@ function generarActaEntrega() {
     <p style="margin:10px 0;font-size:10pt">Por cuanto el material más adelante individualizado ha cumplido satisfactoriamente con la verificación fitosanitaria y el período de cuarentena establecido para Cuarentena Posentrada Absoluta/Filtro, se hace entrega de él, a la persona individualizada más adelante, en representación del Importador.</p>
     <table>
       <tr><th>RESOLUCIÓN AUTORIZA CPE</th><td>${_v('f2-nres')}/${_v('f2-anio-res')||''}</td></tr>
-      <tr><th>RESOLUCIÓN TÉRMINO CPE</th><td>${_v('f6-nrest')||'—'}</td></tr>
+      <tr><th>RESOLUCIÓN TÉRMINO CPE</th><td>${resTerminoLabel}</td></tr>
       <tr><th>IMPORTADOR</th><td>${_v('f1-imp')}</td></tr>
       <tr><th>CONTRAPARTE TÉCNICA SAG</th><td>${_v('f1-cp2-nombre')}</td></tr>
     </table>
