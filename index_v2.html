@@ -246,6 +246,8 @@ input[type=number]{font-family:var(--mono)}
   width:14px;height:14px;cursor:pointer;accent-color:var(--gd);
   border:1.5px solid var(--g400);border-radius:3px;
 }
+.tbl tbody td input[type="checkbox"]:checked.panel-chk-ticked{accent-color:var(--ok)!important}
+.panel-chk:checked{accent-color:var(--ok)}
 .tbl thead th input[type="checkbox"]{border-color:rgba(255,255,255,.6)}
 .tbl thead th{background:var(--nv);color:rgba(255,255,255,.75);padding:7px 9px;
   font-size:9.5px;font-weight:600;letter-spacing:.4px;text-align:left;
@@ -2047,13 +2049,20 @@ function _panelRows(found) {
 }
 // ── ELIMINAR REGISTROS SELECCIONADOS (Panel de Consulta) ──
 function togglePanelChkVisual(chk) {
-  chk.style.accentColor = chk.checked ? 'var(--ok)' : 'var(--gd)';
+  if(chk.checked) {
+    chk.style.accentColor = '#16a34a';
+    chk.classList.add('panel-chk-ticked');
+  } else {
+    chk.style.accentColor = '#B8975A';
+    chk.classList.remove('panel-chk-ticked');
+  }
 }
 
 function toggleAllPanelChk(master) {
   document.querySelectorAll('.panel-chk').forEach(c => {
     c.checked = master.checked;
-    c.style.accentColor = c.checked ? 'var(--ok)' : 'var(--gd)';
+    if(c.checked) { c.style.accentColor='#16a34a'; c.classList.add('panel-chk-ticked'); }
+    else { c.style.accentColor='#B8975A'; c.classList.remove('panel-chk-ticked'); }
   });
 }
 
