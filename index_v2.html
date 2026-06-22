@@ -5815,7 +5815,25 @@ async function guardarTodo() {
         async()=>{ closeModal(); await doSave(rows,true,res,nsol); },'Actualizar','btn-nv'); return;
     }
     await doSave(rows,false,'',nsol);
-  } catch(e){ setS('Error guardando: '+e.message,'err'); }
+  } catch(e){
+    // If error is a 401 (expired token), retry once with a fresh token
+    if(/401/.test(e.message) && !window._retriedAfter401) {
+      window._retriedAfter401 = true;
+      accessToken = null; // force fresh token
+      setS('Token expirado, reautenticando...','warn');
+      try {
+        await ensureToken();
+        window._retriedAfter401 = false;
+        return guardarTodo(); // retry the whole save
+      } catch(e2) {
+        window._retriedAfter401 = false;
+        setS('Error guardando: '+e2.message,'err');
+      }
+    } else {
+      window._retriedAfter401 = false;
+      setS('Error guardando: '+e.message,'err');
+    }
+  }
   finally {
     window._saving=false;
     const _sb=document.querySelector('.sb-save');
@@ -6284,8 +6302,7 @@ function conectarGSheets() {
   initTokenClient();
   if(tokenClient) tokenClient.requestAccessToken({prompt:'consent'});
 }
-async function ensureToken() {
-  if(accessToken) return Promise.resolve();
+function _requestNewToken() {
   return new Promise((res,rej)=>{
     if(!GS.oauthClientId){ rej(new Error('Configure el OAuth Client ID en Configuracion.')); return; }
     if(!tokenClient){ initTokenClient(); }
@@ -6293,11 +6310,25 @@ async function ensureToken() {
     const orig=tokenClient.callback;
     tokenClient.callback=r=>{
       tokenClient.callback=orig;
-      if(r.access_token){ accessToken=r.access_token; setGSDot('ok','Autenticado'); res(); }
+      if(r.access_token){
+        accessToken=r.access_token;
+        window._tokenObtainedAt=Date.now();
+        setGSDot('ok','Autenticado');
+        res();
+      }
       else rej(new Error('Autenticacion cancelada o fallida.'));
     };
     tokenClient.requestAccessToken({prompt:''});
   });
+}
+
+async function ensureToken() {
+  // Google access tokens expire ~1hr. Refresh proactively if older than 50min,
+  // or if we've never validated it, to avoid 401 errors mid-save.
+  const TOKEN_MAX_AGE_MS = 50*60*1000;
+  const tokenAge = window._tokenObtainedAt ? (Date.now()-window._tokenObtainedAt) : Infinity;
+  if(accessToken && tokenAge < TOKEN_MAX_AGE_MS) return Promise.resolve();
+  return _requestNewToken();
 }
 
 // ── ETAPA I: N° SOL LOCK ──
