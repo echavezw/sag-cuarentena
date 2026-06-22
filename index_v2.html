@@ -1678,6 +1678,10 @@ input.field-blocked, select.field-blocked {
 
 <script>
 
+function cleanEspecie(str) {
+  if(!str) return str;
+  return String(str).replace(/_/g, ' ').replace(/\s+/g,' ').trim();
+}
 function toTitleCase(str) {
   if(!str) return str;
   var keep={'spa':'SpA','s.a.':'S.A.','ltda.':'Ltda.','ltda':'Ltda.',
@@ -2255,7 +2259,7 @@ async function recargar() {
           const _hasFin=!!(x['Fecha Informe Fitosanitario']||'').trim();
           const _r2=x['Resultado']||'';
           const _rfix=(!_f&&!_cd&&!_ch&&!_hasFin)?'':(['-','—','--'].includes((_r2||'').trim())?'':(_r2||''));
-          _abt[k].push({tipo_an:x['Análisis']||x['Analisis']||'',especie:x['Especie']||'',patogeno:pat,
+          _abt[k].push({tipo_an:x['Análisis']||x['Analisis']||'',especie:cleanEspecie(x['Especie']||''),patogeno:pat,
             estado:x['Estado Análisis']||x['Estado Analisis']||'',resultado:_rfix,
             tecnica:x['Técnica']||x['Tecnica']||'',folio:_f,corr_desde:_cd,corr_hasta:_ch,
             n_muestras:x['N° Muestras']||'',obs:x['Obs.']||'',
@@ -2494,7 +2498,7 @@ async function cargarFilaMulti(rows) {
     const matRows = await loadMaterialForRecord(res, sol);
     if(matRows.length) {
       espData = matRows.map(x=>({
-        especie:     x['Especie']||'',
+        especie:     cleanEspecie(x['Especie']||''),
         variedad:    x['Variedad']||'',
         tipo:        x['Tipo Material']||'',
         cant:        x['Cantidad']||'',
@@ -2534,7 +2538,7 @@ async function cargarFilaMulti(rows) {
         if(seenEsp.has(key)) return;
         seenEsp.add(key);
         espData.push({
-          especie:     x['Especie']||'',
+          especie:     cleanEspecie(x['Especie']||''),
           variedad:    x['Variedades']||x['Variedad']||'',
           tipo:        x['Tipo Material']||'',
           cant:        x['Cantidad']||'',
@@ -2570,7 +2574,7 @@ async function cargarFilaMulti(rows) {
     const _rfix    = (!_f && !_cd && !_ch && !_hasFin) ? ''
                    : (_badRes.includes(_resLow) ? '' : (_r||''));
 
-    const row={especie:x['Especie']||'',patogeno:pat,tipo_an:x['Análisis']||'',
+    const row={especie:cleanEspecie(x['Especie']||''),patogeno:pat,tipo_an:x['Análisis']||'',
       ccaa_est:fmtD(x['Fecha estimada de CCAA']||''),ccaa_real:fmtD(x['Fecha Real de CCAA']||''),
       tdm_est:fmtD(x['Fecha Estimada Muestreo']||''),tdm:fmtD(x['Fecha muestreo/Indexaje']||''),
       folio:_f,corr_desde:_cd,corr_hasta:_ch,
@@ -5928,7 +5932,7 @@ function buildRows(nsol,imp) {
         const _rfix=(!_f&&!_cd&&!_ch&&!_hasFin)?'':(_badRes.includes((_r||'').toLowerCase().trim())?'':(_r||''));
         anByType[k].push({
           tipo_an:x['Análisis']||x['Analisis']||'',
-          especie:x['Especie']||'',patogeno:x['Patógenos']||x['Patogenos']||'',
+          especie:cleanEspecie(x['Especie']||''),patogeno:x['Patógenos']||x['Patogenos']||'',
           estado:x['Estado Análisis']||x['Estado Analisis']||'',resultado:_rfix,
           tecnica:x['Técnica']||x['Tecnica']||'',folio:_f,corr_desde:_cd,corr_hasta:_ch,
           n_muestras:x['N° Muestras']||'',obs:x['Obs.']||'',
@@ -5959,7 +5963,7 @@ function buildRows(nsol,imp) {
       'SPS análisis':a.sps||'','CORE/Factura':a.core||'',
     }));
   } else {
-    esp.forEach(e=>rows.push({...base,'Especie':e.especie,'Variedades':e.variedad,'Tipo Material':e.tipo,'Cantidad':e.cant||'','Portainjerto':e.portainjerto||''}));
+    esp.forEach(e=>rows.push({...base,'Especie':cleanEspecie(e.especie),'Variedades':e.variedad,'Tipo Material':e.tipo,'Cantidad':e.cant||'','Portainjerto':e.portainjerto||''}));
     if(!esp.length) rows.push({...base});
   }
   return rows;
