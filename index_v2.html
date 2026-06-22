@@ -241,6 +241,12 @@ input[type=number]{font-family:var(--mono)}
 .tbl tbody tr:nth-child(even){background:var(--g50)}
 .tbl tbody tr:nth-child(odd){background:var(--wh)}
 .tbl tbody tr:hover{background:var(--g50)}
+.tbl thead th input[type="checkbox"],
+.tbl tbody td input[type="checkbox"]{
+  width:14px;height:14px;cursor:pointer;accent-color:var(--gd);
+  border:1.5px solid var(--g400);border-radius:3px;
+}
+.tbl thead th input[type="checkbox"]{border-color:rgba(255,255,255,.6)}
 .tbl thead th{background:var(--nv);color:rgba(255,255,255,.75);padding:7px 9px;
   font-size:9.5px;font-weight:600;letter-spacing:.4px;text-align:left;
   border-bottom:2px solid rgba(255,255,255,.15);white-space:nowrap;position:sticky;top:0}
