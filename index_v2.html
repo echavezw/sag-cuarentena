@@ -2048,7 +2048,14 @@ function goStage(n) {
   const navEl=$('nav-'+n); if(navEl) navEl.classList.add('active');
   currentStage=n;
   if(n===2) { window._resEspRows=null; updateReadonlyRefs(); }
-  if(n===3) updateResBars();
+  if(n===3) {
+    updateResBars();
+    // Re-render verif table with latest data from Material — keeps Etapa III in sync
+    // with anything changed in Etapa I/II since last load
+    if(window._loadedEspData && window._loadedEspData.length) {
+      setTimeout(()=>renderVerifTable(window._loadedEspData), 60);
+    }
+  }
   if(n===4) { updateResBars(); renderAnalisisTabs(); }
   if(n===5) renderCobroTabs();
 
