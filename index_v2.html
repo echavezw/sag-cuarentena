@@ -1464,6 +1464,8 @@ input.field-blocked, select.field-blocked {
     <div style="display:flex;gap:8px;margin-bottom:16px">
       <button class="btn btn-nv btn-sm" onclick="buscarPanel()">Buscar</button>
       <button class="btn btn-gh btn-sm" onclick="limpiarBusqueda()">Limpiar</button>
+      <button class="btn btn-gh btn-sm" onclick="exportarCSVBusqueda()" title="Exportar resultados a CSV/Excel">⬇ CSV</button>
+      <button class="btn btn-danger btn-sm" onclick="confirmarEliminarSeleccionadosPanel()">🗑 Eliminar selec.</button>
     </div>
     <!-- Resultados -->
     <div id="panel-result" style="display:none;margin-bottom:16px"></div>
@@ -1538,6 +1540,8 @@ input.field-blocked, select.field-blocked {
     <div style="display:flex;gap:8px;margin-bottom:16px">
       <button class="btn btn-nv btn-sm" onclick="buscarPanel()">Buscar</button>
       <button class="btn btn-gh btn-sm" onclick="limpiarBusqueda()">Limpiar</button>
+      <button class="btn btn-gh btn-sm" onclick="exportarCSVBusqueda()" title="Exportar resultados a CSV/Excel">⬇ CSV</button>
+      <button class="btn btn-danger btn-sm" onclick="confirmarEliminarSeleccionadosPanel()">🗑 Eliminar selec.</button>
     </div>
     <div id="panel-results" style="overflow:auto;max-height:440px;border:1px solid var(--g200);border-radius:var(--rs)">
       <table class="tbl" id="panel-table"><thead id="panel-thead"></thead><tbody id="panel-tbody"></tbody></table>
