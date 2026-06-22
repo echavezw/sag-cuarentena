@@ -3012,7 +3012,7 @@ function delEspRow(i) {
 function getEspecies() {
   const tbody=$('esp-body'); if(!tbody) return [];
   return [...tbody.children].map((_,i)=>({
-    especie:v(`es-${i}`),variedad:v(`ev-${i}`),
+    especie:cleanEspecie(v(`es-${i}`)),variedad:v(`ev-${i}`),
     tipo:document.getElementById(`et-${i}`)?.value||'',
     cant:v(`ec-${i}`),portainjerto:v(`ep-${i}`),nplan:v(`en-${i}`)
   })).filter(r=>r.especie);
