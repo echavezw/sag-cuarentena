@@ -882,7 +882,7 @@ input.field-blocked, select.field-blocked {
     <div class="fg" style="grid-template-columns:repeat(6,1fr);gap:10px 14px">
       <div class="ff c2 ff-primary"><label class="lbl"><span class="req">*</span> N° Solicitud</label>
         <div style="display:flex;gap:6px;align-items:center">
-          <input id="f1-nsol" readonly style="font-size:17px;font-weight:700;font-family:var(--mono)">
+          <input id="f1-nsol" readonly style="font-size:17px;font-weight:700;font-family:var(--mono)" placeholder="ej. 253 o 253.1">
           <button id="nsol-lock" onclick="toggleSolLock()" title="Desbloquear"
             style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--g400);padding:0 3px">&#128274;</button>
         </div>
@@ -1026,8 +1026,8 @@ input.field-blocked, select.field-blocked {
         <input type="number" id="f2-nres" oninput="onRes();autoEstadoRes()" style="font-size:16px;font-weight:700;font-family:var(--mono)"></div>
       <div class="ff c1"><label class="lbl">Año Emisión</label>
         <input type="number" id="f2-anio-res" placeholder="ej. 2025" oninput="onRes()" style="font-family:var(--mono)"></div>
-      <div class="ff c2"><label class="lbl">Fecha Emisión</label><input type="date" id="f2-fres" oninput="onFRes()"></div>
-      <div class="ff c2"><label class="lbl">Vigencia Desde</label><input type="date" id="f2-vigdesde" oninput="calcVigencia()"></div>
+      <div class="ff c2"><label class="lbl">Fecha Emisión</label><input type="date" id="f2-fres" oninput="onFRes();autoSetVigDesde()"></div>
+      <div class="ff c2"><label class="lbl">Vigencia Desde</label><input type="date" id="f2-vigdesde" oninput="this.dataset.autoSet='0';calcVigencia()"></div>
       <!-- Fila 2: Vigencia Hasta · Prórroga · Res. Mod · Fec. Mod -->
       <div class="ff c2"><label class="lbl">Vigencia Hasta <span class="auto">CALC</span></label><input type="date" id="f2-vighasta" readonly></div>
       <div class="ff c2"><label class="lbl">Prórroga +15d</label><input type="date" id="f2-prorroga" oninput="onProrroga()"></div>
@@ -2034,7 +2034,7 @@ function _panelRows(found) {
     var sc=st==="Entregada"?"badge-ok":st==="A destruir"||st==="No Recibida"?"badge-err":st==="Sin Firma"?"badge-warn":"badge-nv";
     var oc=res?"cargarFichaPanel(\'"+res.replace(/'/g,"\\'")+"\'\,\'"+yr+"\',\'\')":"cargarFichaPanel(\'\',\'\',\'"+sol+"\')";
     return "<tr style=\"cursor:default\">"+
-      "<td style=\"text-align:center\" onclick=\"event.stopPropagation()\"><input type=\"checkbox\" class=\"panel-chk\" data-res=\""+res+"\" data-sol=\""+sol+"\" onclick=\"event.stopPropagation()\"></td>"+
+      "<td style=\"text-align:center\" onclick=\"event.stopPropagation()\"><input type=\"checkbox\" class=\"panel-chk\" data-res=\""+res+"\" data-sol=\""+sol+"\" onclick=\"event.stopPropagation();togglePanelChkVisual(this)\"></td>"+
       "<td style=\"font-family:var(--mono);font-weight:700;cursor:pointer\" onclick=\""+oc+"\">"+(res||"<span style=\"color:var(--g400);font-size:10px\">sin res.</span>")+"</td>"+
       "<td style=\"font-family:var(--mono);cursor:pointer\" onclick=\""+oc+"\">"+yr+"</td>"+
       "<td style=\"font-family:var(--mono);cursor:pointer\" onclick=\""+oc+"\">"+sol+"</td>"+
@@ -2046,8 +2046,15 @@ function _panelRows(found) {
   }).join("");
 }
 // ── ELIMINAR REGISTROS SELECCIONADOS (Panel de Consulta) ──
+function togglePanelChkVisual(chk) {
+  chk.style.accentColor = chk.checked ? 'var(--ok)' : 'var(--gd)';
+}
+
 function toggleAllPanelChk(master) {
-  document.querySelectorAll('.panel-chk').forEach(c => c.checked = master.checked);
+  document.querySelectorAll('.panel-chk').forEach(c => {
+    c.checked = master.checked;
+    c.style.accentColor = c.checked ? 'var(--ok)' : 'var(--gd)';
+  });
 }
 
 function confirmarEliminarSeleccionadosPanel() {
@@ -3099,10 +3106,27 @@ function makeEspRow(i, r, prevRow) {
     <td>
       <input type="number" id="ec-${i}" value="${r.cant||''}" min="0" style="font-family:var(--mono);text-align:center;width:calc(100% - 28px)">${fdCantBtn}
     </td>
-    <td><input id="ep-${i}" value="${esc(r.portainjerto||'')}" list="pi-dl" placeholder="Portainjerto..." style="text-align:center"></td>
-    <td><input type="number" id="en-${i}" value="${r.nplan||''}" min="0" style="font-family:var(--mono);text-align:center;width:100%"></td>
+    <td><input id="ep-${i}" value="${esc(r.portainjerto||'')}" list="pi-dl" placeholder="Portainjerto..." style="text-align:center" oninput="autoFillDownEsp('ep',${i})"></td>
+    <td><input type="number" id="en-${i}" value="${r.nplan||''}" min="0" style="font-family:var(--mono);text-align:center;width:100%" oninput="autoFillDownEsp('en',${i})"></td>
     <td><button class="del-btn" onclick="delEspRow(${i})">×</button></td>`;
   return tr;
+}
+
+function autoFillDownEsp(prefix, i) {
+  // Only auto-fill when editing row 0 — propagate to empty rows below
+  if(i !== 0) return;
+  const srcEl = document.getElementById(prefix+'-0');
+  if(!srcEl) return;
+  const val = srcEl.value;
+  if(!val) return;
+  let j = 1;
+  while(true) {
+    const el = document.getElementById(prefix+'-'+j);
+    if(!el) break; // no more rows
+    if(!el.value) el.value = val; // only fill if still empty (manual edits respected)
+    j++;
+  }
+  markDirty();
 }
 
 function copiarFila(i) {
@@ -3195,6 +3219,18 @@ function onRes() {
     if(rowsNoYr.length){ cargarFilaMulti(rowsNoYr); return; }
   }
   updateResBars();
+}
+
+function autoSetVigDesde() {
+  const fres = document.getElementById('f2-fres')?.value||'';
+  const vigEl = document.getElementById('f2-vigdesde');
+  if(!fres||!vigEl) return;
+  // Only auto-set if Vigencia Desde is empty OR was previously auto-set (not manually touched)
+  if(!vigEl.value || vigEl.dataset.autoSet==='1') {
+    vigEl.value = fres;
+    vigEl.dataset.autoSet = '1';
+    calcVigencia();
+  }
 }
 
 function onFRes() {
@@ -3586,7 +3622,8 @@ function makeVerifRow(i,r) {
     </td>
     <td style="text-align:center;padding:4px 6px;background:var(--gold-bg)">
       <input type="number" id="vbrot-${i}" value="${getBrotDefault(r)}" min="0"
-        placeholder="—" style="font-family:var(--mono);text-align:center;width:70px;background:var(--gold-bg)">
+        placeholder="—" style="font-family:var(--mono);text-align:center;width:70px;background:var(--gold-bg)"
+        oninput="autoFillDownEsp('vbrot',${i})">
     </td>
     <td><input id="vobs-${i}" value="${esc(r.obs||'')}" placeholder="Observaciones..."></td>
     <td><button class="del-btn" onclick="delVerifRow(${i})">×</button></td>`;
@@ -3605,11 +3642,13 @@ function onVerifCheck(i) {
     cantReal.style.color      = 'var(--ok)';
     if(icon){ icon.style.color='var(--ok)'; }
   } else {
+    // Variedad no llegó — Cant. Real pasa a 0
+    cantReal.value = '0';
     cantReal.style.background = 'var(--warn-bg)';
     cantReal.style.color      = 'var(--warn)';
     if(icon){ icon.style.color='var(--g200)'; }
-    cantReal.focus();
   }
+  markDirty();
 }
 
 function onVerifCantReal(i) {
