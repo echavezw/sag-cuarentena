@@ -1963,7 +1963,7 @@ function buscarPanelDefault() {
   const pThead=$('panel-thead'), pTbody=$('panel-tbody');
   if(!pThead||!pTbody) return;
   pThead.innerHTML = _panelThead();
-  pTbody.innerHTML = _panelRows(found);
+  _panelRowsBuild(found, pTbody);
   setS(`${found.length} registros (${prevYear}-${thisYear}).`,'ok');
 }
 
@@ -5944,7 +5944,7 @@ function buscarPanel() {
   if(!pThead||!pTbody) return;
   _sortPanelFound(found);
   pThead.innerHTML = _panelThead();
-  pTbody.innerHTML = _panelRows(found);
+  _panelRowsBuild(found, pTbody);
   found.forEach(r => {
     if(r['Año de Ingreso'] && r['Año de Ingreso'].trim()) return;
     const rRes=String(r['Res.']||'').trim(), rSol=String(r['Solicitud']||'').trim();
