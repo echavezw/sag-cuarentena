@@ -2027,25 +2027,81 @@ function _panelSort(key) {
   pThead.innerHTML=_panelThead();
   pTbody.innerHTML=_panelRows(found);
 }
-function _panelRows(found) {
-  return found.map(function(r){
+function _panelRowsBuild(found, tbodyEl) {
+  tbodyEl.innerHTML = '';
+  found.forEach(function(r){
     var res=r["Res."]||"";
     var yr=(fmtD(r["Fecha Res."]||"")).substring(0,4);
     var sol=r["Solicitud"]||"";
     var st=res?(r["Status"]||"En proceso"):(r["Estado Res."]||"Sin Firma");
     var sc=st==="Entregada"?"badge-ok":st==="A destruir"||st==="No Recibida"?"badge-err":st==="Sin Firma"?"badge-warn":"badge-nv";
-    var oc=res?"cargarFichaPanel(\'"+res.replace(/'/g,"\\'")+"\'\,\'"+yr+"\',\'\')":"cargarFichaPanel(\'\',\'\',\'"+sol+"\')";
-    return "<tr style=\"cursor:default\">"+
-      "<td style=\"text-align:center\" onclick=\"event.stopPropagation()\"><input type=\"checkbox\" class=\"panel-chk\" data-res=\""+res+"\" data-sol=\""+sol+"\" onclick=\"event.stopPropagation();togglePanelChkVisual(this)\"></td>"+
-      "<td style=\"font-family:var(--mono);font-weight:700;cursor:pointer\" onclick=\""+oc+"\">"+(res||"<span style=\"color:var(--g400);font-size:10px\">sin res.</span>")+"</td>"+
-      "<td style=\"font-family:var(--mono);cursor:pointer\" onclick=\""+oc+"\">"+yr+"</td>"+
-      "<td style=\"font-family:var(--mono);cursor:pointer\" onclick=\""+oc+"\">"+sol+"</td>"+
-      "<td style=\"font-family:var(--mono);cursor:pointer\" onclick=\""+oc+"\">"+(r["Año de Ingreso"]||r["Ano de Ingreso"]||"—")+"</td>"+
-      "<td style=\"cursor:pointer\" onclick=\""+oc+"\">"+(toTitleCase(r["Importador"])||"—")+"</td>"+
-      "<td style=\"font-style:italic;font-size:11px;cursor:pointer\" onclick=\""+oc+"\">"+(r["Especie"]||"—").split(" ").slice(0,2).join(" ")+"</td>"+
-      "<td style=\"cursor:pointer\" onclick=\""+oc+"\"><span class=\"badge "+sc+"\">"+st+"</span></td>"+
-    "</tr>";
-  }).join("");
+    var loadRow = function(){ cargarFichaPanel(res, yr, sol); };
+
+    var tr = document.createElement('tr');
+    tr.style.cursor = 'default';
+
+    var tdChk = document.createElement('td');
+    tdChk.style.textAlign = 'center';
+    var chk = document.createElement('input');
+    chk.type = 'checkbox';
+    chk.className = 'panel-chk';
+    chk.dataset.res = res;
+    chk.dataset.sol = sol;
+    chk.addEventListener('click', function(e){
+      e.stopPropagation();
+      togglePanelChkVisual(chk);
+    });
+    tdChk.appendChild(chk);
+    tr.appendChild(tdChk);
+
+    var tdRes = document.createElement('td');
+    tdRes.style.fontFamily = 'var(--mono)'; tdRes.style.fontWeight='700'; tdRes.style.cursor='pointer';
+    tdRes.textContent = res || 'sin res.';
+    if(!res) tdRes.style.color = 'var(--g400)';
+    tdRes.addEventListener('click', loadRow);
+    tr.appendChild(tdRes);
+
+    var tdYr = document.createElement('td');
+    tdYr.style.fontFamily='var(--mono)'; tdYr.style.cursor='pointer';
+    tdYr.textContent = yr || '\u2014';
+    tdYr.addEventListener('click', loadRow);
+    tr.appendChild(tdYr);
+
+    var tdSol = document.createElement('td');
+    tdSol.style.fontFamily='var(--mono)'; tdSol.style.cursor='pointer';
+    tdSol.textContent = sol || '\u2014';
+    tdSol.addEventListener('click', loadRow);
+    tr.appendChild(tdSol);
+
+    var tdIng = document.createElement('td');
+    tdIng.style.fontFamily='var(--mono)'; tdIng.style.cursor='pointer';
+    tdIng.textContent = r["Año de Ingreso"]||r["Ano de Ingreso"]||'\u2014';
+    tdIng.addEventListener('click', loadRow);
+    tr.appendChild(tdIng);
+
+    var tdImp = document.createElement('td');
+    tdImp.style.cursor='pointer';
+    tdImp.textContent = toTitleCase(r["Importador"]) || '\u2014';
+    tdImp.addEventListener('click', loadRow);
+    tr.appendChild(tdImp);
+
+    var tdEsp = document.createElement('td');
+    tdEsp.style.fontStyle='italic'; tdEsp.style.fontSize='11px'; tdEsp.style.cursor='pointer';
+    tdEsp.textContent = (r["Especie"]||'\u2014').split(' ').slice(0,2).join(' ');
+    tdEsp.addEventListener('click', loadRow);
+    tr.appendChild(tdEsp);
+
+    var tdSt = document.createElement('td');
+    tdSt.style.cursor='pointer';
+    var badge = document.createElement('span');
+    badge.className = 'badge ' + sc;
+    badge.textContent = st;
+    tdSt.appendChild(badge);
+    tdSt.addEventListener('click', loadRow);
+    tr.appendChild(tdSt);
+
+    tbodyEl.appendChild(tr);
+  });
 }
 // ── ELIMINAR REGISTROS SELECCIONADOS (Panel de Consulta) ──
 function togglePanelChkVisual(chk) {
