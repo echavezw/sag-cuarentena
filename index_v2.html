@@ -243,11 +243,24 @@ input[type=number]{font-family:var(--mono)}
 .tbl tbody tr:hover{background:var(--g50)}
 .tbl thead th input[type="checkbox"],
 .tbl tbody td input[type="checkbox"]{
-  width:14px;height:14px;cursor:pointer;accent-color:var(--gd);
-  border:1.5px solid var(--g400);border-radius:3px;
+  appearance:none;-webkit-appearance:none;-moz-appearance:none;
+  width:15px;height:15px;cursor:pointer;flex-shrink:0;
+  border:1.5px solid var(--g400);border-radius:3px;background:var(--wh);
+  position:relative;vertical-align:middle;margin:0;
 }
-.tbl tbody td input[type="checkbox"]:checked.panel-chk-ticked{accent-color:var(--ok)!important}
-.panel-chk:checked{accent-color:var(--ok)}
+.tbl thead th input[type="checkbox"]{border-color:rgba(255,255,255,.7);background:transparent}
+.tbl tbody td input[type="checkbox"]:checked{
+  background:var(--gd);border-color:var(--gd);
+}
+.tbl tbody td input[type="checkbox"].panel-chk-ticked:checked,
+.tbl tbody td input[type="checkbox"]:checked.panel-chk-ticked{
+  background:var(--ok)!important;border-color:var(--ok)!important;
+}
+.tbl input[type="checkbox"]:checked::after{
+  content:'';position:absolute;left:4px;top:1px;
+  width:4px;height:8px;border:solid #fff;border-width:0 2px 2px 0;
+  transform:rotate(45deg);
+}
 .tbl thead th input[type="checkbox"]{border-color:rgba(255,255,255,.6)}
 .tbl thead th{background:var(--nv);color:rgba(255,255,255,.75);padding:7px 9px;
   font-size:9.5px;font-weight:600;letter-spacing:.4px;text-align:left;
@@ -2105,20 +2118,13 @@ function _panelRowsBuild(found, tbodyEl) {
 }
 // ── ELIMINAR REGISTROS SELECCIONADOS (Panel de Consulta) ──
 function togglePanelChkVisual(chk) {
-  if(chk.checked) {
-    chk.style.accentColor = '#16a34a';
-    chk.classList.add('panel-chk-ticked');
-  } else {
-    chk.style.accentColor = '#B8975A';
-    chk.classList.remove('panel-chk-ticked');
-  }
+  chk.classList.toggle('panel-chk-ticked', chk.checked);
 }
 
 function toggleAllPanelChk(master) {
   document.querySelectorAll('.panel-chk').forEach(c => {
     c.checked = master.checked;
-    if(c.checked) { c.style.accentColor='#16a34a'; c.classList.add('panel-chk-ticked'); }
-    else { c.style.accentColor='#B8975A'; c.classList.remove('panel-chk-ticked'); }
+    c.classList.toggle('panel-chk-ticked', c.checked);
   });
 }
 
