@@ -742,9 +742,53 @@ input.field-blocked, select.field-blocked {
 .cub-days {
   font-size: 8.5px; font-weight: 700; margin-left: auto; flex-shrink: 0;
 }
+
+/* ── AUTH / LOGIN ── */
+.app{display:none!important}
+.app.app-visible{display:flex!important}
+#login-screen.hidden{display:none}
+.perm-hidden{display:none!important}
+
 </style>
 </head>
 <body>
+<!-- ════════════════════════════════════
+     LOGIN SCREEN
+════════════════════════════════════ -->
+<div id="login-screen" style="position:fixed;inset:0;z-index:9999;background:#0A1628;
+  display:flex;align-items:center;justify-content:center;font-family:var(--font)">
+  <div style="background:#fff;border-radius:12px;padding:36px 40px;width:340px;
+    box-shadow:0 20px 60px rgba(0,0,0,.4)">
+    <div style="text-align:center;margin-bottom:24px">
+      <div style="width:54px;height:54px;border-radius:10px;background:#0A1628;
+        display:flex;align-items:center;justify-content:center;margin:0 auto 12px;
+        font-family:var(--serif);font-size:18px;font-style:italic;font-weight:700;color:#B8975A">sag</div>
+      <div style="font-size:15px;font-weight:600;color:#0A1628">Cuarentena Vegetal — ECA v2</div>
+      <div style="font-size:11px;color:#888;margin-top:2px">Ingrese sus credenciales</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div>
+        <label style="font-size:10px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:.3px">Usuario</label>
+        <input id="login-user" autocomplete="username" style="width:100%;padding:9px 11px;border-radius:6px;
+          border:1px solid #ddd;font-size:13px;margin-top:3px;box-sizing:border-box"
+          onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()">
+      </div>
+      <div>
+        <label style="font-size:10px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:.3px">Clave</label>
+        <input id="login-pass" type="password" autocomplete="current-password" style="width:100%;padding:9px 11px;
+          border-radius:6px;border:1px solid #ddd;font-size:13px;margin-top:3px;box-sizing:border-box"
+          onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <div id="login-error" style="display:none;font-size:11.5px;color:#dc2626;background:#fef2f2;
+        border:1px solid #fecaca;border-radius:5px;padding:6px 9px"></div>
+      <button onclick="doLogin()" style="width:100%;padding:10px 0;background:#0A1628;color:#B8975A;
+        border:1px solid rgba(184,151,90,.4);border-radius:7px;font-size:12.5px;font-weight:600;
+        letter-spacing:.4px;text-transform:uppercase;cursor:pointer;margin-top:4px">Ingresar</button>
+      <div id="login-loading" style="display:none;text-align:center;font-size:11px;color:#888;margin-top:4px">Verificando...</div>
+    </div>
+  </div>
+</div>
+
 <div class="app">
 
 <!-- TOP BAR -->
@@ -796,6 +840,7 @@ input.field-blocked, select.field-blocked {
   <hr class="sb-divider">
   <div class="sb-sec">Sistema</div>
   <div class="sb-item" id="nav-config" onclick="goStage('config')"><span class="sb-num">C</span>Configuracion</div>
+  <div class="sb-item" id="nav-usuarios" onclick="goStage('usuarios')"><span class="sb-num">U</span><span class="sb-lbl">Gestionar Usuarios</span></div>
   <div class="sb-actions">
     <button class="btn btn-gd btn-sm" onclick="nuevaSolicitud()">+ Nueva Solicitud</button>
     <button class="btn btn-gh btn-sm" id="compact-btn" onclick="toggleCompact()" title="Alternar modo compacto" style="width:100%;justify-content:center;margin-bottom:6px">⊟ Compacto</button>
@@ -1571,6 +1616,36 @@ input.field-blocked, select.field-blocked {
   </div><!-- /panel-content-1 -->
 </div>
 
+
+<!-- ════════════════════════════════════
+     GESTIONAR USUARIOS (solo admin)
+════════════════════════════════════ -->
+<div class="stage" id="stage-usuarios" style="display:none">
+  <div class="sec-h">
+    <div class="sec-n">U</div>
+    <div><div class="sec-t">Gestionar Usuarios</div><div class="sec-s">Crear, editar y desactivar cuentas de acceso</div></div>
+    <div class="sec-actions">
+      <button class="btn btn-gh btn-sm" onclick="recargarUsuarios()">Actualizar</button>
+    </div>
+  </div>
+  <div class="tab-body" style="padding:18px">
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:14px;align-items:end">
+      <div class="ff c2"><label class="lbl">Usuario</label><input id="nu-user" placeholder="ej. jperez"></div>
+      <div class="ff c2"><label class="lbl">Clave</label><input id="nu-pass" type="password" placeholder="Mínimo 6 caracteres"></div>
+      <div class="ff c1"><label class="lbl">Rol</label>
+        <select id="nu-rol"><option value="usuario_basico">usuario_basico</option><option value="admin">admin</option></select></div>
+      <div class="ff c1"><button class="btn btn-nv btn-sm" onclick="crearUsuario()" style="width:100%;justify-content:center">+ Crear</button></div>
+    </div>
+    <div id="usuarios-result" style="font-size:11.5px;margin-bottom:10px"></div>
+    <div style="overflow:auto;border:1px solid var(--g200);border-radius:var(--rs)">
+      <table class="tbl" id="usuarios-table">
+        <thead><tr><th>Usuario</th><th>Rol</th><th>Activo</th><th>Acciones</th></tr></thead>
+        <tbody id="usuarios-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <!-- ════════════════════════════════════
      CONFIGURACION
 ════════════════════════════════════ -->
@@ -1583,11 +1658,13 @@ input.field-blocked, select.field-blocked {
     <div class="cfg-step">
       <div class="cfg-step-title"><span class="cfg-num">1</span>Google Sheets</div>
       <div class="fg" style="grid-template-columns:repeat(6,1fr);gap:10px 14px">
-        <div class="ff c3"><label class="lbl">Sheet ID</label><input id="cfg-sheet-id" placeholder="1_L7hz3..."></div>
-        <div class="ff c3"><label class="lbl">API Key (lectura)</label><input id="cfg-api-key" type="password" placeholder="AIzaSy..."></div>
-        <div class="ff c3"><label class="lbl">OAuth Client ID (escritura)</label><input id="cfg-oauth-id" placeholder="xxxxx.apps.googleusercontent.com"></div>
-        <div class="ff c3"><label class="lbl">Anthropic API Key (documentos)</label><input id="cfg-anthropic-key" type="password" placeholder="sk-ant-..."></div>
+        <div class="ff c6"><label class="lbl">Sheet ID</label><input id="cfg-sheet-id" placeholder="1_L7hz3..."></div>
+        <div class="ff c6"><label class="lbl">Anthropic API Key (documentos, opcional)</label><input id="cfg-anthropic-key" type="password" placeholder="sk-ant-..."></div>
       </div>
+      <div style="font-size:10.5px;color:var(--g400);margin-top:6px">API Key y OAuth Client ID son fijos por la aplicación y no requieren configuración manual.</div>
+      <!-- Hidden legacy fields kept for guardarConfig() compatibility -->
+      <input type="hidden" id="cfg-api-key">
+      <input type="hidden" id="cfg-oauth-id">
       <div style="display:flex;gap:8px;margin-top:12px">
         <button class="btn btn-nv btn-sm" onclick="guardarConfig()">Guardar configuracion</button>
         <button class="btn btn-gh btn-sm" onclick="testConexion()">Probar conexion</button>
@@ -1708,6 +1785,272 @@ function cleanEspecie(str) {
   if(!str) return str;
   return String(str).replace(/_/g, ' ').replace(/\s+/g,' ').trim();
 }
+
+// ══════════════════════════════════════════════════════════════════
+//  SISTEMA DE AUTENTICACIÓN Y ROLES
+// ══════════════════════════════════════════════════════════════════
+const SHEET_USUARIOS = 'Usuarios';
+const SHEET_ROLES = 'Roles';
+
+// Permisos por defecto si la hoja Roles aún no existe o el rol no se encuentra
+const DEFAULT_PERMS = {
+  admin: { ver_config:true, eliminar_reg:true, gestionar_usuarios:true, editar_e1_e3:true, editar_e4_e7:true, solo_consulta:false },
+  usuario_basico: { ver_config:false, eliminar_reg:false, gestionar_usuarios:false, editar_e1_e3:true, editar_e4_e7:true, solo_consulta:false }
+};
+
+async function sha256Hex(text) {
+  const enc = new TextEncoder().encode(text);
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+async function fetchRawSheet(sheetName) {
+  try {
+    const r = await fetch(`${BASE_URL}/${GS.sheetId}/values/${sheetName}!A1:Z500?key=${GS.apiKey}`);
+    if(!r.ok) return null;
+    const j = await r.json();
+    return j.values || null;
+  } catch(e) { return null; }
+}
+
+async function ensureUsuariosSheetExists() {
+  // Check if Usuarios tab exists; if not, create it with the admin seed row
+  try {
+    const meta = await fetch(`${BASE_URL}/${GS.sheetId}?fields=sheets.properties&key=${GS.apiKey}`);
+    const metaJson = await meta.json();
+    const hasUsuarios = (metaJson.sheets||[]).some(s=>s.properties?.title===SHEET_USUARIOS);
+    const hasRoles = (metaJson.sheets||[]).some(s=>s.properties?.title===SHEET_ROLES);
+    if(hasUsuarios && hasRoles) return true;
+    return false; // signal that tabs need manual creation or admin action
+  } catch(e) { return false; }
+}
+
+async function doLogin() {
+  const user = (document.getElementById('login-user')?.value||'').trim().toLowerCase();
+  const pass = document.getElementById('login-pass')?.value||'';
+  const errEl = document.getElementById('login-error');
+  const loadEl = document.getElementById('login-loading');
+  errEl.style.display='none';
+  if(!user || !pass) {
+    errEl.textContent = 'Ingrese usuario y clave.';
+    errEl.style.display='block';
+    return;
+  }
+  loadEl.style.display='block';
+  try {
+    const hash = await sha256Hex(pass);
+    const rows = await fetchRawSheet(SHEET_USUARIOS);
+    loadEl.style.display='none';
+    if(!rows || rows.length<2) {
+      errEl.textContent = 'No se pudo verificar usuarios. Contacte al administrador.';
+      errEl.style.display='block';
+      return;
+    }
+    const hdr = rows[0];
+    const iUser = hdr.indexOf('Usuario'), iHash = hdr.indexOf('Hash_Clave'),
+          iRol = hdr.indexOf('Rol'), iActivo = hdr.indexOf('Activo');
+    const match = rows.slice(1).find(r =>
+      String(r[iUser]||'').trim().toLowerCase()===user &&
+      String(r[iHash]||'').trim()===hash &&
+      String(r[iActivo]||'').trim().toUpperCase()==='SI'
+    );
+    if(!match) {
+      errEl.textContent = 'Usuario o clave incorrectos.';
+      errEl.style.display='block';
+      return;
+    }
+    const rol = String(match[iRol]||'usuario_basico').trim();
+    window._currentUser = { user, rol };
+    sessionStorage.setItem('eca_session', JSON.stringify(window._currentUser));
+    await loadPermsForRole(rol);
+    showApp();
+  } catch(e) {
+    loadEl.style.display='none';
+    errEl.textContent = 'Error de conexión. Intente nuevamente.';
+    errEl.style.display='block';
+  }
+}
+
+async function loadPermsForRole(rol) {
+  let perms = DEFAULT_PERMS[rol] || DEFAULT_PERMS.usuario_basico;
+  try {
+    const rows = await fetchRawSheet(SHEET_ROLES);
+    if(rows && rows.length>=2) {
+      const hdr = rows[0];
+      const rowForRole = rows.slice(1).find(r => String(r[hdr.indexOf('Rol')]||'').trim()===rol);
+      if(rowForRole) {
+        const boolCols = ['Ver_Config','Eliminar_Reg','Gestionar_Usuarios','Editar_E1_E3','Editar_E4_E7','Solo_Consulta'];
+        const keyMap = {Ver_Config:'ver_config',Eliminar_Reg:'eliminar_reg',Gestionar_Usuarios:'gestionar_usuarios',
+          Editar_E1_E3:'editar_e1_e3',Editar_E4_E7:'editar_e4_e7',Solo_Consulta:'solo_consulta'};
+        perms = {};
+        boolCols.forEach(col => {
+          const idx = hdr.indexOf(col);
+          perms[keyMap[col]] = idx>=0 ? String(rowForRole[idx]||'').trim().toUpperCase()==='SI' : DEFAULT_PERMS.usuario_basico[keyMap[col]];
+        });
+      }
+    }
+  } catch(e) { /* fall back to defaults */ }
+  window._currentPerms = perms;
+  applyPermsToUI();
+}
+
+function applyPermsToUI() {
+  const p = window._currentPerms || DEFAULT_PERMS.usuario_basico;
+  // Hide Configuracion nav item if no access
+  const navConfig = document.getElementById('nav-config');
+  if(navConfig) navConfig.classList.toggle('perm-hidden', !p.ver_config);
+  // Hide delete buttons if no permission
+  document.querySelectorAll('.btn-danger').forEach(btn => {
+    if(btn.textContent.includes('Eliminar')) btn.classList.toggle('perm-hidden', !p.eliminar_reg);
+  });
+  // Hide Gestionar Usuarios nav item
+  const navUsuarios = document.getElementById('nav-usuarios');
+  if(navUsuarios) navUsuarios.classList.toggle('perm-hidden', !p.gestionar_usuarios);
+  // If solo_consulta, disable Guardar button
+  if(p.solo_consulta) {
+    const saveBtn = document.querySelector('.sb-save');
+    if(saveBtn) { saveBtn.disabled=true; saveBtn.title='Su rol es de solo consulta'; saveBtn.style.opacity='.4'; }
+  }
+  // Show current user badge in topbar
+  let badge = document.getElementById('user-badge');
+  if(!badge) {
+    badge = document.createElement('div');
+    badge.id = 'user-badge';
+    badge.style.cssText = 'margin-left:auto;display:flex;align-items:center;gap:8px;font-size:10px;color:rgba(255,255,255,.6)';
+    const top = document.querySelector('.top');
+    if(top) top.appendChild(badge);
+  }
+  const u = window._currentUser || {};
+  badge.innerHTML = `<span style="font-family:var(--mono)">${u.user||''}</span>
+    <span style="background:rgba(255,255,255,.1);padding:1px 7px;border-radius:99px;font-size:8.5px">${(u.rol||'').replace('_',' ')}</span>
+    <button onclick="doLogout()" style="background:transparent;border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.6);
+      border-radius:4px;padding:2px 8px;font-size:9px;cursor:pointer">Salir</button>`;
+}
+
+function showApp() {
+  document.getElementById('login-screen').classList.add('hidden');
+  document.querySelector('.app').classList.add('app-visible');
+  // Resume app initialization now that the user is authenticated
+  loadImportadores();
+  loadPaises();
+  loadCubiculos();
+  loadProveedores();
+  initAnRows();
+  initTimeline();
+  renderEspTable();
+  renderVerifTable();
+  goStage('panel');
+  setTimeout(updateSidebarDots, 200);
+  initDirtyTracking();
+  const modalEl = $('modal');
+  if(modalEl) modalEl.addEventListener('click', e=>{ if(e.target===modalEl) closeModal(); });
+  const jm=document.querySelectorAll('.modal-overlay')[1];
+  if(jm) jm.addEventListener('click', e=>{ if(e.target===jm) cerrarJsonModal(); });
+}
+
+function doLogout() {
+  sessionStorage.removeItem('eca_session');
+  window._currentUser = null;
+  window._currentPerms = null;
+  location.reload();
+}
+
+async function checkExistingSession() {
+  const saved = sessionStorage.getItem('eca_session');
+  if(!saved) return false;
+  try {
+    const sess = JSON.parse(saved);
+    window._currentUser = sess;
+    await loadPermsForRole(sess.rol);
+    showApp();
+    return true;
+  } catch(e) { return false; }
+}
+
+
+// ── GESTIONAR USUARIOS (panel admin) ──
+async function recargarUsuarios() {
+  const tbody = document.getElementById('usuarios-tbody');
+  if(!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--g400)">Cargando...</td></tr>';
+  const rows = await fetchRawSheet(SHEET_USUARIOS);
+  if(!rows || rows.length<2) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--g400)">Sin usuarios o pestaña no encontrada.</td></tr>';
+    return;
+  }
+  const hdr = rows[0];
+  const iUser=hdr.indexOf('Usuario'), iRol=hdr.indexOf('Rol'), iActivo=hdr.indexOf('Activo');
+  tbody.innerHTML = '';
+  rows.slice(1).forEach((r, idx) => {
+    if(!r[iUser]) return;
+    const tr = document.createElement('tr');
+    const tdU = document.createElement('td'); tdU.style.fontFamily='var(--mono)'; tdU.textContent=r[iUser]||'';
+    const tdR = document.createElement('td'); tdR.textContent=r[iRol]||'';
+    const tdA = document.createElement('td');
+    const activo = String(r[iActivo]||'').trim().toUpperCase()==='SI';
+    const badge = document.createElement('span');
+    badge.className = 'badge ' + (activo?'badge-ok':'badge-err');
+    badge.textContent = activo?'Activo':'Inactivo';
+    tdA.appendChild(badge);
+    const tdAcc = document.createElement('td');
+    const btnToggle = document.createElement('button');
+    btnToggle.className = 'btn btn-gh btn-sm';
+    btnToggle.textContent = activo ? 'Desactivar' : 'Activar';
+    btnToggle.onclick = () => toggleUsuarioActivo(idx+2, !activo);
+    tdAcc.appendChild(btnToggle);
+    tr.append(tdU, tdR, tdA, tdAcc);
+    tbody.appendChild(tr);
+  });
+}
+
+async function crearUsuario() {
+  const user = (document.getElementById('nu-user')?.value||'').trim().toLowerCase();
+  const pass = document.getElementById('nu-pass')?.value||'';
+  const rol = document.getElementById('nu-rol')?.value||'usuario_basico';
+  const resultEl = document.getElementById('usuarios-result');
+  if(!user || !pass) { resultEl.innerHTML='<span style="color:var(--err)">Complete usuario y clave.</span>'; return; }
+  if(pass.length<6) { resultEl.innerHTML='<span style="color:var(--err)">La clave debe tener mínimo 6 caracteres.</span>'; return; }
+  resultEl.innerHTML = '<span style="color:var(--g400)">Creando...</span>';
+  try {
+    await ensureToken();
+    const hash = await sha256Hex(pass);
+    await fetch(`${BASE_URL}/${GS.sheetId}/values/${SHEET_USUARIOS}!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+      {method:'POST',
+       headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+       body:JSON.stringify({values:[[user, hash, rol, 'SI']]})});
+    resultEl.innerHTML = `<span style="color:var(--ok)">Usuario "${user}" creado correctamente.</span>`;
+    document.getElementById('nu-user').value='';
+    document.getElementById('nu-pass').value='';
+    recargarUsuarios();
+  } catch(e) {
+    resultEl.innerHTML = `<span style="color:var(--err)">Error: ${e.message}</span>`;
+  }
+}
+
+async function toggleUsuarioActivo(rowIndex1, newActivo) {
+  try {
+    await ensureToken();
+    const colLetter = await getColumnLetter(SHEET_USUARIOS, 'Activo');
+    await fetch(`${BASE_URL}/${GS.sheetId}/values/${SHEET_USUARIOS}!${colLetter}${rowIndex1}?valueInputOption=USER_ENTERED`,
+      {method:'PUT',
+       headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+       body:JSON.stringify({values:[[newActivo?'SI':'NO']]})});
+    recargarUsuarios();
+  } catch(e) {
+    setS('Error actualizando usuario: '+e.message, 'err');
+  }
+}
+
+async function getColumnLetter(sheetName, colName) {
+  const rows = await fetchRawSheet(sheetName);
+  const hdr = rows?.[0]||[];
+  const idx = hdr.indexOf(colName);
+  if(idx<0) return 'A';
+  let n = idx, letter = '';
+  do { letter = String.fromCharCode(65+(n%26))+letter; n=Math.floor(n/26)-1; } while(n>=0);
+  return letter;
+}
+
 function toTitleCase(str) {
   if(!str) return str;
   var keep={'spa':'SpA','s.a.':'S.A.','ltda.':'Ltda.','ltda':'Ltda.',
@@ -1892,22 +2235,11 @@ const selEl = (id, val) => {
 const esc = v => { const s=String(v||''); return s.includes('<')||s.includes('>')?s.replace(/</g,'&lt;').replace(/>/g,'&gt;'):s; };
 
 // ── INIT ──
-function init() {
+async function init() {
   loadSavedConfig();
-  loadImportadores();
-  loadPaises();
-  loadCubiculos();
-  loadProveedores();
-  initAnRows();
-  initTimeline();
-  renderEspTable();
-  renderVerifTable();
-  goStage('panel');
-  setTimeout(updateSidebarDots, 200);
-  initDirtyTracking();
-  $('modal').addEventListener('click', e=>{ if(e.target===$('modal')) closeModal(); });
-  const jm=document.querySelectorAll('.modal-overlay')[1];
-  if(jm) jm.addEventListener('click', e=>{ if(e.target===jm) cerrarJsonModal(); });
+  // Try existing session first — if found, proceed straight to app (showApp resumes init)
+  await checkExistingSession();
+  // If no session was found, login screen stays visible and showApp() is triggered by doLogin()
 }
 
 // ── NAVIGATION ──
@@ -2259,6 +2591,7 @@ function goStage(n) {
   if(n===3) setTimeout(renderEstablecimientoTable, 80);
   if(n==='panel') { n='hist'; setTimeout(()=>{ showPanelTab(1); }, 50); }
   if(n==='alerts') { setTimeout(()=>{ buildAlerts(); renderAlertsStage(); }, 80); }
+  if(n==='usuarios') { setTimeout(recargarUsuarios, 80); }
   if(n===6) setTimeout(()=>{ renderCierreTabs(); }, 50);
   const stEl=$('stage-'+n); if(stEl) stEl.classList.add('active');
   const navEl=$('nav-'+n); if(navEl) navEl.classList.add('active');
@@ -2301,28 +2634,28 @@ function showTab(stage, idx) {
 // v2 default Sheet ID (SAG ECA v2)
 const V2_SHEET_ID = '1ka9OfuV8lt51mamnwZPcc1Eq_1HwVUa4UR7355LYthg';
 
+// Fixed application credentials — not editable by end users.
+// These authorize the APP to talk to Sheets/Drive; individual login is handled separately.
+const FIXED_API_KEY  = 'AIzaSyCq3BMsIKRiKDm_7O5_Hmg53GVXgKM-2p8';
+const FIXED_OAUTH_ID = '328217173040-b0jhb0o6e1jpdfqf7jmm8grh5fdh5cst.apps.googleusercontent.com';
+
 function loadSavedConfig() {
   GS.sheetId       = localStorage.getItem('gs_v2_sheet_id')  || V2_SHEET_ID;
-  GS.apiKey        = localStorage.getItem('gs_api_key')       || '';
-  GS.oauthClientId = localStorage.getItem('gs_oauth_id')      || '';
+  GS.apiKey        = FIXED_API_KEY;
+  GS.oauthClientId = FIXED_OAUTH_ID;
   GS.anthropicKey  = localStorage.getItem('anthropic_key')    || '';
   if(GS.sheetId)       sv('cfg-sheet-id', GS.sheetId);
-  // Show v2 sheet id by default if not overridden
   if(!localStorage.getItem('gs_v2_sheet_id')) sv('cfg-sheet-id', V2_SHEET_ID);
-  if(GS.apiKey)        sv('cfg-api-key', GS.apiKey);
-  if(GS.oauthClientId) sv('cfg-oauth-id', GS.oauthClientId);
   if(GS.anthropicKey)  sv('cfg-anthropic-key', GS.anthropicKey);
   if(GS.sheetId && GS.apiKey) setTimeout(async ()=>{ await recargar(); }, 600);
 }
 
 function guardarConfig() {
   GS.sheetId       = v('cfg-sheet-id');
-  GS.apiKey        = v('cfg-api-key');
-  GS.oauthClientId = v('cfg-oauth-id');
+  GS.apiKey        = FIXED_API_KEY;
+  GS.oauthClientId = FIXED_OAUTH_ID;
   GS.anthropicKey  = v('cfg-anthropic-key');
   if(GS.sheetId)       localStorage.setItem('gs_v2_sheet_id', GS.sheetId);
-  if(GS.apiKey)        localStorage.setItem('gs_api_key', GS.apiKey);
-  if(GS.oauthClientId) localStorage.setItem('gs_oauth_id', GS.oauthClientId);
   if(GS.anthropicKey)  localStorage.setItem('anthropic_key', GS.anthropicKey);
   $('cfg-result').innerHTML='<span style="color:var(--ok)">Configuracion guardada.</span>';
 }
