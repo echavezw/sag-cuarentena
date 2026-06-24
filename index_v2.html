@@ -1921,13 +1921,16 @@ async function escanearDuplicadosResolucion() {
       groups[sig].push(m);
     });
 
+    // Count non-empty cells across the ENTIRE row — used to pick the most complete duplicate
+    const _countFilled = raw => raw.filter(v => String(v||'').trim() !== '').length;
+
     const toKeep = [];
     const toDeleteRows = [];
     Object.values(groups).forEach(group => {
-      // Prefer the row with most data filled (folio/resultado), else the last one (most recent)
+      // Prefer the row with the most filled cells overall; tie-break by most recent row
       const sorted = [...group].sort((a,b) => {
-        const scoreA = (a.folio?1:0) + (a.resultado?1:0);
-        const scoreB = (b.folio?1:0) + (b.resultado?1:0);
+        const scoreA = _countFilled(a.raw);
+        const scoreB = _countFilled(b.raw);
         if(scoreA !== scoreB) return scoreB - scoreA;
         return b.rowIndex - a.rowIndex; // most recent row first
       });
