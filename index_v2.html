@@ -2296,13 +2296,21 @@ const addDays = (d,n) => { if(!d) return ''; const dt=new Date(d); dt.setDate(dt
 const fmtD = v => {
   if(!v) return '';
   if(typeof v === 'object' && v.toISOString) return v.toISOString().split('T')[0];
-  const s = String(v);
+  const s = String(v).trim();
   if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0,10);
   // dd-mm-yyyy or dd/mm/yyyy
   const m = s.match(/(\d{1,2})[-\/\.](\d{1,2})[-\/\.](\d{2,4})/);
   if(m) { const y=m[3].length===2?'20'+m[3]:m[3]; return `${y}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`; }
   // Serial date (Google Sheets)
   if(/^\d{5}$/.test(s)) { const ms=(parseInt(s)-25569)*86400*1000; return new Date(ms).toISOString().split('T')[0]; }
+  // JS Date.toString() format, e.g. "Sat Aug 15 2026 00:00:00 GMT-0400 (...)" — parse via Date constructor
+  if(/^[A-Za-z]{3}\s[A-Za-z]{3}\s\d{1,2}\s\d{4}/.test(s)) {
+    const d = new Date(s);
+    if(!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+  }
+  // Last resort: try generic Date parsing before giving up
+  const generic = new Date(s);
+  if(!isNaN(generic.getTime()) && s.length > 10) return generic.toISOString().split('T')[0];
   return s.substring(0,10);
 };
 // Format date for display and saving: dd-mm-yyyy
