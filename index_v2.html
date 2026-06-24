@@ -6848,12 +6848,20 @@ async function doSave(rows,isUpdate,res,nsol) {
     const iSol  = hdr.indexOf('Solicitud');
     const iFRes = hdr.indexOf('Fecha Res.');
     // Year from the rows we are about to write (rows[0] has the current record's Fecha Res.)
-    const saveYear = rows[0]?.['Fecha Res.']?.substring(0,4) || rows[0]?.['Fecha Solicitud']?.substring(0,4) || '';
+    // Fecha Res. is stored as DD-MM-YYYY — extract the YEAR (last 4 chars), not substring(0,4)
+    const _extractYear = dateStr => {
+      const s = String(dateStr||'').trim();
+      const m = s.match(/(\d{4})\s*$/); // last 4 digits = year in DD-MM-YYYY
+      if(m) return m[1];
+      const m2 = s.match(/^(\d{4})-/); // fallback: YYYY-MM-DD format
+      return m2 ? m2[1] : '';
+    };
+    const saveYear = _extractYear(rows[0]?.['Fecha Res.']) || _extractYear(rows[0]?.['Fecha Solicitud']) || '';
     allRows.slice(1).forEach((row,i)=>{
       if(res) {
         const rowRes  = iRes>=0  ? String(row[iRes]||'').trim()  : String(row[2]||'').trim();
         const rowFRes = iFRes>=0 ? String(row[iFRes]||'').trim() : '';
-        const rowYear = rowFRes ? rowFRes.substring(0,4) : '';
+        const rowYear = _extractYear(rowFRes);
         // Match res number AND year (when year available) to avoid deleting same-number different-year
         const resMatch = rowRes===res.trim() && (!saveYear || !rowYear || rowYear===saveYear);
         if(resMatch) toDelete.push(i+1);
