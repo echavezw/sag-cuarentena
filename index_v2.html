@@ -1666,6 +1666,18 @@ input.field-blocked, select.field-blocked {
       <input type="hidden" id="cfg-api-key">
       <input type="hidden" id="cfg-oauth-id">
 
+      <!-- ── LIMPIEZA DE FECHAS CORRUPTAS (Date.toString() en el Sheet) ── -->
+      <div style="margin-top:24px;border-top:1px solid var(--g100);padding-top:18px">
+        <div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:4px">Limpieza de Fechas Corruptas</div>
+        <div style="font-size:10.5px;color:var(--g400);margin-bottom:10px">
+          Detecta y corrige celdas de fecha guardadas en formato texto JavaScript
+          (ej. "Sat Aug 15 2020 00:00:45 GMT-0400...") convirtiéndolas a DD-MM-YYYY,
+          en cualquier columna de fecha de la pestaña Detalle. No borra información, solo reformatea.
+        </div>
+        <button class="btn btn-nv btn-sm" onclick="escanearFechasCorruptas()">Escanear Fechas Corruptas</button>
+        <div id="fechas-scan-result" style="margin-top:10px;font-size:11.5px"></div>
+      </div>
+
       <!-- ── GENERADOR DE HASH PARA RECUPERACIÓN DE CLAVES ── -->
       <div style="margin-top:24px;border-top:1px solid var(--g100);padding-top:18px">
         <div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:4px">Generador de Hash de Clave</div>
@@ -1829,6 +1841,92 @@ const DEFAULT_PERMS = {
     ver_config:false, eliminar_reg:false, gestionar_usuarios:false, solo_consulta:false
   }
 };
+
+// ── LIMPIEZA DE FECHAS CORRUPTAS ──
+const DATE_COLS_TO_CHECK = [
+  'Fecha Solicitud','Fecha Res.','Fecha de Ingreso','Fecha Injertación',
+  'Fecha aprox. Levant.','Fecha Estimada Muestreo','Fecha estimada de CCAA',
+  'Fecha Real de CCAA','Fecha muestreo/Indexaje','Fecha de envío',
+  'Fecha Informe Fitosanitario','Fecha Res.4','Entregada',
+  'Fecha Ing. Solicitada','Fecha Ing. Asignada','Vigencia Desde',
+  'Fecha Recepcion','Fec. Mod.','Vigencia Final Desde','Vigencia Final Hasta'
+];
+
+function _isCorruptDateString(s) {
+  return /^[A-Za-z]{3}\s[A-Za-z]{3}\s\d{1,2}\s\d{4}/.test(String(s||'').trim());
+}
+
+function _parseCorruptDate(s) {
+  const d = new Date(s);
+  if(isNaN(d.getTime())) return null;
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const yyyy = d.getFullYear();
+  return `${dd}-${mm}-${yyyy}`;
+}
+
+async function escanearFechasCorruptas() {
+  const resultEl = document.getElementById('fechas-scan-result');
+  resultEl.innerHTML = '<span style="color:var(--g400)">Escaneando pestaña Detalle...</span>';
+  try {
+    const rows = await fetchAllRows();
+    if(!rows.length) { resultEl.innerHTML = '<span style="color:var(--err)">Sin datos.</span>'; return; }
+    const hdr = rows[0];
+    const fixes = []; // {row, col, oldVal, newVal}
+    DATE_COLS_TO_CHECK.forEach(colName => {
+      const colIdx = hdr.indexOf(colName);
+      if(colIdx < 0) return;
+      rows.slice(1).forEach((row, i) => {
+        const val = row[colIdx];
+        if(_isCorruptDateString(val)) {
+          const fixed = _parseCorruptDate(val);
+          if(fixed) fixes.push({ rowIndex: i+2, colIndex: colIdx, colName, oldVal: val, newVal: fixed });
+        }
+      });
+    });
+    if(!fixes.length) {
+      resultEl.innerHTML = '<span style="color:var(--ok)">✓ No se encontraron fechas corruptas.</span>';
+      return;
+    }
+    window._fechasFixesPendientes = fixes;
+    const preview = fixes.slice(0,5).map(f=>`Fila ${f.rowIndex}, ${f.colName}: "${f.oldVal.slice(0,30)}..." → ${f.newVal}`).join('<br>');
+    resultEl.innerHTML = `<div style="color:var(--warn);margin-bottom:8px">⚠ ${fixes.length} celda(s) corruptas encontradas:</div>
+      <div style="font-size:10px;color:var(--g400);margin-bottom:10px;font-family:var(--mono)">${preview}${fixes.length>5?`<br>... y ${fixes.length-5} más`:''}</div>
+      <button class="btn btn-danger btn-sm" onclick="corregirFechasCorruptas()">Corregir ${fixes.length} celda(s) ahora</button>`;
+  } catch(e) {
+    resultEl.innerHTML = `<span style="color:var(--err)">Error: ${e.message}</span>`;
+  }
+}
+
+function _colLetter(idx) {
+  let n = idx, letter = '';
+  do { letter = String.fromCharCode(65+(n%26))+letter; n=Math.floor(n/26)-1; } while(n>=0);
+  return letter;
+}
+
+async function corregirFechasCorruptas() {
+  const fixes = window._fechasFixesPendientes;
+  const resultEl = document.getElementById('fechas-scan-result');
+  if(!fixes || !fixes.length) return;
+  resultEl.innerHTML = '<span style="color:var(--g400)">Corrigiendo...</span>';
+  try {
+    await ensureToken();
+    const data = fixes.map(f => ({
+      range: `${SHEET_DETALLE}!${_colLetter(f.colIndex)}${f.rowIndex}`,
+      values: [[f.newVal]]
+    }));
+    await fetch(`${BASE_URL}/${GS.sheetId}/values:batchUpdate`,
+      {method:'POST',
+       headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+       body:JSON.stringify({valueInputOption:'USER_ENTERED', data})});
+    resultEl.innerHTML = `<span style="color:var(--ok)">✓ ${fixes.length} celda(s) corregidas correctamente.</span>`;
+    window._fechasFixesPendientes = null;
+    recargar();
+  } catch(e) {
+    if(/401/.test(e.message)) { accessToken=null; resultEl.innerHTML = '<span style="color:var(--err)">Token expirado, intente nuevamente.</span>'; }
+    else resultEl.innerHTML = `<span style="color:var(--err)">Error: ${e.message}</span>`;
+  }
+}
 
 function toggleHashVis() {
   const inp = document.getElementById('hashgen-pass');
