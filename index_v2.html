@@ -1666,6 +1666,22 @@ input.field-blocked, select.field-blocked {
       <input type="hidden" id="cfg-api-key">
       <input type="hidden" id="cfg-oauth-id">
 
+      <!-- ── LIMPIEZA DE FILAS DUPLICADAS POR RESOLUCIÓN ── -->
+      <div style="margin-top:24px;border-top:1px solid var(--g100);padding-top:18px">
+        <div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:4px">Limpieza de Filas Duplicadas por Resolución</div>
+        <div style="font-size:10.5px;color:var(--g400);margin-bottom:10px">
+          Para una Resolución específica, detecta filas con combinación idéntica de
+          Especie + Patógeno + Análisis y conserva solo UNA copia de cada una (la más reciente),
+          eliminando el resto.
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;align-items:end;margin-bottom:10px">
+          <div class="ff c1"><label class="lbl">N° Resolución</label><input id="dup-res" placeholder="ej. 942" style="font-family:var(--mono)"></div>
+          <div class="ff c1"><label class="lbl">Año</label><input id="dup-anio" placeholder="ej. 2026" style="font-family:var(--mono)"></div>
+          <div class="ff c2"><button class="btn btn-nv btn-sm" onclick="escanearDuplicadosResolucion()" style="width:100%;justify-content:center">Escanear</button></div>
+        </div>
+        <div id="dup-scan-result" style="font-size:11.5px"></div>
+      </div>
+
       <!-- ── LIMPIEZA DE FECHAS CORRUPTAS (Date.toString() en el Sheet) ── -->
       <div style="margin-top:24px;border-top:1px solid var(--g100);padding-top:18px">
         <div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:4px">Limpieza de Fechas Corruptas</div>
@@ -1841,6 +1857,101 @@ const DEFAULT_PERMS = {
     ver_config:false, eliminar_reg:false, gestionar_usuarios:false, solo_consulta:false
   }
 };
+
+// ── LIMPIEZA DE FILAS DUPLICADAS POR RESOLUCIÓN ──
+async function escanearDuplicadosResolucion() {
+  const res = (document.getElementById('dup-res')?.value||'').trim();
+  const anio = (document.getElementById('dup-anio')?.value||'').trim();
+  const resultEl = document.getElementById('dup-scan-result');
+  if(!res) { resultEl.innerHTML = '<span style="color:var(--err)">Ingrese N° Resolución.</span>'; return; }
+  resultEl.innerHTML = '<span style="color:var(--g400)">Escaneando...</span>';
+  try {
+    const rows = await fetchAllRows();
+    if(!rows.length) { resultEl.innerHTML = '<span style="color:var(--err)">Sin datos.</span>'; return; }
+    const hdr = rows[0];
+    const iRes = hdr.indexOf('Res.'), iFRes = hdr.indexOf('Fecha Res.');
+    const iEsp = hdr.indexOf('Especie'), iPat = hdr.indexOf('Patógenos'), iAn = hdr.indexOf('Análisis');
+    const iFolio = hdr.indexOf('Folio'), iResultado = hdr.indexOf('Resultado');
+
+    const matching = [];
+    rows.slice(1).forEach((row, i) => {
+      const rRes = String(row[iRes]||'').trim();
+      if(rRes !== res) return;
+      const rYear = (String(row[iFRes]||'').match(/(\d{4})\s*$/)||[])[1] || '';
+      if(anio && rYear !== anio) return;
+      matching.push({ rowIndex: i+2, especie: row[iEsp]||'', patogeno: row[iPat]||'', analisis: row[iAn]||'',
+        folio: row[iFolio]||'', resultado: row[iResultado]||'', raw: row });
+    });
+
+    if(!matching.length) { resultEl.innerHTML = '<span style="color:var(--ok)">No se encontraron filas para esta resolución.</span>'; return; }
+
+    // Group by signature: Especie||Patogeno||Analisis
+    const groups = {};
+    matching.forEach(m => {
+      const sig = `${m.especie}||${m.patogeno}||${m.analisis}`;
+      if(!groups[sig]) groups[sig] = [];
+      groups[sig].push(m);
+    });
+
+    const toKeep = [];
+    const toDeleteRows = [];
+    Object.values(groups).forEach(group => {
+      // Prefer the row with most data filled (folio/resultado), else the last one (most recent)
+      const sorted = [...group].sort((a,b) => {
+        const scoreA = (a.folio?1:0) + (a.resultado?1:0);
+        const scoreB = (b.folio?1:0) + (b.resultado?1:0);
+        if(scoreA !== scoreB) return scoreB - scoreA;
+        return b.rowIndex - a.rowIndex; // most recent row first
+      });
+      toKeep.push(sorted[0]);
+      sorted.slice(1).forEach(m => toDeleteRows.push(m.rowIndex));
+    });
+
+    window._dupCleanupData = { res, anio, totalFound: matching.length, toKeepCount: toKeep.length, toDeleteRows };
+
+    resultEl.innerHTML = `
+      <div style="margin-bottom:8px">
+        <span style="color:var(--warn);font-weight:600">${matching.length} filas encontradas</span> para Res. ${res}${anio?'/'+anio:''}.<br>
+        <span style="color:var(--ok)">${toKeep.length} combinaciones únicas</span> (especie+patógeno+análisis) se conservarán.<br>
+        <span style="color:var(--err);font-weight:600">${toDeleteRows.length} filas duplicadas</span> se eliminarán.
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="ejecutarLimpiezaDuplicados()">Eliminar ${toDeleteRows.length} fila(s) duplicada(s)</button>
+    `;
+  } catch(e) {
+    resultEl.innerHTML = `<span style="color:var(--err)">Error: ${e.message}</span>`;
+  }
+}
+
+async function ejecutarLimpiezaDuplicados() {
+  const data = window._dupCleanupData;
+  const resultEl = document.getElementById('dup-scan-result');
+  if(!data || !data.toDeleteRows.length) return;
+  resultEl.innerHTML = '<span style="color:var(--g400)">Eliminando filas duplicadas...</span>';
+  try {
+    await ensureToken();
+    const sheetMeta = await fetch(`${BASE_URL}/${GS.sheetId}?fields=sheets.properties&key=${GS.apiKey}`);
+    const sheetMetaJson = await sheetMeta.json();
+    const detailSheet = (sheetMetaJson.sheets||[]).find(s=>s.properties?.title===SHEET_DETALLE);
+    const tabId = detailSheet?.properties?.sheetId ?? 0;
+
+    // Delete from bottom to top so row indices don't shift
+    const sortedDesc = [...data.toDeleteRows].sort((a,b)=>b-a);
+    const deleteRequests = sortedDesc.map(rowIdx => ({
+      deleteDimension: { range: { sheetId: tabId, dimension: 'ROWS', startIndex: rowIdx-1, endIndex: rowIdx } }
+    }));
+    await fetch(`${BASE_URL}/${GS.sheetId}:batchUpdate`,
+      {method:'POST',
+       headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+       body:JSON.stringify({requests:deleteRequests})});
+
+    resultEl.innerHTML = `<span style="color:var(--ok)">✓ ${data.toDeleteRows.length} fila(s) duplicada(s) eliminadas. Quedan ${data.toKeepCount} combinaciones únicas para Res. ${data.res}.</span>`;
+    window._dupCleanupData = null;
+    recargar();
+  } catch(e) {
+    if(/401/.test(e.message)) { accessToken=null; resultEl.innerHTML = '<span style="color:var(--err)">Token expirado, intente nuevamente.</span>'; }
+    else resultEl.innerHTML = `<span style="color:var(--err)">Error: ${e.message}</span>`;
+  }
+}
 
 // ── LIMPIEZA DE FECHAS CORRUPTAS ──
 const DATE_COLS_TO_CHECK = [
