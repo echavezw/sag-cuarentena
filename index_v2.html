@@ -1665,6 +1665,28 @@ input.field-blocked, select.field-blocked {
       <!-- Hidden legacy fields kept for guardarConfig() compatibility -->
       <input type="hidden" id="cfg-api-key">
       <input type="hidden" id="cfg-oauth-id">
+
+      <!-- ── GENERADOR DE HASH PARA RECUPERACIÓN DE CLAVES ── -->
+      <div style="margin-top:24px;border-top:1px solid var(--g100);padding-top:18px">
+        <div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:4px">Generador de Hash de Clave</div>
+        <div style="font-size:10.5px;color:var(--g400);margin-bottom:10px">
+          Use esto para crear o recuperar la clave de cualquier usuario. Escriba la clave nueva,
+          copie el hash generado, y péguelo en la columna <strong>Hash_Clave</strong> de la pestaña
+          <strong>Usuarios</strong> del Google Sheet, en la fila del usuario correspondiente.
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;align-items:end">
+          <div class="ff c3"><label class="lbl">Nueva clave</label>
+            <input id="hashgen-pass" type="password" placeholder="Mínimo 6 caracteres" oninput="genHashLive()"></div>
+          <div class="ff c1"><button class="btn btn-gh btn-sm" onclick="toggleHashVis()" id="hashgen-toggle" style="width:100%;justify-content:center">👁 Ver</button></div>
+          <div class="ff c2"><button class="btn btn-nv btn-sm" onclick="copyHashResult()" style="width:100%;justify-content:center">Copiar Hash</button></div>
+        </div>
+        <div style="margin-top:10px">
+          <label class="lbl">Hash SHA-256 resultante</label>
+          <input id="hashgen-result" readonly style="font-family:var(--mono);font-size:11px;width:100%;
+            background:var(--g50);color:var(--g600);padding:8px 10px;border-radius:6px;border:1px solid var(--g200)">
+        </div>
+        <div id="hashgen-copied" style="display:none;font-size:10.5px;color:var(--ok);margin-top:4px">✓ Copiado al portapapeles</div>
+      </div>
       <div style="display:flex;gap:8px;margin-top:12px">
         <button class="btn btn-nv btn-sm" onclick="guardarConfig()">Guardar configuracion</button>
         <button class="btn btn-gh btn-sm" onclick="testConexion()">Probar conexion</button>
@@ -1807,6 +1829,34 @@ const DEFAULT_PERMS = {
     ver_config:false, eliminar_reg:false, gestionar_usuarios:false, solo_consulta:false
   }
 };
+
+function toggleHashVis() {
+  const inp = document.getElementById('hashgen-pass');
+  const btn = document.getElementById('hashgen-toggle');
+  if(inp.type==='password'){ inp.type='text'; btn.textContent='🙈 Ocultar'; }
+  else { inp.type='password'; btn.textContent='👁 Ver'; }
+}
+
+async function genHashLive() {
+  const pass = document.getElementById('hashgen-pass')?.value||'';
+  const resultEl = document.getElementById('hashgen-result');
+  if(!resultEl) return;
+  if(!pass) { resultEl.value=''; return; }
+  resultEl.value = await sha256Hex(pass);
+  document.getElementById('hashgen-copied').style.display='none';
+}
+
+function copyHashResult() {
+  const resultEl = document.getElementById('hashgen-result');
+  if(!resultEl || !resultEl.value) { setS('Ingrese una clave primero.','warn'); return; }
+  navigator.clipboard.writeText(resultEl.value).then(()=>{
+    const msg = document.getElementById('hashgen-copied');
+    if(msg){ msg.style.display='block'; setTimeout(()=>msg.style.display='none', 2500); }
+  }).catch(()=>{
+    resultEl.select();
+    document.execCommand('copy');
+  });
+}
 
 async function sha256Hex(text) {
   const enc = new TextEncoder().encode(text);
