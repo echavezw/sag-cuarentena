@@ -4858,30 +4858,27 @@ function autoCargarAnalisis() {
   ];
 
   // ── All other analysis types: load from PLAGAS_LOOKUP filtered by zona ──
+  // First pass: compute the plaga list for EACH unique species
+  const plagasPorEspecie = {}; // espNombre -> [{plaga, tipo, via, esExtra}]
   uniqueEsp.forEach(e => {
     const espNombre  = e.especie || '';
-    const tipoEsp    = normStr(e.tipo || tipoMat);
-    const sinRaizEsp = !tipoEsp.includes('raiz') && !tipoEsp.includes('a raiz');
     const genus      = espNombre.split(' ')[0] + ' spp.';
 
-    // Plagas de la zona del registro
     const plagasZona = PLAGAS_LOOKUP[espNombre]?.[zonaKey]
                     || PLAGAS_LOOKUP[genus]?.[zonaKey]
                     || PLAGAS_LOOKUP[espNombre]?.['CE']
                     || PLAGAS_LOOKUP[genus]?.['CE']
                     || [];
 
-    // Plagas obligatorias: buscar en TODAS las zonas si no están ya en plagasZona
     const todasZonas = [
       ...(Object.values(PLAGAS_LOOKUP[espNombre] || {})).flat(),
       ...(Object.values(PLAGAS_LOOKUP[genus]     || {})).flat(),
     ];
     const plagasObligatorias = todasZonas.filter(p => {
       const enZona = plagasZona.some(z => z.plaga === p.plaga);
-      if(enZona) return false; // ya estará en plagasZona, no duplicar
+      if(enZona) return false;
       return PLAGAS_SIEMPRE.some(s => p.plaga.toLowerCase().includes(s.toLowerCase()));
     });
-    // Deduplicate obligatorias by name
     const seenObl = new Set();
     const plagasOblDedup = plagasObligatorias.filter(p => {
       if(seenObl.has(p.plaga)) return false;
@@ -4889,13 +4886,63 @@ function autoCargarAnalisis() {
       return true;
     });
 
-    const plagas = [...plagasZona, ...plagasOblDedup.map(p => ({...p, esExtra: true}))];
+    const plagas = [...plagasZona, ...plagasOblDedup.map(p => ({...p, esExtra: true}))]
+      .filter(p => tipoKey(p.tipo||'') !== 'E'); // entomologico handled separately
+
+    plagasPorEspecie[espNombre] = plagas;
+  });
+
+  // Second pass: detect groups of species (same genus) that share the EXACT SAME set of plagas
+  // If 2+ species of the same genus have identical plaga sets, collapse them into "Genero spp."
+  const especiesPorGenero = {}; // genus -> [espNombre,...]
+  Object.keys(plagasPorEspecie).forEach(espNombre => {
+    const genus = espNombre.split(' ')[0] + ' spp.';
+    if(!especiesPorGenero[genus]) especiesPorGenero[genus] = [];
+    especiesPorGenero[genus].push(espNombre);
+  });
+
+  const setKey = plagas => [...plagas.map(p=>p.plaga)].sort().join('|');
+  const especiesYaAgrupadas = new Set(); // espNombre that got absorbed into a "spp." group
+  const filasAEmitir = []; // [{especieLabel, plagas}]
+
+  Object.entries(especiesPorGenero).forEach(([genus, especiesDelGenero]) => {
+    if(especiesDelGenero.length < 2) return; // need 2+ species to consider grouping
+    // Group species within this genus by identical plaga-set signature
+    const bySignature = {};
+    especiesDelGenero.forEach(esp => {
+      const sig = setKey(plagasPorEspecie[esp]);
+      if(!bySignature[sig]) bySignature[sig] = [];
+      bySignature[sig].push(esp);
+    });
+    Object.entries(bySignature).forEach(([sig, especiesConMismoReq]) => {
+      if(especiesConMismoReq.length >= 2) {
+        // Collapse into "Genero spp." — emit once
+        filasAEmitir.push({
+          especieLabel: genus,
+          plagas: plagasPorEspecie[especiesConMismoReq[0]]
+        });
+        especiesConMismoReq.forEach(esp => especiesYaAgrupadas.add(esp));
+      }
+    });
+  });
+
+  // Remaining species (not grouped) — emit individually
+  Object.keys(plagasPorEspecie).forEach(espNombre => {
+    if(especiesYaAgrupadas.has(espNombre)) return;
+    filasAEmitir.push({ especieLabel: espNombre, plagas: plagasPorEspecie[espNombre] });
+  });
+
+  // Third pass: emit anRows from filasAEmitir (already grouped/deduped)
+  filasAEmitir.forEach(({especieLabel, plagas}) => {
+    const tipoEspSrc = uniqueEsp.find(e => e.especie===especieLabel);
+    const tipoEsp    = normStr((tipoEspSrc && tipoEspSrc.tipo) || tipoMat);
+    const sinRaizEsp = !tipoEsp.includes('raiz') && !tipoEsp.includes('a raiz');
 
     plagas.forEach(p => {
       const k = tipoKey(p.tipo || '');
       if(k === 'E') return;
 
-      const plagaKey = espNombre + '||' + (p.plaga||'');
+      const plagaKey = especieLabel + '||' + (p.plaga||'');
       if(plagasVistas.has(plagaKey)) return;
       plagasVistas.add(plagaKey);
 
@@ -4910,7 +4957,7 @@ function autoCargarAnalisis() {
       }
 
       anRows[k].push({
-        especie:   espNombre,
+        especie:   especieLabel,
         patogeno:  p.plaga || '',
         via:       viaPlaga,
         esRaiz:    esRaiz && sinRaizEsp,
