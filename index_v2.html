@@ -4815,38 +4815,25 @@ function autoCargarAnalisis() {
     }
   });
 
-  // ── Entomológico: TWO "Insectos/Ácaros" rows per unique GENUS ──
-  // Row 1: genus-level (e.g. Prunus spp.) — Row 2: blank patogeno for second entry
+  // ── Entomológico: UNA sola fila "Insectos/Ácaros" por género ──
+  // Se realiza un único análisis entomológico, al término de la cuarentena.
   const generosVistos = new Set();
   uniqueEsp.forEach(e => {
     const genus = (e.especie||'').split(' ')[0]; // e.g. "Prunus"
     if(!genus || generosVistos.has(genus)) return;
     generosVistos.add(genus);
     const genusFull = genus + ' spp.';
-    // First row
-    // Row 1
     anRows['E'].push({
       especie:   genusFull,
       patogeno:  'Insectos/Ácaros',
       via:       '',
       esRaiz:    false,
-      obs:       '',
+      obs:       'Análisis único al término de la cuarentena',
       estado:    'No Analizada',
       resultado: '',
       tecnica:   'Taxonomía',
     });
-    // Row 2 — second entomologico entry for same genus
-    anRows['E'].push({
-      especie:   genusFull,
-      patogeno:  'Insectos/Ácaros',
-      via:       '',
-      esRaiz:    false,
-      obs:       '',
-      estado:    'No Analizada',
-      resultado: '',
-      tecnica:   'Taxonomía',
-    });
-    totalPlagas += 2;
+    totalPlagas += 1;
   });
 
   // ── Plagas obligatorias: siempre se agregan si la especie las tiene en cualquier zona ──
@@ -4941,6 +4928,8 @@ function autoCargarAnalisis() {
     plagas.forEach(p => {
       const k = tipoKey(p.tipo || '');
       if(k === 'E') return;
+      // Nematológico solo se solicita si el material indica que viene con raíz(es)
+      if(k === 'N' && !tieneRaiz) return;
 
       const plagaKey = especieLabel + '||' + (p.plaga||'');
       if(plagasVistas.has(plagaKey)) return;
@@ -4972,7 +4961,8 @@ function autoCargarAnalisis() {
   });
 
   renderAnalisisTabs();
-  let msg = `${totalPlagas} análisis cargados (${zonaKey}). Entomológico: ${[...generosVistos].map(g=>g+' spp.').join(', ')}.`;
+  let msg = `${totalPlagas} análisis cargados (${zonaKey}). Entomológico: ${[...generosVistos].map(g=>g+' spp.').join(', ')} (único, al término).`;
+  if(!tieneRaiz) msg += ' Nematológico no solicitado (material sin raíz).';
   if(skippedRaiz > 0) msg += ` ${skippedRaiz} plaga(s) requieren material con raices.`;
   setS(msg, 'ok');
 }
