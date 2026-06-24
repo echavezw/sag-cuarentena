@@ -1794,8 +1794,18 @@ const SHEET_ROLES = 'Roles';
 
 // Permisos por defecto si la hoja Roles aún no existe o el rol no se encuentra
 const DEFAULT_PERMS = {
-  admin: { ver_config:true, eliminar_reg:true, gestionar_usuarios:true, editar_e1_e3:true, editar_e4_e7:true, solo_consulta:false },
-  usuario_basico: { ver_config:false, eliminar_reg:false, gestionar_usuarios:false, editar_e1_e3:true, editar_e4_e7:true, solo_consulta:false }
+  admin: {
+    ver_panel:true, ver_busqueda:true, ver_alertas:true,
+    editar_e1:true, editar_e2:true, editar_e3:true, editar_e4:true,
+    editar_e5:true, editar_e6:true, editar_e7:true,
+    ver_config:true, eliminar_reg:true, gestionar_usuarios:true, solo_consulta:false
+  },
+  usuario_basico: {
+    ver_panel:true, ver_busqueda:true, ver_alertas:true,
+    editar_e1:true, editar_e2:true, editar_e3:true, editar_e4:true,
+    editar_e5:true, editar_e6:true, editar_e7:true,
+    ver_config:false, eliminar_reg:false, gestionar_usuarios:false, solo_consulta:false
+  }
 };
 
 async function sha256Hex(text) {
@@ -1879,9 +1889,16 @@ async function loadPermsForRole(rol) {
       const hdr = rows[0];
       const rowForRole = rows.slice(1).find(r => String(r[hdr.indexOf('Rol')]||'').trim()===rol);
       if(rowForRole) {
-        const boolCols = ['Ver_Config','Eliminar_Reg','Gestionar_Usuarios','Editar_E1_E3','Editar_E4_E7','Solo_Consulta'];
-        const keyMap = {Ver_Config:'ver_config',Eliminar_Reg:'eliminar_reg',Gestionar_Usuarios:'gestionar_usuarios',
-          Editar_E1_E3:'editar_e1_e3',Editar_E4_E7:'editar_e4_e7',Solo_Consulta:'solo_consulta'};
+        const boolCols = ['Ver_Panel','Ver_Busqueda','Ver_Alertas',
+          'Editar_E1','Editar_E2','Editar_E3','Editar_E4','Editar_E5','Editar_E6','Editar_E7',
+          'Ver_Config','Eliminar_Reg','Gestionar_Usuarios','Solo_Consulta'];
+        const keyMap = {
+          Ver_Panel:'ver_panel', Ver_Busqueda:'ver_busqueda', Ver_Alertas:'ver_alertas',
+          Editar_E1:'editar_e1', Editar_E2:'editar_e2', Editar_E3:'editar_e3', Editar_E4:'editar_e4',
+          Editar_E5:'editar_e5', Editar_E6:'editar_e6', Editar_E7:'editar_e7',
+          Ver_Config:'ver_config', Eliminar_Reg:'eliminar_reg', Gestionar_Usuarios:'gestionar_usuarios',
+          Solo_Consulta:'solo_consulta'
+        };
         perms = {};
         boolCols.forEach(col => {
           const idx = hdr.indexOf(col);
@@ -1896,6 +1913,18 @@ async function loadPermsForRole(rol) {
 
 function applyPermsToUI() {
   const p = window._currentPerms || DEFAULT_PERMS.usuario_basico;
+
+  // Sidebar nav items keyed by stage id → permission flag
+  const navPermMap = {
+    'hist':(p.ver_panel||p.ver_busqueda), 'alerts':p.ver_alertas,
+    1:p.editar_e1, 2:p.editar_e2, 3:p.editar_e3, 4:p.editar_e4,
+    5:p.editar_e5, 6:p.editar_e6, 7:p.editar_e7
+  };
+  Object.entries(navPermMap).forEach(([stageId, allowed]) => {
+    const navEl = document.getElementById('nav-'+stageId);
+    if(navEl) navEl.classList.toggle('perm-hidden', !allowed);
+  });
+
   // Hide Configuracion nav item if no access
   const navConfig = document.getElementById('nav-config');
   if(navConfig) navConfig.classList.toggle('perm-hidden', !p.ver_config);
@@ -1903,6 +1932,12 @@ function applyPermsToUI() {
   document.querySelectorAll('.btn-danger').forEach(btn => {
     if(btn.textContent.includes('Eliminar')) btn.classList.toggle('perm-hidden', !p.eliminar_reg);
   });
+  // Hide Busqueda Rapida tab specifically (panel-tab-1) if no ver_busqueda permission
+  const tabBusqueda = document.getElementById('panel-tab-1');
+  if(tabBusqueda) tabBusqueda.classList.toggle('perm-hidden', !p.ver_busqueda);
+  // Hide "Todos los Registros" tab if no ver_panel permission
+  const tabTodos = document.getElementById('panel-tab-0');
+  if(tabTodos) tabTodos.classList.toggle('perm-hidden', !p.ver_panel);
   // Hide Gestionar Usuarios nav item
   const navUsuarios = document.getElementById('nav-usuarios');
   if(navUsuarios) navUsuarios.classList.toggle('perm-hidden', !p.gestionar_usuarios);
@@ -2586,6 +2621,20 @@ function toggleSidebar() {
 }
 
 function goStage(n) {
+  // Permission gate — block navigation if the current role lacks access to this stage
+  const p = window._currentPerms;
+  if(p) {
+    const stagePermMap = {
+      'hist':(p.ver_panel||p.ver_busqueda), 'alerts':p.ver_alertas,
+      1:p.editar_e1, 2:p.editar_e2, 3:p.editar_e3, 4:p.editar_e4,
+      5:p.editar_e5, 6:p.editar_e6, 7:p.editar_e7,
+      'config':p.ver_config, 'usuarios':p.gestionar_usuarios
+    };
+    if(stagePermMap.hasOwnProperty(n) && !stagePermMap[n]) {
+      setS('No tiene permiso para acceder a esta sección.', 'warn');
+      return;
+    }
+  }
   document.querySelectorAll('.stage').forEach(e=>e.classList.remove('active'));
   document.querySelectorAll('.sb-item').forEach(e=>e.classList.remove('active'));
   if(n===3) setTimeout(renderEstablecimientoTable, 80);
