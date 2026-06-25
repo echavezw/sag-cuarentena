@@ -8706,9 +8706,14 @@ function _docStyle() {
   </style>`;
 }
 
-function _openDoc(html, title) {
+function _openDoc(html, title, formTitle) {
   const w = window.open('', '_blank', 'width=900,height=700');
-  const footer = '<div style="text-align:right;font-size:7pt;color:#aaa;margin-top:14px;font-style:italic">Sistema desarrollado por Eduardo Chávez W. — SAG</div>';
+  const ft = formTitle || title;
+  const footer = `<div style="text-align:center;font-size:7.5pt;color:#888;margin-top:16px;line-height:1.5;border-top:1px solid #ddd;padding-top:8px">
+    Servicio Agrícola y Ganadero | Departamento RED de Laboratorios SAG | Estación de Cuarentena Agrícola (ECA)<br>
+    Formulario "${ft}"<br>
+    Desarrollado por Ing. Agr. Eduardo Chávez Weisser
+  </div>`;
   w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>${_docStyle()}</head><body>${html}${footer}</body></html>`); w.document.addEventListener('DOMContentLoaded',function(){}); setTimeout(()=>w.print(),400);
   w.document.close();
 }
@@ -8782,14 +8787,12 @@ function generarActaRecepcion() {
       <tr><th>ESPECIE</th><th>VARIEDAD</th><th>CANTIDAD</th><th>OBSERVACIONES</th></tr>
       ${rows}
     </table>
-    <div class="firma-row">
-      <div class="firma-box">NOMBRE INSPECTOR SAG<br><br>${_v('f6-firma-resp')||'&nbsp;'.repeat(30)}</div>
-      <div class="firma-box">FIRMA INSPECTOR SAG<br><br>&nbsp;</div>
-      <div class="firma-box">TIMBRE SAG<br><br>&nbsp;</div>
+    <div class="firma-row" style="grid-template-columns:1fr 1fr;margin-top:90px">
+      <div class="firma-box">Nombre y Firma Representante Importador<br><br>&nbsp;</div>
+      <div class="firma-box">FIRMA ENCARGADO/A<br>ESTACIÓN CUARENTENARIA<br>AGRÍCOLA<br><br>&nbsp;</div>
     </div>
-    <div class="nota">Servicio Agrícola y Ganadero / SAG — División Protección Agrícola y Forestal</div>
   </div>`;
-  _openDoc(html, 'Acta Recepción CPE — '+_regLabel());
+  _openDoc(html, 'Acta Recepción CPE — '+_regLabel(), 'Acta Recepción Cuarentena Posentrada');
 }
 
 // ── DOC 2: ACTA ESTABLECIMIENTO / INJERTACIÓN (F-IIT-IMP-PA-09) — Etapa III ──
@@ -8827,7 +8830,7 @@ function generarActaInjertacion() {
       <div class="firma-box">NOMBRE Y TIMBRE<br>PROFESIONAL ECA<br><br>&nbsp;</div>
     </div>
   </div>`;
-  _openDoc(html, 'Acta Injertación CPE — '+_regLabel());
+  _openDoc(html, 'Acta Injertación CPE — '+_regLabel(), 'Acta Resultado de Injertación o Plantación');
 }
 
 // ── DOC 3: FICHA CPE (resumen) — Etapas I-III ──
@@ -8862,7 +8865,7 @@ function generarFichaCPE() {
       <tr><th>OBSERVACIONES</th><td style="height:90px;vertical-align:top">${_v('f1-obs')||'&nbsp;'}</td></tr>
     </table>
   </div>`;
-  _openDoc(html, 'Ficha CPE — '+_regLabel());
+  _openDoc(html, 'Ficha CPE — '+_regLabel(), 'Ficha Cuarentena Posentrada');
 }
 
 // ── DOC 4: RECUENTO DE PLANTAS (F-IIT-IMP-PA-032) — Etapa VI ──
@@ -8912,7 +8915,7 @@ function generarRecuentoPlantas() {
       <div class="firma-box">&nbsp;</div>
     </div>
   </div>`;
-  _openDoc(html, 'Recuento Plantas — '+_regLabel());
+  _openDoc(html, 'Recuento Plantas — '+_regLabel(), 'Ubicación y Recuento de Plantas EC1');
 }
 
 // ── DOC 5: INFORME TÉRMINO CPE (F-IIT-IMP-PA-016) — Etapa VII ──
@@ -8947,16 +8950,15 @@ function generarInformeTermino() {
     <div class="section-title">OBSERVACIONES</div>
     <table><tr><td style="min-height:60px">${_v('f6-obs')||'Sin observaciones.'}</td></tr></table>
     <p style="margin:12px 0;font-size:10pt;line-height:1.5">habiéndose dado cumplimiento a todas las inspecciones y verificaciones analíticas disponibles tendientes a confirmar que el material vegetal se encuentra libre de todas las plagas cuarentenarias establecidas como declaración adicional en la resolución que autoriza cuarentena posentrada y que se encuentra libre además, de otras plagas reglamentarias, se solicita evaluar el término de las restricciones cuarentenarias.</p>
-    <div class="firma-row">
-      <div class="firma-box">&nbsp;</div>
-      <div class="firma-box">NOMBRE ENCARGADO ECA<br><br>${_v('f6-firma-resp')||'&nbsp;'.repeat(20)}<br><br>FIRMA ENCARGADO ECA</div>
-      <div class="firma-box">&nbsp;</div>
+    <div class="firma-row" style="grid-template-columns:1fr 1fr;margin-top:90px">
+      <div class="firma-box">Nombre y Firma Representante Importador<br><br>&nbsp;</div>
+      <div class="firma-box">FIRMA ENCARGADO/A<br>ESTACIÓN CUARENTENARIA<br>AGRÍCOLA<br><br>&nbsp;</div>
     </div>
-    <div class="nota">EL INFORME SOLICITUD TÉRMINO CUARENTENA POS ENTRADA ES VÁLIDO ANEXANDO:<br>
+    <p style="font-size:9pt;color:#555;margin-top:10px">EL INFORME SOLICITUD TÉRMINO CUARENTENA POS ENTRADA ES VÁLIDO ANEXANDO:<br>
     • FICHA CAPTACIÓN DE MUESTRAS EN CUARENTENA POSENTRADA<br>
-    • ÚLTIMO RECUENTO MATERIAL VEGETAL (F-IIT-IMP-PA-032)</div>
+    • ÚLTIMO RECUENTO MATERIAL VEGETAL (F-IIT-IMP-PA-032)</p>
   </div>`;
-  _openDoc(html, 'Informe Término CPE — '+_regLabel());
+  _openDoc(html, 'Informe Término CPE — '+_regLabel(), 'Informe Término Cuarentena Posentrada');
 }
 
 // ── DOC 6: ACTA ENTREGA MATERIAL — Etapa VII ──
@@ -9011,12 +9013,12 @@ function generarActaEntrega() {
       <tr><td>Sr.(a)</td><td>${_v('f6-firma-resp')||''}</td><td>Encargado/a de la Estación Cuarentenaria Agrícola del SAG.</td></tr>
     </table>
     <div class="firma-row" style="grid-template-columns:1fr 1fr;margin-top:90px">
-      <div class="firma-box">FIRMA EN REPRESENTACIÓN<br>DEL IMPORTADOR<br><br>&nbsp;</div>
+      <div class="firma-box">Nombre y Firma Representante Importador<br><br>&nbsp;</div>
       <div class="firma-box">FIRMA ENCARGADO/A<br>ESTACIÓN CUARENTENARIA<br>AGRÍCOLA, SAG<br><br>&nbsp;</div>
     </div>
-    <div class="nota">POR INTERMEDIO DE ESTA ACTA SE NOTIFICA SIMULTÁNEAMENTE LA RESOLUCIÓN TÉRMINO CUARENTENA POSENTRADA ABSOLUTA.</div>
+    <p style="font-size:9pt;color:#555;margin-top:10px">POR INTERMEDIO DE ESTA ACTA SE NOTIFICA SIMULTÁNEAMENTE LA RESOLUCIÓN TÉRMINO CUARENTENA POSENTRADA ABSOLUTA.</p>
   </div>`;
-  _openDoc(html, 'Acta Entrega Material — '+_regLabel());
+  _openDoc(html, 'Acta Entrega Material — '+_regLabel(), 'Acta Entrega Material Vegetal');
 }
 
 // ── EXPORTAR CSV desde Búsqueda Rápida ──
