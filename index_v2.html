@@ -846,6 +846,7 @@ input.field-blocked, select.field-blocked {
     <button class="btn btn-gh btn-sm" id="compact-btn" onclick="toggleCompact()" title="Alternar modo compacto" style="width:100%;justify-content:center;margin-bottom:6px">⊟ Compacto</button>
     <div id="unsaved-banner">⬤ Cambios sin guardar</div>
     <button onclick="guardarTodo()" style="width:100%;padding:10px 0;background:linear-gradient(135deg,var(--nv),var(--nv2));color:var(--gd);border:1.5px solid var(--gd);border-radius:var(--rs);font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;transition:all .15s;font-family:var(--font)" onmouseover="this.style.background='var(--gd)';this.style.color='var(--nv)'" onmouseout="this.style.background='linear-gradient(135deg,var(--nv),var(--nv2))';this.style.color='var(--gd)'">Guardar</button>
+    <div style="text-align:center;font-size:8.5px;color:var(--g300);margin-top:8px;letter-spacing:.2px">Desarrollado por Eduardo Chávez W.</div>
   </div>
 
   <!-- PANEL ALERTAS: chips y tarjetas trasladados al main stage-alerts -->
@@ -8707,7 +8708,8 @@ function _docStyle() {
 
 function _openDoc(html, title) {
   const w = window.open('', '_blank', 'width=900,height=700');
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>${_docStyle()}</head><body>${html}</body></html>`); w.document.addEventListener('DOMContentLoaded',function(){}); setTimeout(()=>w.print(),400);
+  const footer = '<div style="text-align:right;font-size:7pt;color:#aaa;margin-top:14px;font-style:italic">Sistema desarrollado por Eduardo Chávez W. — SAG</div>';
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>${_docStyle()}</head><body>${html}${footer}</body></html>`); w.document.addEventListener('DOMContentLoaded',function(){}); setTimeout(()=>w.print(),400);
   w.document.close();
 }
 
