@@ -8727,7 +8727,17 @@ function _regLabel() {
 }
 
 function _matRows() {
-  // Read from verif-body DOM or _loadedEspData
+  // Portainjerto vive en la tabla de Especies de Etapa I (esp-body, campo ep-{i}),
+  // NO en la tabla de Verificación de Etapa III. Lo cruzamos por especie+variedad.
+  const especiesE1 = (typeof getEspecies === 'function') ? getEspecies() : (window._loadedEspData || []);
+  const findPI = (esp, vari) => {
+    const match = especiesE1.find(e =>
+      (e.especie||'').trim() === (esp||'').trim() &&
+      (e.variedad||'').trim() === (vari||'').trim()
+    ) || especiesE1.find(e => (e.especie||'').trim() === (esp||'').trim()); // fallback: misma especie
+    return match ? (match.portainjerto||'') : '';
+  };
+
   const rows = [];
   const tb = document.getElementById('verif-body');
   if(tb && tb.children.length) {
@@ -8740,7 +8750,7 @@ function _matRows() {
       const cantR=document.getElementById(`vcr-${i}`)?.value?.trim()||'';
       const brot= document.getElementById(`vbrot-${i}`)?.value?.trim()||'';
       const nplan=document.getElementById(`vnplan-${i}`)?.value?.trim()||'';
-      const pi  = document.getElementById(`vpi-${i}`)?.value?.trim()||'';
+      const pi  = findPI(esp, vari);
       const obs = document.getElementById(`vobs-${i}`)?.value?.trim()||'';
       if(esp) rows.push({esp,vari,tipo,cant,cantR,brot,nplan,pi,obs,recibida:chk?.checked});
     });
@@ -8749,7 +8759,8 @@ function _matRows() {
       esp:e.especie||'',vari:e.variedad||'',tipo:e.tipo||'',
       cant:e.cant||'',cantR:e.cantReal||e.cant||'',
       brot:e.nplanBrot||'',nplan:e.nplanEstab||'',
-      pi:e.portainjerto||'',obs:e.obs||'',recibida:true
+      pi:e.portainjerto || findPI(e.especie, e.variedad) || '',
+      obs:e.obs||'',recibida:true
     }));
   }
   return rows;
