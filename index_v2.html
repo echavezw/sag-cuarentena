@@ -8692,8 +8692,9 @@ function _docStyle() {
     body{font-family:'Arial',sans-serif;font-size:11pt;color:#000;background:#fff}
     .doc{max-width:780px;margin:0 auto;padding:20px}
     table{width:100%;border-collapse:collapse;margin-bottom:10px}
-    td,th{border:1px solid #000;padding:4px 7px;vertical-align:middle;font-size:10pt;text-align:center}
-    th{background:#e8e8e8;font-weight:700;text-align:center}
+    td,th{border:1px solid #000;padding:4px 7px;vertical-align:top;font-size:10pt}
+    th{background:#e8e8e8;font-weight:700;text-align:left}
+    table.tbl-center td,table.tbl-center th{text-align:center;vertical-align:middle}
     .hdr-logo{display:flex;align-items:center;gap:12px;border:2px solid #000;padding:8px 12px;margin-bottom:12px}
     .hdr-logo .sag{font-size:22pt;font-weight:900;color:#0A1628;letter-spacing:1px}
     .hdr-title{text-align:center;font-size:13pt;font-weight:700;text-transform:uppercase;line-height:1.4}
@@ -8783,7 +8784,7 @@ function generarActaRecepcion() {
       <tr><th>RUT</th><td>${_v('f1-rut')}</td><th>PAÍS ORIGEN</th><td>${_v('f1-pais')}</td></tr>
     </table>
     <div class="section-title">DETALLE MATERIAL RECEPCIONADO</div>
-    <table>
+    <table class="tbl-center">
       <tr><th>ESPECIE</th><th>VARIEDAD</th><th>CANTIDAD</th><th>OBSERVACIONES</th></tr>
       ${rows}
     </table>
@@ -8819,7 +8820,7 @@ function generarActaInjertacion() {
       <tr><th>EVALUACIÓN FECHA</th><td>${_v('f3-flev')}</td></tr>
     </table>
     <div class="section-title">RESULTADO EVALUACIÓN</div>
-    <table>
+    <table class="tbl-center">
       <tr><th>ESPECIE</th><th>VARIEDAD</th><th>CALIDAD MATERIAL</th><th>PATRÓN</th><th>PLANTAS GENERADAS</th><th>PLANTAS C/ BROTACIÓN</th><th>OBSERVACIONES</th></tr>
       ${rows}
       <tr><td colspan="3"></td><th>TOTAL</th><td><strong>${total_gen}</strong></td><td><strong>${total_brot}</strong></td><td></td></tr>
@@ -8903,7 +8904,7 @@ function generarRecuentoPlantas() {
       <tr><th>IMPORTADOR</th><td colspan="3">${_v('f1-imp')}</td></tr>
     </table>
     <div class="section-title">DETALLE DEL MATERIAL</div>
-    <table>
+    <table class="tbl-center">
       <tr><th>ESPECIE (Nombre científico)</th><th>VARIEDADES / CLON</th><th>N° PLANTAS INICIALES</th><th>VERIFICACIÓN FINAL SAG</th></tr>
       ${rows}
       <tr><td colspan="1"></td><th>TOTAL</th><td style="text-align:center"><strong>${totalIni||'—'}</strong></td><td style="text-align:center"><strong>${totalFin||'—'}</strong></td></tr>
@@ -8999,7 +9000,7 @@ function generarActaEntrega() {
       <tr><th>CONTRAPARTE TÉCNICA SAG</th><td>${_v('f1-cp2-nombre')}</td></tr>
     </table>
     <div class="section-title">DETALLE DEL MATERIAL ENTREGADO</div>
-    <table>
+    <table class="tbl-center">
       <tr><th>ESPECIE</th><th>VARIEDAD</th><th>CANTIDAD</th><th>OBSERVACIONES</th></tr>
       ${rows}
     </table>
