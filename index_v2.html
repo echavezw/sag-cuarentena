@@ -8712,7 +8712,7 @@ function _openDoc(html, title, formTitle) {
   const footer = `<div style="text-align:center;font-size:7.5pt;color:#888;margin-top:16px;line-height:1.5;border-top:1px solid #ddd;padding-top:8px">
     Servicio Agrícola y Ganadero | Departamento RED de Laboratorios SAG | Estación de Cuarentena Agrícola (ECA)<br>
     Formulario "${ft}"<br>
-    Desarrollado por Ing. Agr. Eduardo Chávez Weisser
+    <span style="font-size:6pt">Desarrollado por Ing. Agr. Eduardo Chávez Weisser</span>
   </div>`;
   w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>${_docStyle()}</head><body>${html}${footer}</body></html>`); w.document.addEventListener('DOMContentLoaded',function(){}); setTimeout(()=>w.print(),400);
   w.document.close();
@@ -8824,9 +8824,8 @@ function generarActaInjertacion() {
       ${rows}
       <tr><td colspan="3"></td><th>TOTAL</th><td><strong>${total_gen}</strong></td><td><strong>${total_brot}</strong></td><td></td></tr>
     </table>
-    <div class="firma-row">
+    <div class="firma-row" style="grid-template-columns:1fr 1fr;margin-top:90px">
       <div class="firma-box">ENCARGADO/SUPERVISOR<br>PROPAGACIÓN ECA<br><br>&nbsp;</div>
-      <div class="firma-box">&nbsp;</div>
       <div class="firma-box">NOMBRE Y TIMBRE<br>PROFESIONAL ECA<br><br>&nbsp;</div>
     </div>
   </div>`;
@@ -8909,10 +8908,9 @@ function generarRecuentoPlantas() {
       ${rows}
       <tr><td colspan="1"></td><th>TOTAL</th><td style="text-align:center"><strong>${totalIni||'—'}</strong></td><td style="text-align:center"><strong>${totalFin||'—'}</strong></td></tr>
     </table>
-    <div class="firma-row">
-      <div class="firma-box">&nbsp;</div>
+    <div class="firma-row" style="grid-template-columns:1fr 1fr;margin-top:90px">
+      <div class="firma-box">Nombre y Firma Representante Importador<br><br>&nbsp;</div>
       <div class="firma-box">FIRMA ENCARGADO<br>ESTACIÓN CUARENTENARIA AGRÍCOLA<br><br>&nbsp;</div>
-      <div class="firma-box">&nbsp;</div>
     </div>
   </div>`;
   _openDoc(html, 'Recuento Plantas — '+_regLabel(), 'Ubicación y Recuento de Plantas EC1');
