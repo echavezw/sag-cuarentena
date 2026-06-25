@@ -8692,8 +8692,8 @@ function _docStyle() {
     body{font-family:'Arial',sans-serif;font-size:11pt;color:#000;background:#fff}
     .doc{max-width:780px;margin:0 auto;padding:20px}
     table{width:100%;border-collapse:collapse;margin-bottom:10px}
-    td,th{border:1px solid #000;padding:4px 7px;vertical-align:top;font-size:10pt}
-    th{background:#e8e8e8;font-weight:700;text-align:left}
+    td,th{border:1px solid #000;padding:4px 7px;vertical-align:middle;font-size:10pt;text-align:center}
+    th{background:#e8e8e8;font-weight:700;text-align:center}
     .hdr-logo{display:flex;align-items:center;gap:12px;border:2px solid #000;padding:8px 12px;margin-bottom:12px}
     .hdr-logo .sag{font-size:22pt;font-weight:900;color:#0A1628;letter-spacing:1px}
     .hdr-title{text-align:center;font-size:13pt;font-weight:700;text-transform:uppercase;line-height:1.4}
@@ -8861,7 +8861,7 @@ function generarFichaCPE() {
       <tr><th>CANTIDAD DE MATERIAL</th><td>${cantPorVariedad}</td></tr>
       <tr><th>PLANTAS INJERTADAS</th><td>${injertadasPorVariedad}</td></tr>
       <tr><th>CUBÍCULO ECA</th><td>${_v('f3-cub')}${_v('f3-cub2')?' / '+_v('f3-cub2'):''}</td></tr>
-      <tr><th>OBSERVACIONES</th><td style="height:90px;vertical-align:top">${_v('f1-obs')||'&nbsp;'}</td></tr>
+      <tr><th>OBSERVACIONES</th><td style="height:90px;vertical-align:top;text-align:left">${_v('f1-obs')||'&nbsp;'}</td></tr>
     </table>
   </div>`;
   _openDoc(html, 'Ficha CPE — '+_regLabel(), 'Ficha Cuarentena Posentrada');
