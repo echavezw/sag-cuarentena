@@ -8834,7 +8834,10 @@ function generarFichaCPE() {
   const mat = _matRows();
   const vars = [...new Set(mat.map(r=>r.vari).filter(Boolean))].join(', ') || '—';
   const tipo = mat.find(r=>r.tipo)?.tipo || _v('f1-tipo-mat') || '—';
-  const totalCant = mat.reduce((s,r)=>s+(parseInt(r.cant)||0),0);
+  // Cantidad de Material por variedad — "Variedad: cantidad" por cada fila con variedad
+  const cantPorVariedad = mat.filter(r=>r.vari).map(r=>`${r.vari}: ${r.cant||r.cantR||'—'}`).join('<br>') || '—';
+  // Plantas Injertadas por variedad — usa brot (brotadas/establecidas) como cantidad injertada
+  const injertadasPorVariedad = mat.filter(r=>r.vari).map(r=>`${r.vari}: ${r.brot||r.nplan||'—'}`).join('<br>') || '—';
   const html = `<div class="doc">
     <div class="hdr-logo">
       <div class="sag">SAG</div>
@@ -8851,11 +8854,10 @@ function generarFichaCPE() {
       <tr><th>FECHA INJERTACIÓN</th><td>${_v('f3-finj')}</td></tr>
       <tr><th>VARIEDAD(ES)</th><td>${vars}</td></tr>
       <tr><th>TIPO MATERIAL</th><td>${tipo}</td></tr>
-      <tr><th>CANTIDAD DE MATERIAL</th><td>${totalCant||_v('f3-nplan')}</td></tr>
-      <tr><th>N° CDA</th><td>${_v('f1-cda')}</td></tr>
-      <tr><th>N° CERT. FITOSANITARIO</th><td>${_v('f1-cert-fito')}</td></tr>
+      <tr><th>CANTIDAD DE MATERIAL</th><td>${cantPorVariedad}</td></tr>
+      <tr><th>PLANTAS INJERTADAS</th><td>${injertadasPorVariedad}</td></tr>
       <tr><th>CUBÍCULO ECA</th><td>${_v('f3-cub')}${_v('f3-cub2')?' / '+_v('f3-cub2'):''}</td></tr>
-      <tr><th>OBSERVACIONES</th><td>${_v('f1-obs')||'—'}</td></tr>
+      <tr><th>OBSERVACIONES</th><td style="height:90px;vertical-align:top">${_v('f1-obs')||'&nbsp;'}</td></tr>
     </table>
   </div>`;
   _openDoc(html, 'Ficha CPE — '+_regLabel());
