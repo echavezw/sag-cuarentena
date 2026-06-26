@@ -7580,7 +7580,8 @@ function conectarGSheets() {
 function _requestNewToken() {
   return new Promise((res,rej)=>{
     if(!GS.oauthClientId){ rej(new Error('Configure el OAuth Client ID en Configuracion.')); return; }
-    if(!tokenClient){ initTokenClient(); }
+    // Force re-init of tokenClient so it picks up the latest scope from initTokenClient()
+    initTokenClient();
     if(!tokenClient){ rej(new Error('No se pudo inicializar el cliente OAuth.')); return; }
     const orig=tokenClient.callback;
     tokenClient.callback=r=>{
@@ -7588,21 +7589,29 @@ function _requestNewToken() {
       if(r.access_token){
         accessToken=r.access_token;
         window._tokenObtainedAt=Date.now();
+        window._tokenScope=CURRENT_OAUTH_SCOPE;
         setGSDot('ok','Autenticado');
         res();
       }
       else rej(new Error('Autenticacion cancelada o fallida.'));
     };
-    tokenClient.requestAccessToken({prompt:''});
+    // 'consent' forces Google to show the permission screen when scope expands,
+    // instead of silently reusing a cached grant that doesn't cover the new scope.
+    tokenClient.requestAccessToken({prompt:'consent'});
   });
 }
+
+const CURRENT_OAUTH_SCOPE = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file';
 
 async function ensureToken() {
   // Google access tokens expire ~1hr. Refresh proactively if older than 50min,
   // or if we've never validated it, to avoid 401 errors mid-save.
+  // Also force a fresh token if the required scope changed since the token was issued
+  // (e.g. Drive permission added after the user already had a Sheets-only token).
   const TOKEN_MAX_AGE_MS = 50*60*1000;
   const tokenAge = window._tokenObtainedAt ? (Date.now()-window._tokenObtainedAt) : Infinity;
-  if(accessToken && tokenAge < TOKEN_MAX_AGE_MS) return Promise.resolve();
+  const scopeChanged = window._tokenScope !== CURRENT_OAUTH_SCOPE;
+  if(accessToken && tokenAge < TOKEN_MAX_AGE_MS && !scopeChanged) return Promise.resolve();
   return _requestNewToken();
 }
 
