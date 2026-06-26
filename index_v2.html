@@ -914,6 +914,9 @@ input.field-blocked, select.field-blocked {
       </div>
     </div>
 
+    <!-- Resumen de disponibilidad de cubículos -->
+    <div id="al-disponibilidad-container" style="margin-bottom:16px"></div>
+
     <!-- Tarjetas agrupadas por severidad -->
     <div id="al-cards-container"></div>
     <div id="al-incoming-container" style="margin-top:16px"></div>
@@ -8935,6 +8938,50 @@ function sendCoreAvisoFromAlert(alertIdx) {
 // ══════════════════════════════════════════════════════════════════
 //  INVERNADERO GRID — renderInvernaderoGrid()
 // ══════════════════════════════════════════════════════════════════
+// ── RESUMEN DE DISPONIBILIDAD DE CUBÍCULOS ──
+function renderCubDisponibilidad(cubMap) {
+  const el = document.getElementById('al-disponibilidad-container');
+  if (!el) return;
+
+  const TOTAL_CUBICULOS = 70; // 7 invernaderos × 10 cubículos
+  const ocupados = [];
+  const disponibles = [];
+
+  for (let inv = 1; inv <= 7; inv++) {
+    for (let n = 1; n <= 10; n++) {
+      const cubId = `${inv}.${n}`;
+      const entries = cubMap[cubId];
+      if (entries && entries.length) ocupados.push(cubId);
+      else disponibles.push(cubId);
+    }
+  }
+
+  const pctOcupado = Math.round((ocupados.length / TOTAL_CUBICULOS) * 100);
+
+  el.innerHTML = `
+    <div style="background:var(--wh);border:1px solid var(--g100);border-radius:var(--r);padding:14px 18px">
+      <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:10px">
+        <div style="font-size:13px;font-weight:700;color:var(--inkv);font-family:var(--serif)">
+          Disponibilidad de Cubículos
+        </div>
+        <div style="display:flex;gap:14px;font-size:12px;margin-left:auto">
+          <span><strong style="color:var(--err)">${ocupados.length}</strong> ocupados</span>
+          <span><strong style="color:var(--ok)">${disponibles.length}</strong> disponibles</span>
+          <span style="color:var(--g400)">de ${TOTAL_CUBICULOS} totales (${pctOcupado}% ocupado)</span>
+        </div>
+      </div>
+      <div style="height:6px;border-radius:3px;background:var(--ok-bg);overflow:hidden;margin-bottom:10px">
+        <div style="height:100%;width:${pctOcupado}%;background:var(--err);border-radius:3px"></div>
+      </div>
+      <div style="font-size:11px;color:var(--g600);margin-bottom:5px;font-weight:600">Cubículos disponibles:</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px">
+        ${disponibles.length
+          ? disponibles.map(c => `<span style="font-family:var(--mono);font-size:11px;padding:3px 7px;border-radius:4px;background:var(--ok-bg);color:var(--ok);border:1px solid var(--ok-bd)">${c}</span>`).join('')
+          : '<span style="color:var(--g400);font-size:11px;font-style:italic">Sin cubículos disponibles</span>'}
+      </div>
+    </div>`;
+}
+
 function renderInvernaderoGrid() {
   const cc = document.getElementById('al-cards-container');
   if (!cc) return;
@@ -9017,6 +9064,10 @@ function renderInvernaderoGrid() {
       if (entry && !entry.alerts.find(x => x === a)) entry.alerts.push(a);
     });
   });
+
+  // Expose cubMap globally for the disponibilidad summary panel
+  window._cubMapSnapshot = cubMap;
+  renderCubDisponibilidad(cubMap);
 
   // Determine worst severity per cubículo entry
   function worstSev(alerts) {
