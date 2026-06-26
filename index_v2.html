@@ -950,6 +950,18 @@ input.field-blocked, select.field-blocked {
         <div id="nsol-warn" style="display:none;font-size:10px;color:var(--warn);margin-top:2px">
           Modo manual — ingrese el numero historico correcto
         </div>
+        <div style="display:flex;gap:6px;margin-top:8px;align-items:center">
+          <input type="file" id="f1-doc-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png" style="display:none">
+          <button class="btn btn-gh btn-sm" id="f1-doc-btn" onclick="adjuntarSolicitudPDF()" style="font-size:10px">📎 Adjuntar Solicitud</button>
+          <button class="btn btn-gh btn-sm" id="f1-doc-view" onclick="" style="font-size:10px;display:none">👁 Ver Solicitud</button>
+          <input type="hidden" id="f1-doc-link-hidden">
+        </div>
+        <div style="margin-top:6px">
+          <input type="file" id="f1-extract-input" accept=".pdf,.jpg,.jpeg,.png" style="display:none">
+          <button class="btn btn-gh btn-sm" onclick="extraerDatosDocumento('f1')" style="font-size:10px;color:var(--gd)">🤖 Extraer datos del documento</button>
+          <div id="f1-extract-result" style="margin-top:6px"></div>
+        </div>
+
       </div>
       <div class="ff c1"><label class="lbl">Fecha Recepcion</label><input type="date" id="f1-fech-rec"></div>
       <div class="ff c2 ff-secondary"><label class="lbl">Oficina <span class="auto">FIJO</span></label><input id="f1-oficina" readonly value="Red Laboratorios SAG - ECA"></div>
@@ -1085,6 +1097,18 @@ input.field-blocked, select.field-blocked {
       <!-- Fila 1: N° Res · Año · Fecha Emisión · Vigencia Desde · Vigencia Hasta -->
       <div class="ff c1 ff-primary"><label class="lbl"><span class="req">*</span> N° Resolución</label>
         <input type="number" id="f2-nres" oninput="onRes();autoEstadoRes()" style="font-size:16px;font-weight:700;font-family:var(--mono)"></div>
+        <div style="display:flex;gap:6px;margin-top:8px;align-items:center">
+          <input type="file" id="f2-doc-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png" style="display:none">
+          <button class="btn btn-gh btn-sm" id="f2-doc-btn" onclick="adjuntarResolucionPDF()" style="font-size:10px">📎 Adjuntar Resolución</button>
+          <button class="btn btn-gh btn-sm" id="f2-doc-view" onclick="" style="font-size:10px;display:none">👁 Ver Resolución</button>
+          <input type="hidden" id="f2-doc-link-hidden">
+        </div>
+        <div style="margin-top:6px">
+          <input type="file" id="f2-extract-input" accept=".pdf,.jpg,.jpeg,.png" style="display:none">
+          <button class="btn btn-gh btn-sm" onclick="extraerDatosDocumento('f2')" style="font-size:10px;color:var(--gd)">🤖 Extraer datos del documento</button>
+          <div id="f2-extract-result" style="margin-top:6px"></div>
+        </div>
+
       <div class="ff c1"><label class="lbl">Año Emisión</label>
         <input type="number" id="f2-anio-res" placeholder="ej. 2025" oninput="onRes()" style="font-family:var(--mono)"></div>
       <div class="ff c2"><label class="lbl">Fecha Emisión</label><input type="date" id="f2-fres" oninput="onFRes();autoSetVigDesde()"></div>
@@ -2069,6 +2093,307 @@ async function corregirFechasCorruptas() {
     if(/401/.test(e.message)) { accessToken=null; resultEl.innerHTML = '<span style="color:var(--err)">Token expirado, intente nuevamente.</span>'; }
     else resultEl.innerHTML = `<span style="color:var(--err)">Error: ${e.message}</span>`;
   }
+}
+
+
+// ══════════════════════════════════════════════════════════════════
+//  GOOGLE DRIVE — ADJUNTAR Y VER DOCUMENTOS (Solicitud / Resolución)
+// ══════════════════════════════════════════════════════════════════
+const DRIVE_API = 'https://www.googleapis.com/drive/v3';
+const DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3/files';
+const DRIVE_ROOT_FOLDER_NAME = 'SAG ECA - Documentos';
+
+async function _driveFindOrCreateFolder(name, parentId) {
+  const q = encodeURIComponent(
+    `name='${name.replace(/'/g,"\\'")}' and mimeType='application/vnd.google-apps.folder' and trashed=false` +
+    (parentId ? ` and '${parentId}' in parents` : '')
+  );
+  const res = await fetch(`${DRIVE_API}/files?q=${q}&fields=files(id,name)`,
+    { headers: { Authorization: `Bearer ${accessToken}` } });
+  const data = await res.json();
+  if(data.files && data.files.length) return data.files[0].id;
+
+  const metadata = { name, mimeType: 'application/vnd.google-apps.folder' };
+  if(parentId) metadata.parents = [parentId];
+  const createRes = await fetch(`${DRIVE_API}/files`,
+    { method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(metadata) });
+  const created = await createRes.json();
+  return created.id;
+}
+
+async function _driveGetTargetFolderId(subfolder) {
+  // subfolder: 'Solicitudes' or 'Resoluciones'
+  await ensureToken();
+  const rootId = await _driveFindOrCreateFolder(DRIVE_ROOT_FOLDER_NAME);
+  const subId = await _driveFindOrCreateFolder(subfolder, rootId);
+  return subId;
+}
+
+async function _driveUploadFile(file, folderId, customName) {
+  const metadata = { name: customName || file.name, parents: [folderId] };
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+  form.append('file', file);
+  const res = await fetch(`${DRIVE_UPLOAD_API}?uploadType=multipart&fields=id,webViewLink`,
+    { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` }, body: form });
+  if(!res.ok) throw new Error('Error subiendo archivo a Drive: ' + res.status);
+  const data = await res.json();
+  // Make the file viewable by anyone with the link (within the organization's sharing policy)
+  await fetch(`${DRIVE_API}/files/${data.id}/permissions`,
+    { method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: 'reader', type: 'anyone' }) }).catch(()=>{});
+  return data.webViewLink || `https://drive.google.com/file/d/${data.id}/view`;
+}
+
+// ── Subir y vincular documento de Solicitud (Etapa I) ──
+async function adjuntarSolicitudPDF() {
+  const inputEl = document.getElementById('f1-doc-input');
+  inputEl.onchange = async () => {
+    const file = inputEl.files[0];
+    if(!file) return;
+    const btn = document.getElementById('f1-doc-btn');
+    const origText = btn.textContent;
+    btn.textContent = 'Subiendo...'; btn.disabled = true;
+    try {
+      await ensureToken();
+      const folderId = await _driveGetTargetFolderId('Solicitudes');
+      const nsol = (v('f1-nsol')||'sin-numero').trim();
+      const ext = file.name.split('.').pop();
+      const customName = `Solicitud_${nsol}.${ext}`;
+      const link = await _driveUploadFile(file, folderId, customName);
+      window._f1DocLink = link;
+      sv('f1-doc-link-hidden', link);
+      _renderDocLinkUI('f1', link);
+      setS('Solicitud adjuntada correctamente.', 'ok');
+      markDirty();
+    } catch(e) {
+      if(/401/.test(e.message)) { accessToken=null; setS('Token expirado, intente nuevamente.','err'); }
+      else setS('Error: '+e.message, 'err');
+    } finally {
+      btn.textContent = origText; btn.disabled = false;
+      inputEl.value = '';
+    }
+  };
+  inputEl.click();
+}
+
+// ── Subir y vincular documento de Resolución (Etapa II) ──
+async function adjuntarResolucionPDF() {
+  const inputEl = document.getElementById('f2-doc-input');
+  inputEl.onchange = async () => {
+    const file = inputEl.files[0];
+    if(!file) return;
+    const btn = document.getElementById('f2-doc-btn');
+    const origText = btn.textContent;
+    btn.textContent = 'Subiendo...'; btn.disabled = true;
+    try {
+      await ensureToken();
+      const folderId = await _driveGetTargetFolderId('Resoluciones');
+      const nres = (v('f2-nres')||'sin-numero').trim();
+      const ext = file.name.split('.').pop();
+      const customName = `Resolucion_${nres}.${ext}`;
+      const link = await _driveUploadFile(file, folderId, customName);
+      window._f2DocLink = link;
+      sv('f2-doc-link-hidden', link);
+      _renderDocLinkUI('f2', link);
+      setS('Resolución adjuntada correctamente.', 'ok');
+      markDirty();
+    } catch(e) {
+      if(/401/.test(e.message)) { accessToken=null; setS('Token expirado, intente nuevamente.','err'); }
+      else setS('Error: '+e.message, 'err');
+    } finally {
+      btn.textContent = origText; btn.disabled = false;
+      inputEl.value = '';
+    }
+  };
+  inputEl.click();
+}
+
+// ── Renderiza el botón "Ver" cuando ya hay un link guardado ──
+function _renderDocLinkUI(prefix, link) {
+  const viewBtn = document.getElementById(prefix+'-doc-view');
+  if(!viewBtn) return;
+  if(link) {
+    viewBtn.style.display = 'inline-flex';
+    viewBtn.onclick = () => window.open(link, '_blank');
+  } else {
+    viewBtn.style.display = 'none';
+  }
+}
+
+// ── Al cargar un registro, restaurar los links guardados y mostrar botón Ver ──
+function _restoreDocLinks(r) {
+  const linkSol = r['Link Solicitud PDF'] || '';
+  const linkRes = r['Link Resolucion PDF'] || '';
+  window._f1DocLink = linkSol;
+  window._f2DocLink = linkRes;
+  sv('f1-doc-link-hidden', linkSol);
+  sv('f2-doc-link-hidden', linkRes);
+  _renderDocLinkUI('f1', linkSol);
+  _renderDocLinkUI('f2', linkRes);
+}
+
+
+// ══════════════════════════════════════════════════════════════════
+//  EXTRACCIÓN ASISTIDA — leer Solicitud/Resolución y proponer datos
+// ══════════════════════════════════════════════════════════════════
+async function _fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+const EXTRACTION_PROMPT = `Eres un asistente que extrae datos estructurados de documentos oficiales chilenos
+de cuarentena vegetal (Solicitudes de Importación o Resoluciones del SAG).
+Lee el documento adjunto y extrae ÚNICAMENTE los siguientes campos si están presentes.
+Responde SOLO con un objeto JSON plano, sin texto adicional, sin markdown, sin backticks.
+Si un campo no se encuentra en el documento, omítelo del JSON (no inventes valores).
+
+Campos a extraer (usa estas claves exactas):
+{
+  "nsol": "número de solicitud",
+  "fechaSolicitud": "fecha de la solicitud, formato DD-MM-YYYY",
+  "nres": "número de resolución (si es una resolución)",
+  "fechaRes": "fecha de la resolución, formato DD-MM-YYYY",
+  "importador": "nombre del importador o solicitante",
+  "rut": "RUT del importador",
+  "origen": "país de origen del material",
+  "especie": "especie(s) botánica(s) mencionada(s)",
+  "variedad": "variedad(es) mencionada(s)",
+  "cantidadPlantas": "cantidad total de plantas/material",
+  "tipoMaterial": "tipo de material (plantas, estacas, semillas, etc.)",
+  "vigenciaDesde": "fecha de vigencia desde, formato DD-MM-YYYY",
+  "vigenciaHasta": "fecha de vigencia hasta, formato DD-MM-YYYY"
+}`;
+
+async function extraerDatosDocumento(etapaPrefix) {
+  if(!GS.anthropicKey) {
+    setS('Configure su Anthropic API Key en Configuración para usar esta función.', 'warn');
+    goStage('config');
+    return;
+  }
+  const inputEl = document.getElementById(etapaPrefix+'-extract-input');
+  inputEl.onchange = async () => {
+    const file = inputEl.files[0];
+    if(!file) return;
+    const resultEl = document.getElementById(etapaPrefix+'-extract-result');
+    resultEl.innerHTML = '<span style="color:var(--g400)">Leyendo documento...</span>';
+    try {
+      const base64Data = await _fileToBase64(file);
+      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      const mediaType = isPdf ? 'application/pdf' : (file.type || 'image/jpeg');
+
+      const contentBlock = isPdf
+        ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64Data } }
+        : { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64Data } };
+
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': GS.anthropicKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 1000,
+          messages: [{
+            role: 'user',
+            content: [contentBlock, { type: 'text', text: EXTRACTION_PROMPT }]
+          }]
+        })
+      });
+
+      if(!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Error API (${response.status}): ${errText.slice(0,150)}`);
+      }
+      const data = await response.json();
+      const textBlock = (data.content||[]).find(c => c.type === 'text');
+      if(!textBlock) throw new Error('Respuesta sin contenido de texto.');
+
+      let parsed;
+      try {
+        const clean = textBlock.text.replace(/```json|```/g, '').trim();
+        parsed = JSON.parse(clean);
+      } catch(e) {
+        throw new Error('No se pudo interpretar la respuesta como datos estructurados.');
+      }
+
+      window._extractedData = parsed;
+      _renderExtractedPreview(etapaPrefix, parsed);
+    } catch(e) {
+      resultEl.innerHTML = `<span style="color:var(--err)">Error: ${e.message}</span>`;
+    } finally {
+      inputEl.value = '';
+    }
+  };
+  inputEl.click();
+}
+
+const EXTRACT_FIELD_MAP = {
+  nsol: 'f1-nsol', fechaSolicitud: 'f1-fech-rec',
+  nres: 'f2-nres', fechaRes: 'f2-fres',
+  importador: 'f1-imp', rut: 'f1-rut', origen: 'f1-pais',
+  vigenciaDesde: 'f2-vigdesde', vigenciaHasta: 'f2-vighasta'
+};
+const EXTRACT_FIELD_LABELS = {
+  nsol: 'N° Solicitud', fechaSolicitud: 'Fecha Solicitud',
+  nres: 'N° Resolución', fechaRes: 'Fecha Resolución',
+  importador: 'Importador', rut: 'RUT', origen: 'Origen',
+  especie: 'Especie', variedad: 'Variedad', cantidadPlantas: 'N° Plantas',
+  tipoMaterial: 'Tipo Material', vigenciaDesde: 'Vigencia Desde', vigenciaHasta: 'Vigencia Hasta'
+};
+
+function _renderExtractedPreview(etapaPrefix, data) {
+  const resultEl = document.getElementById(etapaPrefix+'-extract-result');
+  const entries = Object.entries(data).filter(([,val]) => val);
+  if(!entries.length) {
+    resultEl.innerHTML = '<span style="color:var(--warn)">No se detectaron datos en el documento.</span>';
+    return;
+  }
+  const rows = entries.map(([key, val]) =>
+    `<tr><td style="padding:3px 8px;color:var(--g600)">${EXTRACT_FIELD_LABELS[key]||key}</td>
+     <td style="padding:3px 8px;font-weight:600">${esc(val)}</td></tr>`
+  ).join('');
+  resultEl.innerHTML = `
+    <div style="font-size:11px;color:var(--ok);margin-bottom:6px">✓ Datos detectados — revise antes de aplicar:</div>
+    <table style="font-size:11px;border-collapse:collapse;margin-bottom:8px">${rows}</table>
+    <button class="btn btn-nv btn-sm" onclick="aplicarDatosExtraidos()">Aplicar al formulario</button>
+    <button class="btn btn-gh btn-sm" onclick="document.getElementById('${etapaPrefix}-extract-result').innerHTML=''">Descartar</button>
+  `;
+}
+
+function aplicarDatosExtraidos() {
+  const data = window._extractedData;
+  if(!data) return;
+  let applied = 0;
+  Object.entries(data).forEach(([key, val]) => {
+    const fieldId = EXTRACT_FIELD_MAP[key];
+    if(fieldId && val) {
+      const el = document.getElementById(fieldId);
+      if(el) {
+        if(el.type === 'date') {
+          // Try to convert DD-MM-YYYY to YYYY-MM-DD for date inputs
+          const m = String(val).match(/(\d{1,2})-(\d{1,2})-(\d{4})/);
+          el.value = m ? `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}` : val;
+        } else {
+          el.value = val;
+        }
+        applied++;
+      }
+    }
+  });
+  setS(`${applied} campo(s) aplicado(s) al formulario. Revise y guarde.`, 'ok');
+  markDirty();
+  window._extractedData = null;
 }
 
 function toggleHashVis() {
@@ -3308,6 +3633,7 @@ async function cargarFilaMulti(rows) {
   selEl('f1-pto', r['Pto Ingreso']||'');
   sv('f1-cda',       r['N° CDA']||'');
   sv('f1-cert-fito', r['N° Cert. Fitosanitario']||'');
+  _restoreDocLinks(r);
   sv('f1-fing', fmtD(r['Fecha Ing. Solicitada']||''));
   // Contraparte — load from saved record first; onImp() fills what's still empty
   sv('f1-cp1-nombre', r['Contraparte Importacion']||'');
@@ -3498,6 +3824,9 @@ async function cargarFilaMulti(rows) {
 
 function limpiarFormSilent() {
   clearFieldCache();
+  window._f1DocLink = ''; window._f2DocLink = ''; window._extractedData = null;
+  ['f1-doc-view','f2-doc-view'].forEach(id => { const el=document.getElementById(id); if(el) el.style.display='none'; });
+  ['f1-extract-result','f2-extract-result'].forEach(id => { const el=document.getElementById(id); if(el) el.innerHTML=''; });
   _lastLoadedRow = {};
   ['f1-fech-rec','f1-rut','f1-rep','f1-tel','f1-dir','f1-ciudad','f1-reg-imp',
    'f1-email','f1-cp1-nombre','f1-cp1-email','f1-cp1-tel','f1-cp2-nombre','f1-cp2-email','f1-cp2-tel',
@@ -6827,6 +7156,8 @@ function buildRows(nsol,imp) {
     'Cod. Registro Vivero': v('f1-vivero'),
     'N° CDA':            getCached('f1-cda',v('f1-cda'))||_lastLoadedRow['N° CDA']||'',
     'N° Cert. Fitosanitario': getCached('f1-cert-fito',v('f1-cert-fito'))||_lastLoadedRow['N° Cert. Fitosanitario']||'',
+    'Link Solicitud PDF': v('f1-doc-link-hidden')||window._f1DocLink||_lastLoadedRow['Link Solicitud PDF']||'',
+    'Link Resolucion PDF': v('f2-doc-link-hidden')||window._f2DocLink||_lastLoadedRow['Link Resolucion PDF']||'',
     'Contraparte Importacion': v('f1-cp1-nombre')||_lastLoadedRow['Contraparte Importacion']||'',
     'Tel Importacion': v('f1-cp1-tel')||_lastLoadedRow['Tel Importacion']||'',
     'Email Importacion': v('f1-cp1-email')||_lastLoadedRow['Email Importacion']||'',
@@ -6944,7 +7275,7 @@ const CANONICAL_HEADERS = [
   'Res. Modificacion','Fec. Mod.','Vigencia Final Desde','Vigencia Final Hasta',
   'Estado Res.','Recibida','A Firma Res. Termino','N° Plantas Finales',
   'Meses ECA','Cantidad','Portainjerto',
-  'N° CDA','N° Cert. Fitosanitario'
+  'N° CDA','N° Cert. Fitosanitario','Link Solicitud PDF','Link Resolucion PDF'
 ];
 
 async function doSave(rows,isUpdate,res,nsol) {
@@ -7235,8 +7566,8 @@ function initTokenClient() {
   if(!GS.oauthClientId||typeof google==='undefined') return;
   tokenClient=google.accounts.oauth2.initTokenClient({
     client_id:GS.oauthClientId,
-    scope:'https://www.googleapis.com/auth/spreadsheets',
-    callback:r=>{ if(r.access_token){ accessToken=r.access_token; setGSDot('ok','Autenticado'); recargar(); } }
+    scope:'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file',
+    callback:r=>{ if(r.access_token){ accessToken=r.access_token; window._tokenObtainedAt=Date.now(); setGSDot('ok','Autenticado'); recargar(); } }
   });
 }
 function conectarGSheets() {
