@@ -1691,6 +1691,20 @@ input.field-blocked, select.field-blocked {
       <input type="hidden" id="cfg-api-key">
       <input type="hidden" id="cfg-oauth-id">
 
+      <!-- ── DIAGNÓSTICO DE CUBÍCULO (debug visual) ── -->
+      <div style="margin-top:24px;border-top:1px solid var(--g100);padding-top:18px">
+        <div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:4px">Diagnóstico de Cubículo</div>
+        <div style="font-size:10.5px;color:var(--g400);margin-bottom:10px">
+          Muestra el estado interno real del cubículo: qué registros lo ocupan, cuántas filas
+          tiene cada uno, y qué valores de Entregada/Terminada/Liberada se están leyendo.
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <input id="diag-cub" placeholder="ej. 7.5" style="font-family:var(--mono);width:120px">
+          <button class="btn btn-nv btn-sm" onclick="diagnosticarCubiculo()">Diagnosticar</button>
+        </div>
+        <pre id="diag-cub-result" style="font-size:11px;background:var(--g50);padding:10px;border-radius:6px;overflow:auto;max-height:400px;white-space:pre-wrap"></pre>
+      </div>
+
       <!-- ── LIMPIEZA DE FILAS DUPLICADAS POR RESOLUCIÓN ── -->
       <div style="margin-top:24px;border-top:1px solid var(--g100);padding-top:18px">
         <div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:4px">Limpieza de Filas Duplicadas por Resolución</div>
@@ -1882,6 +1896,69 @@ const DEFAULT_PERMS = {
     ver_config:false, eliminar_reg:false, gestionar_usuarios:false, solo_consulta:false
   }
 };
+
+// ── DIAGNÓSTICO DE CUBÍCULO ──
+function diagnosticarCubiculo() {
+  const cubTarget = (document.getElementById('diag-cub')?.value||'').trim();
+  const resultEl = document.getElementById('diag-cub-result');
+  if(!cubTarget) { resultEl.textContent = 'Ingrese un número de cubículo.'; return; }
+  if(!gsData || !gsData.length) { resultEl.textContent = 'Sin datos cargados (gsData vacío).'; return; }
+
+  const lines = [];
+  lines.push(`gsData total filas: ${gsData.length}`);
+
+  // Step 1: raw rows matching this cubiculo, regardless of isActive
+  const rawMatches = gsData.filter(r => String(r['Cubículo']||r['Cubiculo']||'').trim() === cubTarget);
+  lines.push(`\nFilas CRUDAS con Cubículo='${cubTarget}' (sin filtro isActive): ${rawMatches.length}`);
+  const byKeyRaw = {};
+  rawMatches.forEach(r => {
+    const k = regLabel(r);
+    if(!byKeyRaw[k]) byKeyRaw[k] = [];
+    byKeyRaw[k].push(r);
+  });
+  Object.entries(byKeyRaw).forEach(([k, rows]) => {
+    lines.push(`  - ${k}: ${rows.length} fila(s)`);
+    rows.forEach((r,i) => {
+      lines.push(`      [${i}] Entregada="${r['Entregada']||''}" | Terminada="${r['Terminada']||''}" | Liberada="${r['Liberada']||''}" | Status="${r['Status']||''}"`);
+    });
+  });
+
+  // Step 2: which of these pass isActive
+  lines.push(`\nDe estos, ¿cuáles pasan isActive(row)?`);
+  Object.entries(byKeyRaw).forEach(([k, rows]) => {
+    const activeRows = rows.filter(r => isActive(r));
+    lines.push(`  - ${k}: ${activeRows.length}/${rows.length} filas activas`);
+  });
+
+  // Step 3: simulate cubMap construction exactly as renderInvernaderoGrid does
+  const cubMapSim = {};
+  gsData.forEach(row => {
+    if (!isActive(row)) return;
+    const cub  = String(row['Cubículo'] || row['Cubiculo'] || '').trim();
+    if (cub !== cubTarget) return;
+    const key = regLabel(row);
+    const rowEntregada = String(row['Entregada'] || '').trim();
+    if (!cubMapSim[key]) {
+      cubMapSim[key] = { entregada: rowEntregada, rowCount: 1, firstRowEntregada: rowEntregada };
+    } else {
+      cubMapSim[key].rowCount++;
+      if (!cubMapSim[key].entregada && rowEntregada) cubMapSim[key].entregada = rowEntregada;
+    }
+  });
+  lines.push(`\nSimulación de cubMap['${cubTarget}'] (con fix de consolidación):`);
+  Object.entries(cubMapSim).forEach(([k, v]) => {
+    lines.push(`  - ${k}: entregada_final="${v.entregada}" | filas_procesadas=${v.rowCount} | primera_fila_entregada="${v.firstRowEntregada}"`);
+  });
+
+  // Step 4: final filter (activeEntries logic)
+  const allEntries = Object.entries(cubMapSim).map(([k,v]) => ({key:k, entregada:v.entregada}));
+  const activeOnly = allEntries.filter(e => !(e.entregada && toSafeDate(e.entregada)));
+  lines.push(`\nDespués del filtro activeEntries (lo que DEBERÍA mostrarse): ${activeOnly.length} entrada(s)`);
+  activeOnly.forEach(e => lines.push(`  - ${e.key} (entregada="${e.entregada}")`));
+  if(!activeOnly.length) lines.push('  (ninguna — caería al fallback de mostrar TODAS las entregadas)');
+
+  resultEl.textContent = lines.join('\n');
+}
 
 // ── LIMPIEZA DE FILAS DUPLICADAS POR RESOLUCIÓN ──
 async function escanearDuplicadosResolucion() {
