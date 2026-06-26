@@ -4798,6 +4798,8 @@ function renderAnTable(key,idx,label,tecnica) {
       <div style="font-size:11px;color:var(--g600)">Analisis <strong>${label}</strong> — Tecnica: ${tecnica}</div>
       <div style="display:flex;gap:6px">
         <button class="btn btn-danger btn-sm" onclick="delAnSelected('${key}')" title="Eliminar filas seleccionadas">Eliminar selec.</button>
+        <button class="btn btn-gh btn-sm" onclick="copiarAnSeleccionadas('${key}')" title="Copiar filas seleccionadas para pegar en otro registro">Copiar selec.</button>
+        <button class="btn btn-gh btn-sm" onclick="pegarAnGuardadas('${key}')" title="Pegar filas copiadas previamente">Pegar</button>
         <button class="btn btn-gh btn-sm" onclick="addAnRow('${key}')">+ Agregar</button>
       </div>
     </div>
@@ -4815,6 +4817,7 @@ function renderAnTable(key,idx,label,tecnica) {
         <th style="width:45px;text-align:center">N°M.</th>
         <th style="width:105px;text-align:center">Estado</th>
         <th style="width:100px;text-align:center">Resultado</th>
+        <th style="width:90px;text-align:center">F. Informe</th>
         <th style="text-align:left;min-width:60px">Observaciones</th>
         <th style="width:28px;text-align:center;padding:5px 4px">
           <label style="cursor:pointer;display:flex;align-items:center;justify-content:center" onclick="toggleAllAnChks('${key}')">
@@ -4924,7 +4927,7 @@ function makeAnRow(key,i,r,tecnica) {
     <td style="text-align:center"><input type="date" id="ae-tdm-est-${key}-${i}" value="${r.tdm_est||''}" style="text-align:center" ${i===0?`oninput="replicarFila0An('${key}','tdm-est',this.value)"`:''}>  </td>
     <td style="text-align:center"><input type="date" id="ae-tdm-${key}-${i}" value="${r.tdm||''}" style="text-align:center" ${i===0?`oninput="replicarFila0An('${key}','tdm',this.value)"`:''}>  </td>
     <td style="text-align:center"><input type="text" inputmode="numeric" id="ae-folio-${key}-${i}" value="${r.folio||''}" style="font-family:var(--mono);text-align:center;min-width:36px;width:auto" oninput="autoEstadoFolio('${key}',${i});autoFitInput(this);${i===0?`replicarFila0An('${key}','folio',this.value)`:''}"  ></td>
-    <td style="text-align:center"><input type="text" inputmode="numeric" id="ae-cd-${key}-${i}" value="${r.corr_desde||''}" style="font-family:var(--mono);text-align:center;min-width:36px;width:auto" oninput="calcNM('${key}',${i});autoFitInput(this);${i===0?`replicarFila0An('${key}','cd',this.value)`:''}"  ></td>
+    <td style="text-align:center"><input type="text" inputmode="numeric" id="ae-cd-${key}-${i}" value="${r.corr_desde||''}" style="font-family:var(--mono);text-align:center;min-width:36px;width:auto" oninput="autoFillCorrHasta('${key}',${i});calcNM('${key}',${i});autoFitInput(this);${i===0?`replicarFila0An('${key}','cd',this.value)`:''}"  ></td>
     <td style="text-align:center"><input type="text" inputmode="numeric" id="ae-ch-${key}-${i}" value="${r.corr_hasta||''}" style="font-family:var(--mono);text-align:center;min-width:36px;width:auto" oninput="calcNM('${key}',${i});autoFitInput(this);${i===0?`replicarFila0An('${key}','ch',this.value)`:''}"  ></td>
     <td style="text-align:center"><input type="number" id="ae-nm-${key}-${i}" value="${r.n_muestras||''}" style="font-family:var(--mono);background:var(--gold-bg);font-weight:700;text-align:center" readonly></td>
     <td style="text-align:center"><select id="ae-est-${key}-${i}" style="font-weight:600;padding:4px;border-radius:3px;background:${estBg};color:${estColor}"
@@ -4940,6 +4943,7 @@ function makeAnRow(key,i,r,tecnica) {
             'color:var(--g400)'}"
       >${resOpts}</select>
     </td>
+    <td style="text-align:center"><input type="date" id="ae-finf-${key}-${i}" value="${r.fecha_inf||''}" style="text-align:center"></td>
     <td style="min-width:60px"><input id="ae-obs-${key}-${i}" value="${esc(r.obs||'')}" placeholder="Obs..."
       style="width:100%;${isRootObs?'color:var(--warn);font-size:10.5px':''}"></td>
     <td style="text-align:center;padding:5px 6px">
@@ -5007,6 +5011,43 @@ function toggleAllAnChecks(key) {
     const tr = c.closest('tr');
     if(tr) tr.style.background = !allChecked ? 'rgba(22,163,74,.06)' : '';
   });
+}
+
+// ── COPIAR/PEGAR FILAS DE ANÁLISIS ENTRE REGISTROS ──
+// Permite copiar filas con datos ya ingresados (folio, correlativos, fechas) y
+// pegarlas en otro registro distinto, evitando reingresar todo manualmente.
+function copiarAnSeleccionadas(key) {
+  syncAnFromDOM(key);
+  const chks = [...document.querySelectorAll(`.an-row-chk[data-key="${key}"]`)];
+  const selectedIdx = chks.filter(c=>c.checked).map(c=>parseInt(c.dataset.idx));
+  if(!selectedIdx.length){ setS('Seleccione al menos una fila para copiar.','warn'); return; }
+  const filas = selectedIdx.map(i => ({...anRows[key][i], _tipoAn: key}));
+  localStorage.setItem('eca_an_clipboard', JSON.stringify(filas));
+  setS(`${filas.length} fila(s) copiada(s). Vaya al registro destino y presione "Pegar".`, 'ok');
+}
+
+function pegarAnGuardadas(key) {
+  const raw = localStorage.getItem('eca_an_clipboard');
+  if(!raw) { setS('No hay filas copiadas. Use "Copiar selec." primero en el registro de origen.','warn'); return; }
+  let filas;
+  try { filas = JSON.parse(raw); } catch(e) { setS('Error leyendo filas copiadas.','err'); return; }
+  if(!filas.length) { setS('No hay filas copiadas.','warn'); return; }
+  // Only paste rows whose original tipo_an matches the current tab (key) — avoids mixing types
+  const filasDelTipo = filas.filter(f => f._tipoAn === key);
+  if(!filasDelTipo.length) {
+    setS(`Las filas copiadas son de otro tipo de análisis (no ${key}). Cambie al tab correcto y reintente.`,'warn');
+    return;
+  }
+  syncAnFromDOM(key);
+  _anRowsModified = true;
+  if(!anRows[key]) anRows[key] = [];
+  filasDelTipo.forEach(f => {
+    const { _tipoAn, ...rowData } = f;
+    anRows[key].push({...rowData});
+  });
+  const idx = Object.entries(AN_TYPES).find(([,v])=>v.key===key)?.[0]||0;
+  renderAnTable(key, idx, AN_TYPES[idx]?.label||key, AN_TYPES[idx]?.tecnica||'');
+  setS(`${filasDelTipo.length} fila(s) pegada(s). Revise especie/variedad antes de guardar.`, 'ok');
 }
 
 function delAnSelected(key) {
@@ -5219,6 +5260,7 @@ function syncAnFromDOM(key) {
       corr_desde:document.getElementById(`ae-cd-${key}-${i}`)?.value||'',
       corr_hasta:document.getElementById(`ae-ch-${key}-${i}`)?.value||'',
       n_muestras:document.getElementById(`ae-nm-${key}-${i}`)?.value||'',
+      fecha_inf: document.getElementById(`ae-finf-${key}-${i}`)?.value||'',
       estado:    document.getElementById(`ae-est-${key}-${i}`)?.value||'',
       resultado: document.getElementById(`ae-res-${key}-${i}`)?.value||'',
       obs:       document.getElementById(`ae-obs-${key}-${i}`)?.value||'',
@@ -5325,6 +5367,13 @@ function calcNM(key,i) {
   const hasta=parseInt(document.getElementById(`ae-ch-${key}-${i}`)?.value)||0;
   const nm=document.getElementById(`ae-nm-${key}-${i}`);
   if(nm&&desde>0&&hasta>=desde) nm.value=String(hasta-desde+1);
+}
+
+// Corr. Hasta se autocompleta con Corr. Desde si está vacío, pero permanece editable
+function autoFillCorrHasta(key,i) {
+  const chEl = document.getElementById(`ae-ch-${key}-${i}`);
+  const cdEl = document.getElementById(`ae-cd-${key}-${i}`);
+  if(chEl && cdEl && !chEl.value) chEl.value = cdEl.value;
 }
 
 function autoCargarAnalisis() {
@@ -7245,6 +7294,7 @@ function buildRows(nsol,imp) {
       'Fecha estimada de CCAA':a.ccaa_est||'','Fecha Real de CCAA':a.ccaa_real||'',
       'Fecha muestreo/Indexaje':a.tdm||'','Fecha Estimada Muestreo':a.tdm_est||'',
       'Fecha Informe Fitosanitario':a.fecha_inf||'',
+      'Obs.':a.obs||_lastLoadedRow['Obs.']||'',
       'SPS análisis':a.sps||'','CORE/Factura':a.core||'',
     }));
   } else {
