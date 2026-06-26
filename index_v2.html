@@ -264,6 +264,13 @@ input[type=number]{font-family:var(--mono)}
 .tbl thead th{background:var(--nv);color:rgba(255,255,255,.75);padding:7px 9px;
   font-size:9.5px;font-weight:600;letter-spacing:.4px;text-align:left;
   border-bottom:2px solid rgba(255,255,255,.15);white-space:nowrap;position:sticky;top:0}
+.panel-col-resize{
+  position:absolute;right:0;top:0;bottom:0;width:6px;cursor:col-resize;
+  background:transparent;z-index:5;
+}
+.panel-col-resize:hover{background:rgba(255,255,255,.25)}
+#panel-table{table-layout:fixed}
+#panel-table th,#panel-table td{overflow:hidden;text-overflow:ellipsis}
 .tbl tbody td{border-bottom:1px solid var(--g100);padding:3px 6px;vertical-align:middle}
 .tbl tbody tr:last-child td{border-bottom:none}
 .tbl tbody tr:hover td{background:var(--g50)}
@@ -3115,20 +3122,56 @@ var _PANEL_COLS = [
   {key:"stat", label:"Status",    fn:function(r){return (r["Status"]||"").toLowerCase()}},
 ];
 function _panelThead() {
-  var h='<tr><th style="width:28px;cursor:default" onclick="event.stopPropagation()"><input type="checkbox" id="panel-chk-all" onclick="toggleAllPanelChk(this)" title="Seleccionar todos"></th>';
+  var h='<tr><th style="width:28px;cursor:default;position:relative" onclick="event.stopPropagation()"><input type="checkbox" id="panel-chk-all" onclick="toggleAllPanelChk(this)" title="Seleccionar todos"></th>';
   _PANEL_COLS.forEach(function(col){
     var act=window._panelSortCol===col.key;
     var dir=window._panelSortDir;
     var arrow=act?(dir===1?" ↑":" ↓"):" ⇅"; // dir=-1=DESC(↓), dir=1=ASC(↑)
-    h+="<th onclick=\"_panelSort('"+col.key+"')\" "
-       +"style=\"cursor:pointer;user-select:none;white-space:nowrap;"
+    var savedWidth = (window._panelColWidths && window._panelColWidths[col.key]) || '';
+    var widthStyle = savedWidth ? ("width:"+savedWidth+"px;") : "";
+    h+="<th data-colkey=\""+col.key+"\" onclick=\"_panelSort('"+col.key+"')\" "
+       +"style=\"cursor:pointer;user-select:none;white-space:nowrap;position:relative;"+widthStyle
        +(act?"border-bottom:2px solid var(--gd);":"")+"\">"
        +col.label+"<span style=\"font-size:9px;margin-left:2px;opacity:"
        +(act?"0.9":"0.4")+";color:"+(act?"var(--gd)":"inherit")+"\">"
-       +arrow+"</span></th>";
+       +arrow+"</span>"
+       +"<span class=\"panel-col-resize\" data-colkey=\""+col.key+"\" onclick=\"event.stopPropagation()\" onmousedown=\"_startColResize(event,'"+col.key+"')\"></span>"
+       +"</th>";
   });
   return h+"</tr>";
 }
+
+// ── REDIMENSIONAR COLUMNAS MANUALMENTE (Búsqueda Rápida) ──
+function _startColResize(e, colKey) {
+  e.preventDefault();
+  e.stopPropagation();
+  var th = e.target.closest('th');
+  if(!th) return;
+  var startX = e.clientX;
+  var startWidth = th.offsetWidth;
+
+  function onMove(ev) {
+    var newWidth = Math.max(40, startWidth + (ev.clientX - startX));
+    th.style.width = newWidth + 'px';
+  }
+  function onUp() {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    if(!window._panelColWidths) window._panelColWidths = {};
+    window._panelColWidths[colKey] = th.offsetWidth;
+    try { localStorage.setItem('eca_panel_col_widths', JSON.stringify(window._panelColWidths)); } catch(err) {}
+  }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+// Restaura anchos guardados al cargar la página
+(function _restorePanelColWidths() {
+  try {
+    var saved = localStorage.getItem('eca_panel_col_widths');
+    if(saved) window._panelColWidths = JSON.parse(saved);
+  } catch(e) { window._panelColWidths = {}; }
+})();
 function _sortPanelFound(arr) {
   if(!window._panelSortCol) { window._panelSortCol="sol"; window._panelSortDir=-1; }
   var col=_PANEL_COLS.filter(function(c){return c.key===window._panelSortCol})[0]||_PANEL_COLS[2];
