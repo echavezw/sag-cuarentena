@@ -2779,6 +2779,58 @@ async function getColumnLetter(sheetName, colName) {
   return letter;
 }
 
+// ── STATUS AUTOMÁTICO — calcula el estado intermedio real del registro a partir
+// de fechas y análisis ya existentes, sin depender del campo manual de Etapa VII
+// (que solo cubre estados FINALES: Entregada, Liberada, A destruir, etc.)
+function calcStatusAuto(rows) {
+  if (!rows || !rows.length) return 'Sin Ingreso';
+  const first = rows[0];
+
+  // 1. Estado manual final (Etapa VII) tiene prioridad absoluta si está seteado
+  const statusManual = String(first['Status'] || '').trim();
+  const ESTADOS_FINALES = ['A destruir', 'Destruida', 'Entregada', 'Liberada', 'Perdida', 'Terminada'];
+  if (ESTADOS_FINALES.includes(statusManual)) return statusManual;
+
+  // 2. Sin Fecha de Ingreso → aún no llegó a la ECA
+  const fechaIng = String(first['Fecha de Ingreso'] || '').trim();
+  if (!fechaIng) return 'Sin Ingreso';
+
+  // 3. Con ingreso pero sin injertación → Recibida
+  const fechaInj = String(first['Fecha Injertación'] || '').trim();
+  if (!fechaInj) return 'Recibida';
+
+  // 4. Con injertación — revisar estado de los análisis para distinguir
+  //    Injertada / En Análisis / Análisis Completo
+  const estadosAnalisis = rows
+    .map(r => String(r['Estado Análisis'] || '').trim())
+    .filter(Boolean);
+
+  if (!estadosAnalisis.length) return 'Injertada';
+
+  const tieneEnAnalisis = estadosAnalisis.some(e => {
+    const n = e.toLowerCase();
+    return n === 'en analisis' || n === 'en análisis';
+  });
+  if (tieneEnAnalisis) return 'En Análisis';
+
+  const todosCompletos = estadosAnalisis.every(e => {
+    const n = e.toLowerCase();
+    return n === 'analizada' || n === 'sin sintomas' || n === 'sin síntomas';
+  });
+  if (todosCompletos) return 'Análisis Completo';
+
+  // Mezcla de pendientes/no analizados con injertación ya hecha
+  return 'Injertada';
+}
+
+// Devuelve todas las filas de gsData que pertenecen al mismo registro (por Res. o Solicitud)
+function _filasDelRegistro(r) {
+  const res = String(r['Res.'] || '').trim();
+  const sol = String(r['Solicitud'] || '').trim();
+  if (res) return gsData.filter(x => String(x['Res.']||'').trim() === res);
+  return gsData.filter(x => !String(x['Res.']||'').trim() && String(x['Solicitud']||'').trim() === sol);
+}
+
 function toTitleCase(str) {
   if(!str) return str;
   var keep={'spa':'SpA','s.a.':'S.A.','ltda.':'Ltda.','ltda':'Ltda.',
@@ -3118,8 +3170,11 @@ function _panelRowsBuild(found, tbodyEl) {
     var res=r["Res."]||"";
     var yr=(fmtD(r["Fecha Res."]||"")).substring(0,4);
     var sol=r["Solicitud"]||"";
-    var st=res?(r["Status"]||"En proceso"):(r["Estado Res."]||"Sin Firma");
-    var sc=st==="Entregada"?"badge-ok":st==="A destruir"||st==="No Recibida"?"badge-err":st==="Sin Firma"?"badge-warn":"badge-nv";
+    var st = res ? calcStatusAuto(_filasDelRegistro(r)) : (r["Estado Res."]||"Sin Firma");
+    var sc = ['Entregada','Liberada','Terminada','Análisis Completo'].indexOf(st)>=0 ? "badge-ok"
+      : ['A destruir','Destruida','Perdida'].indexOf(st)>=0 ? "badge-err"
+      : ['Sin Firma','Sin Ingreso'].indexOf(st)>=0 ? "badge-warn"
+      : "badge-nv";
     var loadRow = function(){ cargarFichaPanel(res, yr, sol); };
 
     var tr = document.createElement('tr');
