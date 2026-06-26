@@ -3121,21 +3121,82 @@ var _PANEL_COLS = [
   {key:"esp",  label:"Especie",   fn:function(r){return (r["Especie"]||"").toLowerCase()}},
   {key:"stat", label:"Status",    fn:function(r){return (r["Status"]||"").toLowerCase()}},
 ];
+
+// ── ORDEN MANUAL DE COLUMNAS (Búsqueda Rápida) ──
+function _getPanelColOrder() {
+  if(window._panelColOrder) return window._panelColOrder;
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem('eca_panel_col_order')||'null'); } catch(e) {}
+  const allKeys = _PANEL_COLS.map(c=>c.key);
+  if(saved && Array.isArray(saved) && saved.every(k=>allKeys.includes(k)) && saved.length===allKeys.length) {
+    window._panelColOrder = saved;
+  } else {
+    window._panelColOrder = allKeys;
+  }
+  return window._panelColOrder;
+}
+
+function _setPanelColOrder(order) {
+  window._panelColOrder = order;
+  try { localStorage.setItem('eca_panel_col_order', JSON.stringify(order)); } catch(e) {}
+}
+
+function _orderedPanelCols() {
+  const order = _getPanelColOrder();
+  return order.map(k => _PANEL_COLS.find(c=>c.key===k)).filter(Boolean);
+}
+
+let _panelDragSrcKey = null;
+
+function _onColDragStart(e, key) {
+  _panelDragSrcKey = key;
+  e.dataTransfer.effectAllowed = 'move';
+  try { e.dataTransfer.setData('text/plain', key); } catch(err) {}
+}
+
+function _onColDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+}
+
+function _onColDrop(e, targetKey) {
+  e.preventDefault();
+  e.stopPropagation();
+  const srcKey = _panelDragSrcKey;
+  if(!srcKey || srcKey === targetKey) return;
+  const order = [..._getPanelColOrder()];
+  const srcIdx = order.indexOf(srcKey);
+  const tgtIdx = order.indexOf(targetKey);
+  if(srcIdx < 0 || tgtIdx < 0) return;
+  order.splice(srcIdx, 1);
+  order.splice(tgtIdx, 0, srcKey);
+  _setPanelColOrder(order);
+  // Re-render thead and re-run last search/refresh to rebuild rows in new order
+  const pThead = document.getElementById('panel-thead');
+  if(pThead) pThead.innerHTML = _panelThead();
+  const pTbody = document.getElementById('panel-tbody');
+  if(pTbody && window._lastPanelFound) _panelRowsBuild(window._lastPanelFound, pTbody);
+}
 function _panelThead() {
   var h='<tr><th style="width:28px;cursor:default;position:relative" onclick="event.stopPropagation()"><input type="checkbox" id="panel-chk-all" onclick="toggleAllPanelChk(this)" title="Seleccionar todos"></th>';
-  _PANEL_COLS.forEach(function(col){
+  _orderedPanelCols().forEach(function(col){
     var act=window._panelSortCol===col.key;
     var dir=window._panelSortDir;
     var arrow=act?(dir===1?" ↑":" ↓"):" ⇅"; // dir=-1=DESC(↓), dir=1=ASC(↑)
     var savedWidth = (window._panelColWidths && window._panelColWidths[col.key]) || '';
     var widthStyle = savedWidth ? ("width:"+savedWidth+"px;") : "";
-    h+="<th data-colkey=\""+col.key+"\" onclick=\"_panelSort('"+col.key+"')\" "
-       +"style=\"cursor:pointer;user-select:none;white-space:nowrap;position:relative;"+widthStyle
-       +(act?"border-bottom:2px solid var(--gd);":"")+"\">"
+    h+="<th data-colkey=\""+col.key+"\" draggable=\"true\""
+       +" ondragstart=\"_onColDragStart(event,'"+col.key+"')\""
+       +" ondragover=\"_onColDragOver(event)\""
+       +" ondrop=\"_onColDrop(event,'"+col.key+"')\""
+       +" onclick=\"_panelSort('"+col.key+"')\" "
+       +"style=\"cursor:grab;user-select:none;white-space:nowrap;position:relative;"+widthStyle
+       +(act?"border-bottom:2px solid var(--gd);":"")+"\""
+       +" title=\"Arrastrar para reordenar — clic para ordenar\">"
        +col.label+"<span style=\"font-size:9px;margin-left:2px;opacity:"
        +(act?"0.9":"0.4")+";color:"+(act?"var(--gd)":"inherit")+"\">"
        +arrow+"</span>"
-       +"<span class=\"panel-col-resize\" data-colkey=\""+col.key+"\" onclick=\"event.stopPropagation()\" onmousedown=\"_startColResize(event,'"+col.key+"')\"></span>"
+       +"<span class=\"panel-col-resize\" draggable=\"false\" data-colkey=\""+col.key+"\" onclick=\"event.stopPropagation()\" onmousedown=\"event.stopPropagation();_startColResize(event,'"+col.key+"')\"></span>"
        +"</th>";
   });
   return h+"</tr>";
@@ -3207,8 +3268,61 @@ function _panelSort(key) {
   pThead.innerHTML=_panelThead();
   pTbody.innerHTML=_panelRows(found);
 }
+// Construye la celda <td> correspondiente a una columna (por key) para una fila de datos.
+// Centralizado aquí para que el orden de columnas (drag & drop) se respete dinámicamente.
+function _buildPanelCell(key, r, ctx) {
+  const td = document.createElement('td');
+  td.style.cursor = 'pointer';
+  td.addEventListener('click', ctx.loadRow);
+  switch(key) {
+    case 'res':
+      td.style.fontFamily = 'var(--mono)'; td.style.fontWeight = '700';
+      td.textContent = ctx.res || 'sin res.';
+      if(!ctx.res) td.style.color = 'var(--g400)';
+      break;
+    case 'anio':
+      td.style.fontFamily = 'var(--mono)';
+      td.textContent = ctx.yr || '\u2014';
+      break;
+    case 'sol':
+      td.style.fontFamily = 'var(--mono)';
+      td.textContent = ctx.sol || '\u2014';
+      break;
+    case 'anioSol':
+      td.style.fontFamily = 'var(--mono)'; td.style.color = 'var(--g400)'; td.style.fontSize = '11px';
+      td.textContent = (fmtD(r["Fecha Solicitud"]||"")).substring(0,4) || '\u2014';
+      break;
+    case 'ing':
+      td.style.fontFamily = 'var(--mono)';
+      td.textContent = r["Año de Ingreso"]||r["Ano de Ingreso"]||'\u2014';
+      break;
+    case 'cub':
+      td.style.fontFamily = 'var(--mono)'; td.style.fontSize = '11px';
+      td.textContent = r["Cubículo"]||r["Cubiculo"]||'\u2014';
+      break;
+    case 'imp':
+      td.textContent = toTitleCase(r["Importador"]) || '\u2014';
+      break;
+    case 'esp':
+      td.style.fontStyle = 'italic'; td.style.fontSize = '11px';
+      td.textContent = (r["Especie"]||'\u2014').split(' ').slice(0,2).join(' ');
+      break;
+    case 'stat': {
+      const badge = document.createElement('span');
+      badge.className = 'badge ' + ctx.sc;
+      badge.textContent = ctx.st;
+      td.appendChild(badge);
+      break;
+    }
+    default:
+      td.textContent = '\u2014';
+  }
+  return td;
+}
+
 function _panelRowsBuild(found, tbodyEl) {
   tbodyEl.innerHTML = '';
+  const orderedCols = _orderedPanelCols();
   found.forEach(function(r){
     var res=r["Res."]||"";
     var yr=(fmtD(r["Fecha Res."]||"")).substring(0,4);
@@ -3219,6 +3333,7 @@ function _panelRowsBuild(found, tbodyEl) {
       : ['Sin Firma','Sin Ingreso'].indexOf(st)>=0 ? "badge-warn"
       : "badge-nv";
     var loadRow = function(){ cargarFichaPanel(res, yr, sol); };
+    var ctx = {res, yr, sol, st, sc, loadRow};
 
     var tr = document.createElement('tr');
     tr.style.cursor = 'default';
@@ -3237,63 +3352,9 @@ function _panelRowsBuild(found, tbodyEl) {
     tdChk.appendChild(chk);
     tr.appendChild(tdChk);
 
-    var tdRes = document.createElement('td');
-    tdRes.style.fontFamily = 'var(--mono)'; tdRes.style.fontWeight='700'; tdRes.style.cursor='pointer';
-    tdRes.textContent = res || 'sin res.';
-    if(!res) tdRes.style.color = 'var(--g400)';
-    tdRes.addEventListener('click', loadRow);
-    tr.appendChild(tdRes);
-
-    var tdYr = document.createElement('td');
-    tdYr.style.fontFamily='var(--mono)'; tdYr.style.cursor='pointer';
-    tdYr.textContent = yr || '\u2014';
-    tdYr.addEventListener('click', loadRow);
-    tr.appendChild(tdYr);
-
-    var tdSol = document.createElement('td');
-    tdSol.style.fontFamily='var(--mono)'; tdSol.style.cursor='pointer';
-    tdSol.textContent = sol || '\u2014';
-    tdSol.addEventListener('click', loadRow);
-    tr.appendChild(tdSol);
-
-    var tdAnioSol = document.createElement('td');
-    tdAnioSol.style.fontFamily='var(--mono)'; tdAnioSol.style.cursor='pointer'; tdAnioSol.style.color='var(--g400)'; tdAnioSol.style.fontSize='11px';
-    tdAnioSol.textContent = (fmtD(r["Fecha Solicitud"]||"")).substring(0,4) || '\u2014';
-    tdAnioSol.addEventListener('click', loadRow);
-    tr.appendChild(tdAnioSol);
-
-    var tdIng = document.createElement('td');
-    tdIng.style.fontFamily='var(--mono)'; tdIng.style.cursor='pointer';
-    tdIng.textContent = r["Año de Ingreso"]||r["Ano de Ingreso"]||'\u2014';
-    tdIng.addEventListener('click', loadRow);
-    tr.appendChild(tdIng);
-
-    var tdCub = document.createElement('td');
-    tdCub.style.fontFamily='var(--mono)'; tdCub.style.cursor='pointer'; tdCub.style.fontSize='11px';
-    tdCub.textContent = r["Cubículo"]||r["Cubiculo"]||'\u2014';
-    tdCub.addEventListener('click', loadRow);
-    tr.appendChild(tdCub);
-
-    var tdImp = document.createElement('td');
-    tdImp.style.cursor='pointer';
-    tdImp.textContent = toTitleCase(r["Importador"]) || '\u2014';
-    tdImp.addEventListener('click', loadRow);
-    tr.appendChild(tdImp);
-
-    var tdEsp = document.createElement('td');
-    tdEsp.style.fontStyle='italic'; tdEsp.style.fontSize='11px'; tdEsp.style.cursor='pointer';
-    tdEsp.textContent = (r["Especie"]||'\u2014').split(' ').slice(0,2).join(' ');
-    tdEsp.addEventListener('click', loadRow);
-    tr.appendChild(tdEsp);
-
-    var tdSt = document.createElement('td');
-    tdSt.style.cursor='pointer';
-    var badge = document.createElement('span');
-    badge.className = 'badge ' + sc;
-    badge.textContent = st;
-    tdSt.appendChild(badge);
-    tdSt.addEventListener('click', loadRow);
-    tr.appendChild(tdSt);
+    orderedCols.forEach(function(col){
+      tr.appendChild(_buildPanelCell(col.key, r, ctx));
+    });
 
     tbodyEl.appendChild(tr);
   });
