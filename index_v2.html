@@ -9,7 +9,7 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --nv:#0A1628;--nv2:#0f1e35;--nv3:#162240;
+  --nv:#006cb8;--nv2:#005691;--nv3:#0080d6;--inkv:#0A1628;
   --gd:#006cb8;--gdl:#3b9bd9;--gds:rgba(0,108,184,.15);--rd:#ef3f44;--rds:rgba(239,63,68,.15);
   --wh:#fff;--g50:#F5F6F7;--g100:#ECEEF1;--g200:#D4D8DE;
   --g400:#8C94A0;--g600:#4A5568;--g700:#2D3748;--ink:#0D1117;
@@ -132,11 +132,11 @@ body{font-family:var(--font);font-weight:300;background:var(--g100);color:var(--
 .tl-item.active .tl-dot::after{content:'●';color:#fff;font-size:7px}
 .tl-sub .tl-dot{width:12px;height:12px;font-size:8px;border-width:1.5px;margin-top:2px}
 .tl-item.done .tl-dot{background:var(--ok);border-color:var(--ok);color:#fff}
-.tl-item.active .tl-dot{background:var(--nv);border-color:var(--nv);color:#fff}
+.tl-item.active .tl-dot{background:var(--nv);border-color:var(--inkv);color:#fff}
 .tl-info{flex:1;min-width:0}
 .tl-label{font-size:11px;font-weight:600;color:var(--g700);line-height:1.35;word-break:break-word}
 .tl-item.done .tl-label{color:var(--g500);font-weight:400}
-.tl-item.active .tl-label{color:var(--nv);font-weight:700}
+.tl-item.active .tl-label{color:var(--inkv);font-weight:700}
 .tl-date{font-family:var(--mono);font-size:9px;color:var(--g400);margin-top:2px}
 .tl-check{display:flex;align-items:center;gap:4px;margin-top:3px}
 .tl-check input[type=checkbox]{display:none}
@@ -144,7 +144,7 @@ body{font-family:var(--font);font-weight:300;background:var(--g100);color:var(--
 .tl-check label::before{content:'';display:inline-block;width:13px;height:13px;border:1.5px solid var(--g200);border-radius:3px;background:#fff;flex-shrink:0;transition:all .15s}
 .tl-item.done .tl-check label::before{content:'✓';background:var(--ok);border-color:var(--ok);color:#fff;font-size:9px;font-weight:700;line-height:13px;text-align:center}
 .tl-item.done .tl-check label{color:var(--ok)}
-.tl-item.active .tl-check label::before{border-color:var(--nv)}
+.tl-item.active .tl-check label::before{border-color:var(--inkv)}
 
 /* ── STAGES ── */
 .stage{display:none}.stage.active{display:block}
@@ -182,10 +182,10 @@ body{font-family:var(--font);font-weight:300;background:var(--g100);color:var(--
 
 /* ── Field hierarchy ── */
 /* Primary: larger input, darker label, subtle gold-left border */
-.ff-primary .lbl{font-size:10px;font-weight:800;color:var(--nv);letter-spacing:.08em}
-.ff-primary input,.ff-primary select{border-color:var(--nv);background:#fff;
+.ff-primary .lbl{font-size:10px;font-weight:800;color:var(--inkv);letter-spacing:.08em}
+.ff-primary input,.ff-primary select{border-color:var(--inkv);background:#fff;
   font-size:14px;font-weight:500;padding:9px 11px}
-.ff-primary input:focus,.ff-primary select:focus{border-color:var(--nv);
+.ff-primary input:focus,.ff-primary select:focus{border-color:var(--inkv);
   box-shadow:0 0 0 3px rgba(10,22,40,.12)}
 /* Secondary: smaller, muted */
 .ff-secondary .lbl{font-size:9px;font-weight:600;color:var(--g400);letter-spacing:.04em}
@@ -212,7 +212,7 @@ input.auto-filled{animation:auto-flash .6s ease-out}
 input,select,textarea{padding:7px 9px;border:1.5px solid var(--g300,#b0b8c4);border-radius:var(--rs);
   font-size:13px;font-family:var(--font);width:100%;color:var(--ink);background:var(--wh);
   outline:none;-webkit-appearance:none;transition:border .12s,box-shadow .12s}
-input:focus,select:focus,textarea:focus{border-color:var(--nv);box-shadow:0 0 0 3px rgba(10,22,40,.10);background:#fff}
+input:focus,select:focus,textarea:focus{border-color:var(--inkv);box-shadow:0 0 0 3px rgba(10,22,40,.10);background:#fff}
 input[readonly]{background:var(--g50);border-color:var(--g100);color:var(--g600);cursor:default;font-family:var(--mono);font-size:12px}
 input[readonly]:focus{box-shadow:none;border-color:var(--g100)}
 textarea{resize:vertical;min-height:60px;line-height:1.5}
@@ -230,7 +230,7 @@ input[type=number]{font-family:var(--mono)}
 .btn-gd{background:var(--gd);color:#fff;box-shadow:0 3px 12px rgba(184,151,90,.3)}
 .btn-gd:hover{background:#a6844a}
 .btn-gh{background:var(--wh);border:1.5px solid var(--g300);color:var(--ink)}
-.btn-gh:hover{border-color:var(--nv);color:var(--nv);background:var(--g50)}
+.btn-gh:hover{border-color:var(--inkv);color:var(--inkv);background:var(--g50)}
 .btn-sm{padding:5px 11px;font-size:11px}
 .btn-danger{background:var(--err);color:#fff}
 
@@ -570,7 +570,7 @@ input.field-blocked, select.field-blocked {
   font-family: var(--font); letter-spacing: .3px;
   transition: all .15s;
 }
-.btn-aviso-mail:hover { background: var(--gd); color: var(--nv); }
+.btn-aviso-mail:hover { background: var(--gd); color:var(--inkv); }
 .al-send-btn {
   display: inline-block;
   font-size: 9px; padding: 2px 7px; border-radius: 3px;
@@ -580,13 +580,13 @@ input.field-blocked, select.field-blocked {
   font-weight: 600; white-space: nowrap;
   transition: all .12s; margin-top: 3px;
 }
-.al-send-btn:hover { background: var(--gd); color: var(--nv); }
+.al-send-btn:hover { background: var(--gd); color:var(--inkv); }
 
 /* ── INVERNADERO GRID ── */
 .inv-section { margin-bottom: 24px; }
 .inv-title {
   font-family: var(--serif); font-size: 15px; font-weight: 600;
-  color: var(--nv); padding: 8px 0 6px;
+  color:var(--inkv); padding: 8px 0 6px;
   border-bottom: 2px solid var(--gd); margin-bottom: 10px;
   display: flex; align-items: center; gap: 8px;
   cursor: pointer; user-select: none;
@@ -640,7 +640,7 @@ input.field-blocked, select.field-blocked {
 }
 .cub-num {
   font-family: var(--mono); font-size: 11px; font-weight: 700;
-  color: var(--nv); letter-spacing: .04em;
+  color:var(--inkv); letter-spacing: .04em;
   background: var(--gds); padding: 1px 6px; border-radius: 3px;
 }
 .cub-available-label {
@@ -845,7 +845,7 @@ input.field-blocked, select.field-blocked {
     <button class="btn btn-gd btn-sm" onclick="nuevaSolicitud()">+ Nueva Solicitud</button>
     <button class="btn btn-gh btn-sm" id="compact-btn" onclick="toggleCompact()" title="Alternar modo compacto" style="width:100%;justify-content:center;margin-bottom:6px">⊟ Compacto</button>
     <div id="unsaved-banner">⬤ Cambios sin guardar</div>
-    <button onclick="guardarTodo()" style="width:100%;padding:10px 0;background:linear-gradient(135deg,var(--nv),var(--nv2));color:var(--gd);border:1.5px solid var(--gd);border-radius:var(--rs);font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;transition:all .15s;font-family:var(--font)" onmouseover="this.style.background='var(--gd)';this.style.color='var(--nv)'" onmouseout="this.style.background='linear-gradient(135deg,var(--nv),var(--nv2))';this.style.color='var(--gd)'">Guardar</button>
+    <button onclick="guardarTodo()" style="width:100%;padding:10px 0;background:linear-gradient(135deg,var(--nv),var(--nv2));color:var(--gd);border:1.5px solid var(--gd);border-radius:var(--rs);font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;transition:all .15s;font-family:var(--font)" onmouseover="this.style.background='var(--gd)';this.style.color='var(--inkv)'" onmouseout="this.style.background='linear-gradient(135deg,var(--nv),var(--nv2))';this.style.color='var(--gd)'">Guardar</button>
     <div style="text-align:center;font-size:8.5px;color:var(--g300);margin-top:8px;letter-spacing:.2px">Desarrollado por Eduardo Chávez W.</div>
   </div>
 
@@ -939,7 +939,7 @@ input.field-blocked, select.field-blocked {
   <div class="tab-body">
 
     <!-- ── Info ECA ── -->
-    <div style="font-family:var(--serif);font-size:14px;font-weight:700;color:var(--nv);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--gd)">Info ECA</div>
+    <div style="font-family:var(--serif);font-size:14px;font-weight:700;color:var(--inkv);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--gd)">Info ECA</div>
     <div class="fg" style="grid-template-columns:repeat(6,1fr);gap:10px 14px">
       <div class="ff c2 ff-primary"><label class="lbl"><span class="req">*</span> N° Solicitud</label>
         <div style="display:flex;gap:6px;align-items:center">
@@ -959,7 +959,7 @@ input.field-blocked, select.field-blocked {
     <hr class="divider">
 
     <!-- ── Importador ── -->
-    <div style="font-family:var(--serif);font-size:14px;font-weight:700;color:var(--nv);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--gd)">Importador</div>
+    <div style="font-family:var(--serif);font-size:14px;font-weight:700;color:var(--inkv);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--gd)">Importador</div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
       <div class="ff ff-primary" style="flex:1">
         <label class="lbl"><span class="req">*</span> Nombre Importador</label>
@@ -991,7 +991,7 @@ input.field-blocked, select.field-blocked {
     <hr class="divider">
 
     <!-- ── Origen / Uso ── -->
-    <div style="font-family:var(--serif);font-size:14px;font-weight:700;color:var(--nv);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--gd)">Origen / Uso</div>
+    <div style="font-family:var(--serif);font-size:14px;font-weight:700;color:var(--inkv);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--gd)">Origen / Uso</div>
     <div class="fg">
       <div class="ff c2"><label class="lbl">Nombre Proveedor</label>
         <div style="display:flex;gap:6px">
@@ -1079,7 +1079,7 @@ input.field-blocked, select.field-blocked {
   <div class="tab-body">
 
     <!-- ── Datos Resolución ── -->
-    <div style="font-family:var(--serif);font-size:14px;font-weight:700;color:var(--nv);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--gd)">Datos Resolución</div>
+    <div style="font-family:var(--serif);font-size:14px;font-weight:700;color:var(--inkv);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--gd)">Datos Resolución</div>
     <div class="info-box">Al ingresar el N° de resolucion y el año, se cargaran automaticamente todos los datos desde Google Sheets.</div>
     <div class="fg" style="grid-template-columns:repeat(6,1fr);gap:10px 14px">
       <!-- Fila 1: N° Res · Año · Fecha Emisión · Vigencia Desde · Vigencia Hasta -->
@@ -1108,7 +1108,7 @@ input.field-blocked, select.field-blocked {
     <hr class="divider">
 
     <!-- ── Solicitud Asociada ── -->
-    <div style="font-family:var(--serif);font-size:14px;font-weight:700;color:var(--nv);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--gd)">Solicitud Asociada</div>
+    <div style="font-family:var(--serif);font-size:14px;font-weight:700;color:var(--inkv);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--gd)">Solicitud Asociada</div>
     <div class="fg" style="grid-template-columns:repeat(6,1fr);gap:10px 14px">
       <div class="ff c1"><label class="lbl"><span class="ro">REF</span> N° Solicitud</label><input id="r-nsol" readonly></div>
       <div class="ff c1"><label class="lbl"><span class="ro">REF</span> Fecha Solicitud</label><input id="r-fsol" readonly></div>
@@ -1475,7 +1475,7 @@ input.field-blocked, select.field-blocked {
     <hr class="divider">
     <!-- Firma section -->
     <div style="background:var(--gold-bg);border:1px solid var(--gold-bd);border-radius:var(--rs);padding:14px;margin-top:4px">
-      <div style="font-family:var(--serif);font-size:14px;font-weight:700;color:var(--nv);margin-bottom:12px">Datos de Firma</div>
+      <div style="font-family:var(--serif);font-size:14px;font-weight:700;color:var(--inkv);margin-bottom:12px">Datos de Firma</div>
       <div class="fg" style="grid-template-columns:repeat(6,1fr);gap:10px 14px">
         <div class="ff c3"><label class="lbl">Responsable SAG</label><input id="f6-firma-resp" placeholder="Nombre del funcionario..."></div>
         <div class="ff c2"><label class="lbl">Cargo</label><input id="f6-firma-cargo" placeholder="Inspector, Profesional..."></div>
@@ -3818,10 +3818,10 @@ function renderEspTable(data) {
     s+(r.variedad?(r.variedad.split(/[,;\/]/).map(x=>x.trim()).filter(Boolean).length):0),0);
   const nplanTotal=rows.reduce((s,r)=>s+(parseInt(r.nplan)||0),0);
   tfoot.innerHTML=`<tr style="background:var(--gold-bg);border-top:2px solid var(--gd)">
-    <td style="padding:6px 8px;font-weight:700;font-size:12px;color:var(--nv);font-style:italic">Total</td>
-    <td style="padding:6px 8px;font-family:var(--mono);font-weight:700;text-align:center;color:var(--nv)">${varCount||'—'}</td>
+    <td style="padding:6px 8px;font-weight:700;font-size:12px;color:var(--inkv);font-style:italic">Total</td>
+    <td style="padding:6px 8px;font-family:var(--mono);font-weight:700;text-align:center;color:var(--inkv)">${varCount||'—'}</td>
     <td></td><td></td><td></td>
-    <td style="padding:6px 8px;font-family:var(--mono);font-weight:700;text-align:center;color:var(--nv)">${nplanTotal||'—'}</td>
+    <td style="padding:6px 8px;font-family:var(--mono);font-weight:700;text-align:center;color:var(--inkv)">${nplanTotal||'—'}</td>
     <td></td>
   </tr>`;
 }
@@ -4242,7 +4242,7 @@ function renderConsolidadoEspecies() {
   }).join('');
 
   el.innerHTML = `
-    <div style="font-size:11px;font-weight:600;color:var(--nv);letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px">
+    <div style="font-size:11px;font-weight:600;color:var(--inkv);letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px">
       Consolidado por Especie
     </div>
     <div class="tbl-wrap" style="max-width:520px">
@@ -4254,9 +4254,9 @@ function renderConsolidadoEspecies() {
       </tr></thead>
       <tbody>${rows}</tbody>
       <tfoot><tr style="border-top:2px solid var(--nv)">
-        <td style="font-weight:700;padding:6px 10px;color:var(--nv);font-family:var(--serif);font-size:13px">Total</td>
+        <td style="font-weight:700;padding:6px 10px;color:var(--inkv);font-family:var(--serif);font-size:13px">Total</td>
         <td></td>
-        <td style="font-family:var(--mono);text-align:center;padding:6px 10px;font-weight:700;color:var(--nv)">${Object.values(map).reduce((s,d)=>s+d.nplan,0)||'—'}</td>
+        <td style="font-family:var(--mono);text-align:center;padding:6px 10px;font-weight:700;color:var(--inkv)">${Object.values(map).reduce((s,d)=>s+d.nplan,0)||'—'}</td>
       </tr></tfoot>
     </table>
     </div>`;
@@ -4635,7 +4635,7 @@ function toggleAllAnChks(key) {
     inp.checked = newState;
     const span = inp.closest('label')?.querySelector('.an-chk-icon');
     if (span) {
-      span.style.color = newState ? 'var(--nv)' : 'transparent';
+      span.style.color = newState ? 'var(--inkv)' : 'transparent';
       span.style.background = newState ? 'var(--gold-bg)' : '#fff';
     }
   });
@@ -5366,10 +5366,10 @@ function renderEstimacionCobro() {
 
       html += `</tbody>
           <tfoot><tr style="background:var(--gold-bg)">
-            <td colspan="2" style="padding:5px 10px;font-size:11px;font-weight:700;color:var(--nv);text-align:right">
+            <td colspan="2" style="padding:5px 10px;font-size:11px;font-weight:700;color:var(--inkv);text-align:right">
               TOTAL ${label}
             </td>
-            <td style="font-family:var(--mono);text-align:center;padding:5px 10px;font-weight:800;font-size:13px;color:var(--nv)"
+            <td style="font-family:var(--mono);text-align:center;padding:5px 10px;font-weight:800;font-size:13px;color:var(--inkv)"
               id="estim-total-${key}">${totalTipo}</td>
             <td></td>
           </tr></tfoot>
@@ -5399,7 +5399,7 @@ function toggleEstimRowChk(label) {
   const span  = label.querySelector('.estim-chk-icon');
   if (!input || !span) return;
   input.checked = !input.checked;
-  span.style.color = input.checked ? 'var(--nv)' : 'transparent';
+  span.style.color = input.checked ? 'var(--inkv)' : 'transparent';
   span.style.background = input.checked ? 'var(--gold-bg)' : '#fff';
 }
 
@@ -5412,7 +5412,7 @@ function toggleEstimAll(tipo) {
     inp.checked = newState;
     const span = inp.closest('label')?.querySelector('.estim-chk-icon');
     if (span) {
-      span.style.color = newState ? 'var(--nv)' : 'transparent';
+      span.style.color = newState ? 'var(--inkv)' : 'transparent';
       span.style.background = newState ? 'var(--gold-bg)' : '#fff';
     }
   });
@@ -5534,7 +5534,7 @@ function renderCobroTabs() {
     ttr.style.background='var(--gold-bg)';
     ttr.innerHTML=`
       <td></td>
-      <td style="font-size:11px;font-weight:700;color:var(--nv);padding:6px 8px;text-align:center">
+      <td style="font-size:11px;font-weight:700;color:var(--inkv);padding:6px 8px;text-align:center">
         TOTAL ${label}
       </td>
       <td style="text-align:center;font-family:var(--mono);font-weight:700;font-size:11px" id="cobro-total-nan-${key}">—</td>
@@ -6612,7 +6612,7 @@ function renderRecientes() {
       ? `cargarFichaPanel('${_res}','${_yr}','')`
       : `cargarFichaPanel('','','${_sol}')`;
     const resDisplay=_res
-      ? `<span style="font-weight:700;color:var(--nv)">${_res}</span>`
+      ? `<span style="font-weight:700;color:var(--inkv)">${_res}</span>`
       : `<span style="color:var(--g400);font-size:10px;font-style:italic">sin res.</span>`;
     html+=`<tr
       style="cursor:default" onmouseover="this.style.background='var(--g50)'" onmouseout="this.style.background=''">
@@ -8621,7 +8621,7 @@ function renderInvernaderoGrid() {
               ${entry.origen ? `<span>${entry.origen}</span>` : ''}
               ${entry.origen && fechaEstFmt ? `<span class="cub-meta-sep">·</span>` : ''}
               ${fechaEstFmt ? `<span>Est. ${fechaEstFmt}</span>` : ''}
-              ${entry.cub2 ? `<span class="cub-meta-sep">·</span><span style="font-weight:600;color:var(--nv)">+ Cub. ${entry.cub2}</span>` : ''}
+              ${entry.cub2 ? `<span class="cub-meta-sep">·</span><span style="font-weight:600;color:var(--inkv)">+ Cub. ${entry.cub2}</span>` : ''}
             </div>
             ${firmaHtml}
             ${espHtml}`;
