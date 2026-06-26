@@ -9152,16 +9152,19 @@ function renderInvernaderoGrid() {
           inner += `</div>`;
         });
 
-        const isAnyDelivered  = entries.some(e => e.entregada && toSafeDate(e.entregada));
-        const isAnyTerminada  = !isAnyDelivered && entries.some(e => {
+        // CORRECCIÓN: debe evaluarse sobre entriesToShow (lo que realmente se muestra),
+        // no sobre 'entries' completo — de lo contrario una entrega vieja (817/818)
+        // sigue marcando la card como entregada aunque haya un ocupante nuevo activo (5071).
+        const isAnyDelivered  = entriesToShow.some(e => e.entregada && toSafeDate(e.entregada));
+        const isAnyTerminada  = !isAnyDelivered && entriesToShow.some(e => {
           const t = norm2(e.terminada);
           return t === 'si' || t === 'si' || t === 'terminada';
         });
-        const isAnyLiberada   = !isAnyDelivered && !isAnyTerminada && entries.some(e => {
+        const isAnyLiberada   = !isAnyDelivered && !isAnyTerminada && entriesToShow.some(e => {
           const l = norm2(e.liberada);
           return l === 'si' || l === 'liberada';
         });
-        const isAnyCritical   = entries.some(e => e.alerts.some(a => a.severity === 'vencido' && a.days !== null && Math.abs(a.days) > 30));
+        const isAnyCritical   = entriesToShow.some(e => e.alerts.some(a => a.severity === 'vencido' && a.days !== null && Math.abs(a.days) > 30));
         const cardExtraCls = isAnyDelivered  ? 'occupied delivered'
           : isAnyTerminada  ? 'occupied terminada'
           : isAnyLiberada   ? 'occupied liberada'
