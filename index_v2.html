@@ -2978,7 +2978,9 @@ var _PANEL_COLS = [
   {key:"res",  label:"Res.",      fn:function(r){return parseInt(r["Res."]||0)||0}},
   {key:"anio", label:"Año Res.",  fn:function(r){return parseInt((fmtD(r["Fecha Res."]||"")).substring(0,4))||0}},
   {key:"sol",  label:"Sol.",      fn:function(r){return parseInt(r["Solicitud"]||0)||0}},
+  {key:"anioSol", label:"Año Sol.", fn:function(r){return parseInt((fmtD(r["Fecha Solicitud"]||"")).substring(0,4))||0}},
   {key:"ing",  label:"Año Ing.",  fn:function(r){return parseInt(r["Año de Ingreso"]||r["Ano de Ingreso"]||0)||0}},
+  {key:"cub",  label:"Cubículo",  fn:function(r){return (r["Cubículo"]||r["Cubiculo"]||"").toLowerCase()}},
   {key:"imp",  label:"Importador",fn:function(r){return (r["Importador"]||"").toLowerCase()}},
   {key:"esp",  label:"Especie",   fn:function(r){return (r["Especie"]||"").toLowerCase()}},
   {key:"stat", label:"Status",    fn:function(r){return (r["Status"]||"").toLowerCase()}},
@@ -3079,11 +3081,23 @@ function _panelRowsBuild(found, tbodyEl) {
     tdSol.addEventListener('click', loadRow);
     tr.appendChild(tdSol);
 
+    var tdAnioSol = document.createElement('td');
+    tdAnioSol.style.fontFamily='var(--mono)'; tdAnioSol.style.cursor='pointer'; tdAnioSol.style.color='var(--g400)'; tdAnioSol.style.fontSize='11px';
+    tdAnioSol.textContent = (fmtD(r["Fecha Solicitud"]||"")).substring(0,4) || '\u2014';
+    tdAnioSol.addEventListener('click', loadRow);
+    tr.appendChild(tdAnioSol);
+
     var tdIng = document.createElement('td');
     tdIng.style.fontFamily='var(--mono)'; tdIng.style.cursor='pointer';
     tdIng.textContent = r["Año de Ingreso"]||r["Ano de Ingreso"]||'\u2014';
     tdIng.addEventListener('click', loadRow);
     tr.appendChild(tdIng);
+
+    var tdCub = document.createElement('td');
+    tdCub.style.fontFamily='var(--mono)'; tdCub.style.cursor='pointer'; tdCub.style.fontSize='11px';
+    tdCub.textContent = r["Cubículo"]||r["Cubiculo"]||'\u2014';
+    tdCub.addEventListener('click', loadRow);
+    tr.appendChild(tdCub);
 
     var tdImp = document.createElement('td');
     tdImp.style.cursor='pointer';
@@ -8799,11 +8813,17 @@ function renderInvernaderoGrid() {
         }
 
         // Occupied — may have multiple registros
-        const sev = worstSev(entries.flatMap(e => e.alerts));
+        // Si hay más de un registro para este cubículo y alguno NO está entregado,
+        // mostrar solo los activos (no entregados) — la nueva cuarentena asignada
+        // reemplaza visualmente a la entregada en la ficha del cubículo.
+        const activeEntries = entries.filter(e => !(e.entregada && toSafeDate(e.entregada)));
+        const entriesToShow = activeEntries.length ? activeEntries : entries;
+
+        const sev = worstSev(entriesToShow.flatMap(e => e.alerts));
         const borderCls = sev ? `has-alert-${sev}` : '';
 
         let inner = '';
-        entries.forEach((entry, ei) => {
+        entriesToShow.forEach((entry, ei) => {
           if (ei > 0) inner += `<hr class="cub-sep">`;
 
           // Check if this entry is in delivered grace period
