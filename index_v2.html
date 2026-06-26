@@ -8080,7 +8080,7 @@ function isActive(row) {
     const entDate = toSafeDate(entStr);
     if (entDate) {
       const daysSince = -daysDiff(entStr); // positive = days ago
-      if (daysSince > 30) return false;    // delivered >30 days ago → not active
+      if (daysSince > 5) return false;     // delivered >5 days ago → not active (cubiculo queda disponible)
     } else if (entStr.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'') === 'si') {
       // Legacy "SI" text — treat as inactive (no date to check grace period)
       return false;
