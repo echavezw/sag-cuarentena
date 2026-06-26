@@ -8814,9 +8814,12 @@ function renderInvernaderoGrid() {
 
         // Occupied — may have multiple registros
         // Si hay más de un registro para este cubículo y alguno NO está entregado,
-        // mostrar solo los activos (no entregados) — la nueva cuarentena asignada
-        // reemplaza visualmente a la entregada en la ficha del cubículo.
-        const activeEntries = entries.filter(e => !(e.entregada && toSafeDate(e.entregada)));
+        // mostrar SOLO los no entregados — una nueva cuarentena asignada al mismo
+        // cubículo reemplaza inmediatamente a cualquier entrega anterior en la ficha,
+        // sin importar el período de gracia de 30 días (ese período solo aplica
+        // cuando NO hay un ocupante nuevo todavía).
+        const entregadosFlag = e => !!(e.entregada && toSafeDate(e.entregada));
+        const activeEntries = entries.filter(e => !entregadosFlag(e));
         const entriesToShow = activeEntries.length ? activeEntries : entries;
 
         const sev = worstSev(entriesToShow.flatMap(e => e.alerts));
