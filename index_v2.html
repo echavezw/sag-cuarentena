@@ -8721,6 +8721,9 @@ function renderInvernaderoGrid() {
     cubs.forEach(cubId => {
     if (!cubMap[cubId]) cubMap[cubId] = [];
     let entry = cubMap[cubId].find(e => e.key === key);
+    const rowEntregada  = String(row['Entregada'] || '').trim();
+    const rowTerminada  = String(row['Terminada'] || '').trim();
+    const rowLiberada   = String(row['Liberada'] || '').trim();
     if (!entry) {
       entry = {
         key,
@@ -8728,9 +8731,9 @@ function renderInvernaderoGrid() {
         imp: String(row['Importador'] || '').trim(),
         origen: String(row['Origen'] || '').trim(),
         fechaEst: String(row['Fecha de Ingreso'] || '').trim(),
-        entregada: String(row['Entregada'] || '').trim(),
-        terminada: String(row['Terminada'] || '').trim(),
-        liberada:  String(row['Liberada'] || '').trim(),
+        entregada: rowEntregada,
+        terminada: rowTerminada,
+        liberada:  rowLiberada,
         resTermino: String(row['Res. Término'] || '').trim(),
         fechaResT: String(row['Fecha Res.4'] || '').trim(),
         aFirma: String(row['A Firma Res. Termino'] || '').trim(),
@@ -8739,6 +8742,18 @@ function renderInvernaderoGrid() {
         alerts: []
       };
       cubMap[cubId].push(entry);
+    } else {
+      // CONSOLIDACIÓN ENTRE FILAS DEL MISMO REGISTRO:
+      // Un registro puede tener decenas de filas (una por análisis). El estado real
+      // de Entregada/Terminada/Liberada debe ser el mismo en todas, pero si por algún
+      // motivo una fila quedó vacía y otra con dato, priorizamos la fila que SÍ tiene
+      // un valor explícito por sobre una entrada que se creó vacía, y viceversa:
+      // si la entrada ya tiene un valor pero esta fila está vacía, NO lo borramos
+      // (evita que una fila parcialmente guardada apague un estado real).
+      // Mantenemos el primer valor no vacío encontrado entre todas las filas del registro.
+      if (!entry.entregada && rowEntregada) entry.entregada = rowEntregada;
+      if (!entry.terminada && rowTerminada) entry.terminada = rowTerminada;
+      if (!entry.liberada && rowLiberada) entry.liberada = rowLiberada;
     }
 
     // Collect especie + variedad from this row
