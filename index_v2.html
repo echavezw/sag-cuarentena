@@ -2858,6 +2858,42 @@ function _filasDelRegistro(r) {
   return gsData.filter(x => !String(x['Res.']||'').trim() && String(x['Solicitud']||'').trim() === sol);
 }
 
+// Consolida todas las especies únicas de un registro (todas sus filas), agrupadas por género.
+// Formato: "Prunus avium / P. persica / P. salicina" — primera especie completa por género,
+// el resto abreviado con la inicial del género. Ordenado alfabéticamente.
+function _especiesConsolidadas(r) {
+  const rows = _filasDelRegistro(r);
+  const especiesSet = new Set();
+  rows.forEach(row => {
+    const esp = String(row['Especie']||'').trim();
+    if (esp) especiesSet.add(esp);
+  });
+  const especies = [...especiesSet].sort((a,b) => a.localeCompare(b));
+  if (!especies.length) return '';
+
+  const porGenero = {};
+  especies.forEach(esp => {
+    const genero = esp.split(' ')[0];
+    if (!porGenero[genero]) porGenero[genero] = [];
+    porGenero[genero].push(esp);
+  });
+
+  const generosOrdenados = Object.keys(porGenero).sort((a,b) => a.localeCompare(b));
+  const partes = [];
+  generosOrdenados.forEach(genero => {
+    const especiesDelGenero = porGenero[genero]; // ya viene ordenado alfabéticamente
+    especiesDelGenero.forEach((esp, i) => {
+      if (i === 0) {
+        partes.push(esp); // primera especie del género: nombre completo
+      } else {
+        const resto = esp.slice(genero.length).trim(); // lo que sigue al género
+        partes.push(`${genero[0]}. ${resto}`);
+      }
+    });
+  });
+  return partes.join(' / ');
+}
+
 function toTitleCase(str) {
   if(!str) return str;
   var keep={'spa':'SpA','s.a.':'S.A.','ltda.':'Ltda.','ltda':'Ltda.',
@@ -3141,7 +3177,7 @@ function _colRawValue(key, r) {
     case 'ing': return String(r['Año de Ingreso']||r['Ano de Ingreso']||'').trim() || '(sin año)';
     case 'cub': return String(r['Cubículo']||r['Cubiculo']||'').trim() || '(sin cubículo)';
     case 'imp': return toTitleCase(r['Importador']) || '(sin importador)';
-    case 'esp': return (r['Especie']||'').trim() || '(sin especie)';
+    case 'esp': return _especiesConsolidadas(r) || '(sin especie)';
     case 'stat': return calcStatusAuto(_filasDelRegistro(r));
     default: return '';
   }
@@ -3436,7 +3472,8 @@ function _buildPanelCell(key, r, ctx) {
       break;
     case 'esp':
       td.style.fontStyle = 'italic'; td.style.fontSize = '11px';
-      td.textContent = (r["Especie"]||'\u2014').split(' ').slice(0,2).join(' ');
+      td.title = _especiesConsolidadas(r); // tooltip con el texto completo si se corta
+      td.textContent = _especiesConsolidadas(r) || '\u2014';
       break;
     case 'stat': {
       const badge = document.createElement('span');
