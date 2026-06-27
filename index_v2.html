@@ -8319,7 +8319,7 @@ function conectarGSheets() {
   initTokenClient();
   if(tokenClient) tokenClient.requestAccessToken({prompt:'consent'});
 }
-function _requestNewToken() {
+function _requestNewToken(forceConsent) {
   return new Promise((res,rej)=>{
     if(!GS.oauthClientId){ rej(new Error('Configure el OAuth Client ID en Configuracion.')); return; }
     // Force re-init of tokenClient so it picks up the latest scope from initTokenClient()
@@ -8337,9 +8337,10 @@ function _requestNewToken() {
       }
       else rej(new Error('Autenticacion cancelada o fallida.'));
     };
-    // 'consent' forces Google to show the permission screen when scope expands,
-    // instead of silently reusing a cached grant that doesn't cover the new scope.
-    tokenClient.requestAccessToken({prompt:'consent'});
+    // 'consent' solo se fuerza cuando el scope cambio o es la primera autorizacion del usuario.
+    // En renovaciones normales del mismo scope (token vencido por tiempo), Google reutiliza
+    // el consentimiento ya otorgado y renueva el token en silencio, sin mostrar pantalla.
+    tokenClient.requestAccessToken(forceConsent ? {prompt:'consent'} : {});
   });
 }
 
@@ -8354,7 +8355,10 @@ async function ensureToken() {
   const tokenAge = window._tokenObtainedAt ? (Date.now()-window._tokenObtainedAt) : Infinity;
   const scopeChanged = window._tokenScope !== CURRENT_OAUTH_SCOPE;
   if(accessToken && tokenAge < TOKEN_MAX_AGE_MS && !scopeChanged) return Promise.resolve();
-  return _requestNewToken();
+  // Solo pedir confirmacion visible si el scope cambio o nunca se ha autenticado en esta sesion;
+  // si solo vencio el token por tiempo (mismo scope ya autorizado antes), renovar sin pantalla.
+  const needsConsentScreen = scopeChanged || !accessToken;
+  return _requestNewToken(needsConsentScreen);
 }
 
 // ── ETAPA I: N° SOL LOCK ──
