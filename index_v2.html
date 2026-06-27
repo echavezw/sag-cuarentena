@@ -776,6 +776,18 @@ input.field-blocked, select.field-blocked {
 </head>
 <body>
 <!-- ════════════════════════════════════
+     MODAL GENÉRICO (ficha resumen, etc.)
+════════════════════════════════════ -->
+<div id="generic-modal-overlay" onclick="if(event.target===this) cerrarModal()" style="display:none;
+  position:fixed;inset:0;z-index:9998;background:rgba(10,22,40,.55);
+  align-items:center;justify-content:center;font-family:var(--font);padding:20px">
+  <div style="background:#fff;border-radius:12px;padding:28px 32px;max-width:90vw;max-height:88vh;
+    overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.4)">
+    <div id="generic-modal-content"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
      LOGIN SCREEN
 ════════════════════════════════════ -->
 <div id="login-screen" style="position:fixed;inset:0;z-index:9999;background:#0A1628;
@@ -2917,6 +2929,99 @@ function _especiesConsolidadas(r) {
   return partes.join(' / ');
 }
 
+// ── MODAL GENÉRICO ──
+function abrirModal(html) {
+  const overlay = document.getElementById('generic-modal-overlay');
+  const content = document.getElementById('generic-modal-content');
+  if (!overlay || !content) return;
+  content.innerHTML = html;
+  overlay.style.display = 'flex';
+}
+function cerrarModal() {
+  const overlay = document.getElementById('generic-modal-overlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+// ── FICHA RESUMEN (modal) — al hacer clic en el badge de Status en Búsqueda Rápida ──
+function mostrarFichaResumen(r) {
+  const rows = _filasDelRegistro(r);
+  const res = String(r['Res.']||'').trim();
+  const sol = String(r['Solicitud']||'').trim();
+  const yr = (fmtD(r['Fecha Res.']||'')).substring(0,4);
+  const status = res ? calcStatusAuto(rows) : (r['Estado Res.']||'Sin Firma');
+  const sc = ['Entregada','Liberada','Terminada','Análisis Completo'].indexOf(status)>=0 ? 'badge-ok'
+    : ['A destruir','Destruida','Perdida'].indexOf(status)>=0 ? 'badge-err'
+    : ['Sin Firma','Sin Ingreso'].indexOf(status)>=0 ? 'badge-warn'
+    : 'badge-nv';
+
+  // Variedades por especie, consolidadas desde todas las filas del registro
+  const variedadesPorEspecie = {};
+  rows.forEach(row => {
+    const esp = String(row['Especie']||'').trim();
+    const vari = String(row['Variedades']||'').trim();
+    if (!esp || /\bspp\.?$/i.test(esp)) return;
+    if (!variedadesPorEspecie[esp]) variedadesPorEspecie[esp] = new Set();
+    if (vari) variedadesPorEspecie[esp].add(vari);
+  });
+  const especiesHtml = Object.entries(variedadesPorEspecie).map(([esp, varsSet]) => {
+    const vars = [...varsSet].join(', ') || '—';
+    return `<div style="margin-bottom:4px"><i>${esc(esp)}</i> <span style="color:var(--g400)">— ${esc(vars)}</span></div>`;
+  }).join('') || '<span style="color:var(--g400)">Sin especies registradas</span>';
+
+  // Estados de análisis consolidados (cuántas filas en cada estado)
+  const estadosAn = {};
+  rows.forEach(row => {
+    const e = String(row['Estado Análisis']||'').trim();
+    if (e) estadosAn[e] = (estadosAn[e]||0) + 1;
+  });
+  const estadosAnHtml = Object.entries(estadosAn).map(([e,n]) =>
+    `<span class="badge badge-nv" style="margin-right:4px">${esc(e)}: ${n}</span>`
+  ).join('') || '<span style="color:var(--g400)">Sin análisis cargados</span>';
+
+  const first = rows[0] || r;
+  const campo = (label, val) => `
+    <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--g50);font-size:12px">
+      <span style="color:var(--g600)">${label}</span>
+      <span style="font-weight:600;text-align:right">${val || '—'}</span>
+    </div>`;
+
+  const html = `
+    <div style="max-width:480px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <div style="font-size:16px;font-weight:700;font-family:var(--serif);color:var(--inkv)">
+          ${res ? `Res. ${res}${yr?' / '+yr:''}` : `Solicitud ${sol} (sin resolución)`}
+        </div>
+        <span class="badge ${sc}">${esc(status)}</span>
+      </div>
+
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--g400);margin:10px 0 4px">Datos Generales</div>
+      ${campo('Solicitud', sol)}
+      ${campo('Fecha Solicitud', fmtD(first['Fecha Solicitud']||''))}
+      ${campo('Importador', toTitleCase(first['Importador']||''))}
+      ${campo('RUT', first['Rut']||'')}
+      ${campo('Origen', first['Origen']||'')}
+      ${campo('Cubículo', (first['Cubículo']||'') + (first['Cubículo2']?(' / '+first['Cubículo2']):''))}
+
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--g400);margin:14px 0 4px">Fechas Clave</div>
+      ${campo('Fecha de Ingreso', fmtD(first['Fecha de Ingreso']||''))}
+      ${campo('Fecha Injertación', fmtD(first['Fecha Injertación']||''))}
+      ${campo('Fecha aprox. Levante', fmtD(first['Fecha aprox. Levant.']||''))}
+
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--g400);margin:14px 0 4px">Especies y Variedades</div>
+      <div style="font-size:12px">${especiesHtml}</div>
+
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--g400);margin:14px 0 4px">Estado de Análisis (${rows.length} fila${rows.length!==1?'s':''})</div>
+      <div>${estadosAnHtml}</div>
+
+      <div style="margin-top:18px;display:flex;gap:8px">
+        <button class="btn btn-nv btn-sm" style="flex:1" onclick="cargarFichaPanel('${res}','${yr}','${sol}');cerrarModal()">Abrir registro completo</button>
+        <button class="btn btn-gh btn-sm" onclick="cerrarModal()">Cerrar</button>
+      </div>
+    </div>`;
+
+  abrirModal(html);
+}
+
 function toTitleCase(str) {
   if(!str) return str;
   var keep={'spa':'SpA','s.a.':'S.A.','ltda.':'Ltda.','ltda':'Ltda.',
@@ -3502,6 +3607,12 @@ function _buildPanelCell(key, r, ctx) {
       const badge = document.createElement('span');
       badge.className = 'badge ' + ctx.sc;
       badge.textContent = ctx.st;
+      badge.style.cursor = 'pointer';
+      badge.title = 'Ver ficha resumen';
+      badge.addEventListener('click', function(e){
+        e.stopPropagation(); // no disparar la carga del registro completo
+        mostrarFichaResumen(r);
+      });
       td.appendChild(badge);
       break;
     }
