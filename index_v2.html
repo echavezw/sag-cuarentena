@@ -2866,11 +2866,22 @@ function _especiesConsolidadas(r) {
   const especiesSet = new Set();
   rows.forEach(row => {
     const esp = String(row['Especie']||'').trim();
-    // Ignorar etiquetas de grupo residuales tipo "Genero spp." — no son especies reales,
-    // quedaron de datos antiguos de cuando se agrupaba por género (lógica ya revertida).
-    if (esp && !/\bspp\.?$/i.test(esp)) especiesSet.add(esp);
+    if (!esp) return;
+    const esSpp = /\bspp\.?$/i.test(esp);
+    if (esSpp) {
+      // "Genero spp." es VÁLIDO solo cuando viene de una fila de análisis Entomológico
+      // (el análisis de insectos/ácaros es a nivel de género, no por especie individual).
+      // En cualquier otro tipo de análisis, "Genero spp." es un residuo de datos antiguos
+      // (de cuando se agrupaba por género, lógica ya revertida) y debe ignorarse.
+      const tipoAn = String(row['Análisis']||'').trim().toLowerCase();
+      const esEntomologico = tipoAn === 'entomológico' || tipoAn === 'entomologico';
+      if (esEntomologico) especiesSet.add(esp);
+      // si no es entomológico, se descarta silenciosamente
+    } else {
+      especiesSet.add(esp);
+    }
   });
-  const especies = [...especiesSet].sort((a,b) => a.localeCompare(b));
+  let especies = [...especiesSet].sort((a,b) => a.localeCompare(b));
   if (!especies.length) return '';
 
   const porGenero = {};
@@ -2878,6 +2889,16 @@ function _especiesConsolidadas(r) {
     const genero = esp.split(' ')[0];
     if (!porGenero[genero]) porGenero[genero] = [];
     porGenero[genero].push(esp);
+  });
+
+  // Si para un género ya hay especies reales conocidas, "Genero spp." es redundante
+  // (el género ya está representado) — se omite y solo se muestran las especies reales.
+  Object.keys(porGenero).forEach(genero => {
+    const lista = porGenero[genero];
+    const tieneEspecieReal = lista.some(e => !/\bspp\.?$/i.test(e));
+    if (tieneEspecieReal) {
+      porGenero[genero] = lista.filter(e => !/\bspp\.?$/i.test(e));
+    }
   });
 
   const generosOrdenados = Object.keys(porGenero).sort((a,b) => a.localeCompare(b));
