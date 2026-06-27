@@ -269,6 +269,23 @@ input[type=number]{font-family:var(--mono)}
   background:transparent;z-index:5;
 }
 .panel-col-resize:hover{background:rgba(255,255,255,.25)}
+.panel-col-grip{
+  cursor:grab;opacity:.45;font-size:11px;margin-right:2px;display:inline-block;
+}
+.panel-col-grip:hover{opacity:.9}
+.panel-col-filter-btn{
+  cursor:pointer;opacity:.5;font-size:9px;margin-left:4px;display:inline-block;
+}
+.panel-col-filter-btn:hover{opacity:1}
+.panel-col-filter-btn.active{opacity:1;color:var(--gd)}
+.panel-col-filter-menu{
+  position:absolute;top:100%;left:0;z-index:50;background:var(--wh);color:var(--ink);
+  border:1px solid var(--g200);border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,.15);
+  padding:8px;min-width:160px;max-height:260px;overflow-y:auto;font-weight:400;
+  text-transform:none;letter-spacing:normal;font-size:11.5px;
+}
+.panel-col-filter-menu label{display:flex;align-items:center;gap:6px;padding:3px 2px;cursor:pointer;white-space:nowrap}
+.panel-col-filter-menu .pcf-actions{display:flex;gap:6px;margin-top:6px;padding-top:6px;border-top:1px solid var(--g100)}
 #panel-table{table-layout:fixed}
 #panel-table th,#panel-table td{overflow:hidden;text-overflow:ellipsis}
 .tbl tbody td{border-bottom:1px solid var(--g100);padding:3px 6px;vertical-align:middle}
@@ -3103,14 +3120,118 @@ function buscarPanelDefault() {
     const best=allR.map(x=>x['Año de Ingreso']||fmtD(x['Fecha de Ingreso']||'').substring(0,4)||fmtD(x['Fecha Res.']||'').substring(0,4)||'').find(y=>y&&y.trim())||'';
     if(best) r['Año de Ingreso']=best;
   });
-  window._lastPanelFound = found;
-  _sortPanelFound(found);
+  window._lastPanelFoundRaw = found;
+  const filtered = _applyColFilters(found);
+  window._lastPanelFound = filtered;
+  _sortPanelFound(filtered);
   const pThead=$('panel-thead'), pTbody=$('panel-tbody');
   if(!pThead||!pTbody) return;
   pThead.innerHTML = _panelThead();
-  _panelRowsBuild(found, pTbody);
-  setS(`${found.length} registros (${prevYear}-${thisYear}).`,'ok');
+  _panelRowsBuild(filtered, pTbody);
+  setS(`${filtered.length} de ${found.length} registros (${prevYear}-${thisYear}).`,'ok');
 }
+
+// ── FILTROS POR COLUMNA (Búsqueda Rápida) ──
+function _colRawValue(key, r) {
+  switch(key) {
+    case 'res': return String(r['Res.']||'').trim() || '(sin res.)';
+    case 'anio': return (fmtD(r['Fecha Res.']||'')).substring(0,4) || '(sin año)';
+    case 'sol': return String(r['Solicitud']||'').trim() || '(sin sol.)';
+    case 'anioSol': return (fmtD(r['Fecha Solicitud']||'')).substring(0,4) || '(sin año)';
+    case 'ing': return String(r['Año de Ingreso']||r['Ano de Ingreso']||'').trim() || '(sin año)';
+    case 'cub': return String(r['Cubículo']||r['Cubiculo']||'').trim() || '(sin cubículo)';
+    case 'imp': return toTitleCase(r['Importador']) || '(sin importador)';
+    case 'esp': return (r['Especie']||'').trim() || '(sin especie)';
+    case 'stat': return calcStatusAuto(_filasDelRegistro(r));
+    default: return '';
+  }
+}
+
+function _getColFilters() {
+  if(!window._panelColFilters) window._panelColFilters = {};
+  return window._panelColFilters;
+}
+
+function _applyColFilters(arr) {
+  const filters = _getColFilters();
+  const activeKeys = Object.keys(filters).filter(k => filters[k] && filters[k].length);
+  if(!activeKeys.length) return arr;
+  return arr.filter(r => activeKeys.every(key => {
+    const val = _colRawValue(key, r);
+    return filters[key].includes(val);
+  }));
+}
+
+function _toggleColFilterMenu(e, colKey) {
+  e.stopPropagation();
+  const existing = document.querySelector('.panel-col-filter-menu');
+  if(existing) {
+    const wasForThisCol = existing.dataset.colkey === colKey;
+    existing.remove();
+    if(wasForThisCol) return; // toggle off if clicking the same column again
+  }
+  const th = e.target.closest('th');
+  if(!th) return;
+
+  const rawList = window._lastPanelFoundRaw || [];
+  const uniqueVals = [...new Set(rawList.map(r => _colRawValue(colKey, r)))].sort();
+  const current = _getColFilters()[colKey] || [];
+
+  const menu = document.createElement('div');
+  menu.className = 'panel-col-filter-menu';
+  menu.dataset.colkey = colKey;
+  menu.onclick = ev => ev.stopPropagation();
+
+  const optsHtml = uniqueVals.map(val => {
+    const checked = current.length === 0 || current.includes(val);
+    const safeVal = val.replace(/"/g,'&quot;');
+    return `<label><input type="checkbox" value="${safeVal}" ${checked?'checked':''}> ${esc(val)}</label>`;
+  }).join('');
+
+  menu.innerHTML = optsHtml + `
+    <div class="pcf-actions">
+      <button class="btn btn-nv btn-sm" style="flex:1;font-size:10px" onclick="_applyColFilterMenu('${colKey}', this.closest('.panel-col-filter-menu'))">Aplicar</button>
+      <button class="btn btn-gh btn-sm" style="flex:1;font-size:10px" onclick="_clearColFilterMenu('${colKey}')">Limpiar</button>
+    </div>`;
+
+  th.appendChild(menu);
+}
+
+function _applyColFilterMenu(colKey, menuEl) {
+  const checked = [...menuEl.querySelectorAll('input[type=checkbox]:checked')].map(c => c.value);
+  const allOpts = [...menuEl.querySelectorAll('input[type=checkbox]')].map(c => c.value);
+  const filters = _getColFilters();
+  // If everything is checked, treat as "no filter" for this column
+  filters[colKey] = (checked.length === allOpts.length) ? [] : checked;
+  menuEl.remove();
+  _rerenderPanelWithFilters();
+}
+
+function _clearColFilterMenu(colKey) {
+  const filters = _getColFilters();
+  delete filters[colKey];
+  document.querySelector('.panel-col-filter-menu')?.remove();
+  _rerenderPanelWithFilters();
+}
+
+function _rerenderPanelWithFilters() {
+  const raw = window._lastPanelFoundRaw || [];
+  const filtered = _applyColFilters(raw);
+  window._lastPanelFound = filtered;
+  _sortPanelFound(filtered);
+  const pThead=$('panel-thead'), pTbody=$('panel-tbody');
+  if(!pThead||!pTbody) return;
+  pThead.innerHTML = _panelThead();
+  _panelRowsBuild(filtered, pTbody);
+  setS(`${filtered.length} de ${raw.length} registros.`,'ok');
+}
+
+// Cierra cualquier menú de filtro abierto al hacer clic fuera de él
+document.addEventListener('click', function(e) {
+  if(!e.target.closest('.panel-col-filter-menu') && !e.target.closest('.panel-col-filter-btn')) {
+    document.querySelector('.panel-col-filter-menu')?.remove();
+  }
+});
 
 // ── PANEL TABLE SORT ──
 var _PANEL_COLS = [
@@ -3188,17 +3309,19 @@ function _panelThead() {
     var arrow=act?(dir===1?" ↑":" ↓"):" ⇅"; // dir=-1=DESC(↓), dir=1=ASC(↑)
     var savedWidth = (window._panelColWidths && window._panelColWidths[col.key]) || '';
     var widthStyle = savedWidth ? ("width:"+savedWidth+"px;") : "";
-    h+="<th data-colkey=\""+col.key+"\" draggable=\"true\""
-       +" ondragstart=\"_onColDragStart(event,'"+col.key+"')\""
+    var hasFilter = window._panelColFilters && window._panelColFilters[col.key] && window._panelColFilters[col.key].length;
+    h+="<th data-colkey=\""+col.key+"\""
        +" ondragover=\"_onColDragOver(event)\""
        +" ondrop=\"_onColDrop(event,'"+col.key+"')\""
        +" onclick=\"_panelSort('"+col.key+"')\" "
-       +"style=\"cursor:grab;user-select:none;white-space:nowrap;position:relative;"+widthStyle
+       +"style=\"cursor:pointer;user-select:none;white-space:nowrap;position:relative;"+widthStyle
        +(act?"border-bottom:2px solid var(--gd);":"")+"\""
-       +" title=\"Arrastrar para reordenar — clic para ordenar\">"
+       +" title=\"Clic para ordenar\">"
+       +"<span class=\"panel-col-grip\" draggable=\"true\" ondragstart=\"_onColDragStart(event,'"+col.key+"')\" onclick=\"event.stopPropagation()\" title=\"Arrastrar para reordenar\">⠿</span> "
        +col.label+"<span style=\"font-size:9px;margin-left:2px;opacity:"
        +(act?"0.9":"0.4")+";color:"+(act?"var(--gd)":"inherit")+"\">"
        +arrow+"</span>"
+       +"<span class=\"panel-col-filter-btn"+(hasFilter?" active":"")+"\" onclick=\"event.stopPropagation();_toggleColFilterMenu(event,'"+col.key+"')\" title=\"Filtrar\">▾</span>"
        +"<span class=\"panel-col-resize\" draggable=\"false\" data-colkey=\""+col.key+"\" onclick=\"event.stopPropagation()\" onmousedown=\"event.stopPropagation();_startColResize(event,'"+col.key+"')\"></span>"
        +"</th>";
   });
@@ -3242,6 +3365,11 @@ function _sortPanelFound(arr) {
   var dir=(window._panelSortDir!==undefined)?window._panelSortDir:-1;
   // dir=-1 → DESC (mayor a menor), dir=1 → ASC (menor a mayor)
   arr.sort(function(a,b){
+    // Cuarentenas "de filtro" (sin Solicitud asociada) siempre van al final,
+    // sin importar la columna u orden activo.
+    var aSinSol = !String(a["Solicitud"]||"").trim();
+    var bSinSol = !String(b["Solicitud"]||"").trim();
+    if(aSinSol !== bSinSol) return aSinSol ? 1 : -1;
     // When sorting by Sol.: registros sin resolución (filtro) go after those with same Año Ing.
     if(col.key==="sol") {
       // 1. N° Solicitud DESC
@@ -8939,24 +9067,60 @@ function sendCoreAvisoFromAlert(alertIdx) {
 //  INVERNADERO GRID — renderInvernaderoGrid()
 // ══════════════════════════════════════════════════════════════════
 // ── RESUMEN DE DISPONIBILIDAD DE CUBÍCULOS ──
+// Invernaderos activos para el conteo de disponibilidad — persistido en localStorage.
+// Por defecto 1,2,3,6,7 (4 y 5 no se usan actualmente, pero quedan disponibles para reactivar).
+function _getInvernaderosActivos() {
+  if(window._invActivos) return window._invActivos;
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem('eca_inv_activos')||'null'); } catch(e) {}
+  window._invActivos = (saved && Array.isArray(saved)) ? saved : [1,2,3,6,7];
+  return window._invActivos;
+}
+function _setInvernaderosActivos(arr) {
+  window._invActivos = arr;
+  try { localStorage.setItem('eca_inv_activos', JSON.stringify(arr)); } catch(e) {}
+}
+function toggleInvernaderoActivo(inv) {
+  const cur = _getInvernaderosActivos();
+  const idx = cur.indexOf(inv);
+  const next = idx >= 0 ? cur.filter(x=>x!==inv) : [...cur, inv].sort((a,b)=>a-b);
+  _setInvernaderosActivos(next);
+  // Re-render both the summary and the grid so they stay in sync
+  if(window._cubMapSnapshot) renderCubDisponibilidad(window._cubMapSnapshot);
+  renderInvernaderoGrid();
+}
+
 function renderCubDisponibilidad(cubMap) {
   const el = document.getElementById('al-disponibilidad-container');
   if (!el) return;
 
-  const TOTAL_CUBICULOS = 70; // 7 invernaderos × 10 cubículos
+  const activos = _getInvernaderosActivos();
+  const TOTAL_CUBICULOS = activos.length * 10;
   const ocupados = [];
   const disponibles = [];
 
-  for (let inv = 1; inv <= 7; inv++) {
+  activos.forEach(inv => {
     for (let n = 1; n <= 10; n++) {
       const cubId = `${inv}.${n}`;
       const entries = cubMap[cubId];
       if (entries && entries.length) ocupados.push(cubId);
       else disponibles.push(cubId);
     }
-  }
+  });
 
-  const pctOcupado = Math.round((ocupados.length / TOTAL_CUBICULOS) * 100);
+  const pctOcupado = TOTAL_CUBICULOS ? Math.round((ocupados.length / TOTAL_CUBICULOS) * 100) : 0;
+
+  const invChips = [1,2,3,4,5,6,7].map(inv => {
+    const isOn = activos.includes(inv);
+    return `<button onclick="toggleInvernaderoActivo(${inv})"
+      style="font-size:10.5px;padding:3px 9px;border-radius:12px;cursor:pointer;font-weight:600;
+        border:1px solid ${isOn?'var(--gd)':'var(--g200)'};
+        background:${isOn?'var(--gold-bg)':'var(--g50)'};
+        color:${isOn?'var(--inkv)':'var(--g400)'}"
+      title="${isOn?'Clic para excluir del conteo':'Clic para incluir en el conteo'}">
+      Invernadero ${inv}${isOn?'':' (excluido)'}
+    </button>`;
+  }).join('');
 
   el.innerHTML = `
     <div style="background:var(--wh);border:1px solid var(--g100);border-radius:var(--r);padding:14px 18px">
@@ -8969,6 +9133,9 @@ function renderCubDisponibilidad(cubMap) {
           <span><strong style="color:var(--ok)">${disponibles.length}</strong> disponibles</span>
           <span style="color:var(--g400)">de ${TOTAL_CUBICULOS} totales (${pctOcupado}% ocupado)</span>
         </div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+        ${invChips}
       </div>
       <div style="height:6px;border-radius:3px;background:var(--ok-bg);overflow:hidden;margin-bottom:10px">
         <div style="height:100%;width:${pctOcupado}%;background:var(--err);border-radius:3px"></div>
@@ -9081,7 +9248,8 @@ function renderInvernaderoGrid() {
   let html = '';
   const currentYear = new Date().getFullYear();
 
-  for (let inv = 1; inv <= 7; inv++) {
+  const _invActivosGrid = _getInvernaderosActivos();
+  for (const inv of _invActivosGrid) {
     // Check if this invernadero has any data
     const allCubs = [];
     for (let n = 1; n <= 10; n++) {
