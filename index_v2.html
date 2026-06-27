@@ -2866,7 +2866,9 @@ function _especiesConsolidadas(r) {
   const especiesSet = new Set();
   rows.forEach(row => {
     const esp = String(row['Especie']||'').trim();
-    if (esp) especiesSet.add(esp);
+    // Ignorar etiquetas de grupo residuales tipo "Genero spp." — no son especies reales,
+    // quedaron de datos antiguos de cuando se agrupaba por género (lógica ya revertida).
+    if (esp && !/\bspp\.?$/i.test(esp)) especiesSet.add(esp);
   });
   const especies = [...especiesSet].sort((a,b) => a.localeCompare(b));
   if (!especies.length) return '';
