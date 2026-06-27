@@ -9158,11 +9158,13 @@ function renderCubDisponibilidad(cubMap) {
   const TOTAL_CUBICULOS = activos.length * 10;
   const ocupados = [];
   const disponibles = [];
+  const todosCubiculos = [];
 
   activos.forEach(inv => {
     for (let n = 1; n <= 10; n++) {
       const cubId = `${inv}.${n}`;
       const entries = cubMap[cubId];
+      todosCubiculos.push(cubId);
       if (entries && entries.length) ocupados.push(cubId);
       else disponibles.push(cubId);
     }
@@ -9200,11 +9202,15 @@ function renderCubDisponibilidad(cubMap) {
       <div style="height:6px;border-radius:3px;background:var(--ok-bg);overflow:hidden;margin-bottom:10px">
         <div style="height:100%;width:${pctOcupado}%;background:var(--err);border-radius:3px"></div>
       </div>
-      <div style="font-size:11px;color:var(--g600);margin-bottom:5px;font-weight:600">Cubículos disponibles:</div>
+      <div style="font-size:11px;color:var(--g600);margin-bottom:5px;font-weight:600">Todos los cubículos:</div>
       <div style="display:flex;flex-wrap:wrap;gap:5px">
-        ${disponibles.length
-          ? disponibles.map(c => `<span style="font-family:var(--mono);font-size:11px;padding:3px 7px;border-radius:4px;background:var(--ok-bg);color:var(--ok);border:1px solid var(--ok-bd)">${c}</span>`).join('')
-          : '<span style="color:var(--g400);font-size:11px;font-style:italic">Sin cubículos disponibles</span>'}
+        ${todosCubiculos.map(c => {
+          const libre = !cubMap[c] || !cubMap[c].length;
+          return `<span style="font-family:var(--mono);font-size:11px;padding:3px 7px;border-radius:4px;
+            background:${libre?'var(--ok-bg)':'var(--err-bg)'};
+            color:${libre?'var(--ok)':'var(--err)'};
+            border:1px solid ${libre?'var(--ok-bd)':'var(--err-bd)'}">${c}</span>`;
+        }).join('')}
       </div>
     </div>`;
 }
