@@ -9165,7 +9165,12 @@ function renderCubDisponibilidad(cubMap) {
       const cubId = `${inv}.${n}`;
       const entries = cubMap[cubId];
       todosCubiculos.push(cubId);
-      if (entries && entries.length) ocupados.push(cubId);
+      // Un cubículo cuenta como OCUPADO solo si tiene al menos una entrada que NO esté
+      // entregada. Si todas las entradas son entregadas (badge "Entregada" en la ficha,
+      // dentro del período de gracia), el cubículo se considera DISPONIBLE — sigue
+      // mostrando el badge informativo, pero ya no bloquea el espacio.
+      const tieneOcupanteReal = entries && entries.some(e => !(e.entregada && toSafeDate(e.entregada)));
+      if (tieneOcupanteReal) ocupados.push(cubId);
       else disponibles.push(cubId);
     }
   });
@@ -9205,7 +9210,7 @@ function renderCubDisponibilidad(cubMap) {
       <div style="font-size:11px;color:var(--g600);margin-bottom:5px;font-weight:600">Todos los cubículos:</div>
       <div style="display:flex;flex-wrap:wrap;gap:5px">
         ${todosCubiculos.map(c => {
-          const libre = !cubMap[c] || !cubMap[c].length;
+          const libre = !cubMap[c] || !cubMap[c].length || !cubMap[c].some(e => !(e.entregada && toSafeDate(e.entregada)));
           return `<span style="font-family:var(--mono);font-size:11px;padding:3px 7px;border-radius:4px;
             background:${libre?'var(--ok-bg)':'var(--err-bg)'};
             color:${libre?'var(--ok)':'var(--err)'};
