@@ -2968,15 +2968,46 @@ function mostrarFichaResumen(r) {
     return `<div style="margin-bottom:4px"><i>${esc(esp)}</i> <span style="color:var(--g400)">— ${esc(vars)}</span></div>`;
   }).join('') || '<span style="color:var(--g400)">Sin especies registradas</span>';
 
-  // Estados de análisis consolidados (cuántas filas en cada estado)
+  // Detalle de análisis: cada fila con su análisis/patógeno y estado individual,
+  // agrupado por tipo de análisis, mostrando especie + patógeno + estado.
+  const ESTADO_COLOR = {
+    'No Analizada': 'badge-err', 'Pendiente': 'badge-err',
+    'En analisis': 'badge-warn', 'En análisis': 'badge-warn',
+    'Analizada': 'badge-ok', 'Sin sintomas': 'badge-nv', 'Sin síntomas': 'badge-nv'
+  };
+  const filasAnalisis = rows.filter(row => String(row['Análisis']||'').trim() || String(row['Patógenos']||'').trim());
+  const analisisPorTipo = {};
+  filasAnalisis.forEach(row => {
+    const tipo = String(row['Análisis']||'Sin tipo').trim();
+    if (!analisisPorTipo[tipo]) analisisPorTipo[tipo] = [];
+    analisisPorTipo[tipo].push(row);
+  });
+  const analisisHtml = Object.entries(analisisPorTipo).map(([tipo, filas]) => {
+    const itemsHtml = filas.map(row => {
+      const pat = String(row['Patógenos']||'').trim() || '—';
+      const est = String(row['Estado Análisis']||'').trim() || 'Sin estado';
+      const badgeCls = ESTADO_COLOR[est] || 'badge-nv';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:11.5px">
+        <span style="color:var(--g600)">${esc(pat)}</span>
+        <span class="badge ${badgeCls}" style="font-size:10px">${esc(est)}</span>
+      </div>`;
+    }).join('');
+    return `<div style="margin-bottom:8px">
+      <div style="font-size:11px;font-weight:700;color:var(--inkv);margin-bottom:2px">${esc(tipo)} (${filas.length})</div>
+      ${itemsHtml}
+    </div>`;
+  }).join('') || '<span style="color:var(--g400);font-size:12px">Sin análisis cargados</span>';
+
+  // Resumen rápido de conteos por estado (para vista de un vistazo)
   const estadosAn = {};
-  rows.forEach(row => {
+  filasAnalisis.forEach(row => {
     const e = String(row['Estado Análisis']||'').trim();
     if (e) estadosAn[e] = (estadosAn[e]||0) + 1;
   });
-  const estadosAnHtml = Object.entries(estadosAn).map(([e,n]) =>
-    `<span class="badge badge-nv" style="margin-right:4px">${esc(e)}: ${n}</span>`
-  ).join('') || '<span style="color:var(--g400)">Sin análisis cargados</span>';
+  const resumenEstadosHtml = Object.entries(estadosAn).map(([e,n]) => {
+    const badgeCls = ESTADO_COLOR[e] || 'badge-nv';
+    return `<span class="badge ${badgeCls}" style="margin-right:4px">${esc(e)}: ${n}</span>`;
+  }).join('') || '<span style="color:var(--g400)">—</span>';
 
   const first = rows[0] || r;
   const campo = (label, val) => `
@@ -2985,33 +3016,58 @@ function mostrarFichaResumen(r) {
       <span style="font-weight:600;text-align:right">${val || '—'}</span>
     </div>`;
 
+  // Estado de cierre del proceso — Liberada / Terminada / Entregada / Resolución de Término
+  const liberada = String(first['Liberada']||'').trim();
+  const terminada = String(first['Terminada']||'').trim();
+  const entregada = String(first['Entregada']||'').trim();
+  const resTermino = String(first['Res. Término']||'').trim();
+  const fechaResTermino = fmtD(first['Fecha Res.4']||'');
+
   const html = `
-    <div style="max-width:480px">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-        <div style="font-size:16px;font-weight:700;font-family:var(--serif);color:var(--inkv)">
+    <div style="max-width:760px;width:90vw">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <div style="font-size:18px;font-weight:700;font-family:var(--serif);color:var(--inkv)">
           ${res ? `Res. ${res}${yr?' / '+yr:''}` : `Solicitud ${sol} (sin resolución)`}
         </div>
         <span class="badge ${sc}">${esc(status)}</span>
       </div>
 
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--g400);margin:10px 0 4px">Datos Generales</div>
-      ${campo('Solicitud', sol)}
-      ${campo('Fecha Solicitud', fmtD(first['Fecha Solicitud']||''))}
-      ${campo('Importador', toTitleCase(first['Importador']||''))}
-      ${campo('RUT', first['Rut']||'')}
-      ${campo('Origen', first['Origen']||'')}
-      ${campo('Cubículo', (first['Cubículo']||'') + (first['Cubículo2']?(' / '+first['Cubículo2']):''))}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+        <div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--g400);margin:0 0 4px">Datos Generales</div>
+          ${campo('Solicitud', sol)}
+          ${campo('Fecha Solicitud', fmtD(first['Fecha Solicitud']||''))}
+          ${campo('Importador', toTitleCase(first['Importador']||''))}
+          ${campo('RUT', first['Rut']||'')}
+          ${campo('Origen', first['Origen']||'')}
+          ${campo('Cubículo', (first['Cubículo']||'') + (first['Cubículo2']?(' / '+first['Cubículo2']):''))}
 
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--g400);margin:14px 0 4px">Fechas Clave</div>
-      ${campo('Fecha de Ingreso', fmtD(first['Fecha de Ingreso']||''))}
-      ${campo('Fecha Injertación', fmtD(first['Fecha Injertación']||''))}
-      ${campo('Fecha aprox. Levante', fmtD(first['Fecha aprox. Levant.']||''))}
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--g400);margin:14px 0 4px">Fechas Clave</div>
+          ${campo('Fecha de Ingreso', fmtD(first['Fecha de Ingreso']||''))}
+          ${campo('Fecha Injertación', fmtD(first['Fecha Injertación']||''))}
+          ${campo('Fecha aprox. Levante', fmtD(first['Fecha aprox. Levant.']||''))}
 
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--g400);margin:14px 0 4px">Especies y Variedades</div>
-      <div style="font-size:12px">${especiesHtml}</div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--g400);margin:14px 0 4px">Especies y Variedades</div>
+          <div style="font-size:12px">${especiesHtml}</div>
 
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--g400);margin:14px 0 4px">Estado de Análisis (${rows.length} fila${rows.length!==1?'s':''})</div>
-      <div>${estadosAnHtml}</div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--g400);margin:14px 0 4px">Cierre del Proceso</div>
+          ${campo('Liberada', liberada || 'No')}
+          ${campo('Terminada', terminada || 'No')}
+          ${campo('Entregada', entregada ? fmtD(entregada) : 'No')}
+          ${campo('Resolución de Término', resTermino || '—')}
+          ${campo('Fecha Res. Término', fechaResTermino || '—')}
+        </div>
+
+        <div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--g400);margin:0 0 4px">
+            Resumen de Análisis (${filasAnalisis.length} fila${filasAnalisis.length!==1?'s':''})
+          </div>
+          <div style="margin-bottom:10px">${resumenEstadosHtml}</div>
+          <div style="max-height:380px;overflow-y:auto;border:1px solid var(--g100);border-radius:6px;padding:10px">
+            ${analisisHtml}
+          </div>
+        </div>
+      </div>
 
       <div style="margin-top:18px;display:flex;gap:8px">
         <button class="btn btn-nv btn-sm" style="flex:1" onclick="cargarFichaPanel('${res}','${yr}','${sol}');cerrarModal()">Abrir registro completo</button>
