@@ -938,10 +938,7 @@ document.getElementById('solicitudForm').addEventListener('submit', function(e){
     window.scrollTo({top:0,behavior:'smooth'}); return;
   }
 
-  const token = typeof grecaptcha!=='undefined' ? grecaptcha.getResponse() : '';
-  if(!token){
-    document.getElementById('bannerError').textContent='Complete la verificación reCAPTCHA.';
-    document.getElementById('bannerError').style.display='block'; return;
+  const token = 'DESHABILITADO_TEMPORAL';
   }
 
   const btn = document.getElementById('submitBtn');
