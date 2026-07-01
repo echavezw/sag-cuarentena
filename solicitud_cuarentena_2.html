@@ -199,7 +199,7 @@
         <div class="grid cols-3">
           <div class="field" id="f-comuna">
             <label>Comuna <span class="req">*</span></label>
-            <input type="text" id="comuna">
+            <input type="text" id="comuna" list="listaComunas" autocomplete="off">
             <div class="msg">Campo obligatorio.</div>
           </div>
           <div class="field" id="f-ciudad">
@@ -408,6 +408,7 @@
     </form>
   <datalist id="listaEspecies"></datalist>
   <datalist id="listaPortainjertos"></datalist>
+  <datalist id="listaComunas"></datalist>
   </div><!-- /screen-form -->
 
   <footer>
@@ -903,6 +904,8 @@ document.getElementById('addMaterialRow').addEventListener('click', addMaterialR
 addMaterialRow();
 // Mapa global proveedor → {ciudad, pais}
 let proveedorDetalleMap = {};
+// Mapa global comuna → {ciudad, region}
+let comunaDetalleMap = {};
 
 function cargarListasAutocomplete(){
   fetch(ENDPOINT_URL, {
@@ -917,12 +920,23 @@ function cargarListasAutocomplete(){
     poblarDatalist('listaPaises', data.paises);
     poblarDatalist('listaEspecies', data.especies);
     poblarDatalist('listaPortainjertos', data.portainjertos);
+    poblarDatalist('listaComunas', data.comunas || []);
     proveedorDetalleMap = data.proveedorDetalle || {};
+    comunaDetalleMap    = data.comunaDetalle    || {};
   })
   .catch(function(err){
     console.warn('No se pudieron cargar las listas de autocomplete: ' + err);
   });
 }
+
+// Autocompletar Ciudad y Región al seleccionar Comuna
+document.getElementById('comuna').addEventListener('change', function(){
+  const val = this.value.trim();
+  if(comunaDetalleMap[val]){
+    document.getElementById('ciudad').value = comunaDetalleMap[val].ciudad || '';
+    document.getElementById('region').value  = comunaDetalleMap[val].region  || '';
+  }
+});
 
 // Autocompletar Ciudad y País al seleccionar Proveedor
 document.getElementById('proveedor').addEventListener('change', function(){
