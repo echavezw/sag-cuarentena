@@ -859,6 +859,9 @@ function getMaterialData(){
 
 document.getElementById('addMaterialRow').addEventListener('click', addMaterialRow);
 addMaterialRow();
+// Mapa global proveedor → {ciudad, pais}
+let proveedorDetalleMap = {};
+
 function cargarListasAutocomplete(){
   fetch(ENDPOINT_URL, {
     method: 'POST',
@@ -872,11 +875,21 @@ function cargarListasAutocomplete(){
     poblarDatalist('listaPaises', data.paises);
     poblarDatalist('listaEspecies', data.especies);
     poblarDatalist('listaPortainjertos', data.portainjertos);
+    proveedorDetalleMap = data.proveedorDetalle || {};
   })
   .catch(function(err){
     console.warn('No se pudieron cargar las listas de autocomplete: ' + err);
   });
 }
+
+// Autocompletar Ciudad y País al seleccionar Proveedor
+document.getElementById('proveedor').addEventListener('change', function(){
+  const val = this.value.trim();
+  if(proveedorDetalleMap[val]){
+    document.getElementById('ciudadProveedor').value = proveedorDetalleMap[val].ciudad || '';
+    document.getElementById('origen').value          = proveedorDetalleMap[val].pais   || '';
+  }
+});
 
 function poblarDatalist(datalistId, valores){
   const datalist = document.getElementById(datalistId);
@@ -1034,7 +1047,10 @@ document.getElementById('solicitudForm').addEventListener('submit', function(e){
       document.getElementById('bannerSuccess').innerHTML=
         '<strong>Solicitud enviada correctamente.</strong><br>' +
         'Su número de folio es <strong>'+data.folioDisplay+'</strong>. ' +
-        'Recibirá un correo de confirmación. Conserve este número.';
+        'Recibirá un correo de confirmación. Conserve este número.<br><br>' +
+        '<strong>¿Desea realizar una nueva solicitud?</strong><br>' +
+        '<button type="button" class="btn btn-primary" style="margin-top:10px;margin-right:10px;" onclick="nuevaSolicitud()">Sí, nueva solicitud</button>' +
+        '<button type="button" class="btn btn-secondary" style="margin-top:10px;" onclick="cerrarSesion()">No, cerrar sesión</button>';
       document.getElementById('bannerSuccess').style.display='block';
       document.getElementById('solicitudForm').style.display='none';
     } else {
@@ -1053,6 +1069,37 @@ document.getElementById('solicitudForm').addEventListener('submit', function(e){
     if(typeof grecaptcha!=='undefined') grecaptcha.reset();
   });
 });
+
+function nuevaSolicitud(){
+  const datosActuales = {
+    rut:          document.getElementById('rut').value,
+    nombre:       document.getElementById('nombre').value,
+    telefono:     document.getElementById('telefono').value,
+    correo:       document.getElementById('correo').value,
+    direccion:    document.getElementById('direccion').value,
+    representante: document.getElementById('representante').value,
+    contraparteImportacion: {
+      nombre: document.getElementById('cpImpNombre').value,
+      correo: document.getElementById('cpImpCorreo').value
+    },
+    contraparteTerritorial: {
+      nombre: document.getElementById('cpTerrNombre').value,
+      correo: document.getElementById('cpTerrCorreo').value
+    }
+  };
+  document.getElementById('bannerSuccess').style.display = 'none';
+  document.getElementById('bannerError').style.display = 'none';
+  document.getElementById('solicitudForm').reset();
+  document.getElementById('solicitudForm').style.display = 'block';
+  pdfBase64 = null; pdfNombreArchivo = null;
+  document.getElementById('fileLabel').classList.remove('has-file');
+  document.getElementById('fileLabel').textContent = 'Haga clic para adjuntar el PDF generado y firmado (máx. 8MB)';
+  document.getElementById('materialBody').innerHTML = '';
+  materialRowCount = 0;
+  addMaterialRow();
+  iniciarFormulario(datosActuales);
+  window.scrollTo({top:0, behavior:'smooth'});
+}
 </script>
 </body>
 </html>
