@@ -82,6 +82,16 @@
     <p>F-IIT-IMP-PA-002 · Cuarentena Posentrada Absoluta (EC1) · Región Metropolitana</p>
   </header>
 
+  <!-- Banner recepción cerrada -->
+  <div id="banner-cerrado" style="display:none;background:#FFF3E0;border:2px solid #E65100;border-radius:6px;padding:20px 24px;text-align:center;margin-bottom:24px">
+    <div style="font-size:22px;margin-bottom:8px">🔒</div>
+    <div style="font-size:17px;font-weight:700;color:#BF360C;margin-bottom:6px">No se están recibiendo solicitudes</div>
+    <div style="font-size:14px;color:#555">Por el momento no hay espacios disponibles en la Estación de Cuarentena Agrícola.<br>Contáctese con SAG-ECA para más información.</div>
+    <div style="margin-top:14px">
+      <a href="mailto:eduardo.chavez@sag.gob.cl?subject=Consulta%20disponibilidad%20cuarentena%20ECA" style="display:inline-block;padding:8px 20px;background:#006cb8;color:#fff;border-radius:4px;text-decoration:none;font-size:13px">Contactar SAG-ECA</a>
+    </div>
+  </div>
+
   <!-- ============================================================ -->
   <!-- PANTALLA 1: LOGIN                                            -->
   <!-- ============================================================ -->
@@ -539,6 +549,19 @@ function doCambiarClave(){
 // INICIAR FORMULARIO (post-login exitoso)
 // ============================================================
 function iniciarFormulario(importadorData) {
+  // Verificar si recepción está abierta antes de mostrar el formulario
+  fetch(ENDPOINT_URL, {
+    method: 'POST',
+    body: JSON.stringify({ action: 'getRecepcion' })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if(data.ok && data.abierta === false){
+      document.getElementById('banner-cerrado').style.display = 'block';
+      document.getElementById('solicitudForm').style.display = 'none';
+    }
+  })
+  .catch(function(){ /* silencioso — si falla el check, se muestra el form igual */ });
   showScreen('screen-form');
   if(importadorData){
     sesion.nombre = importadorData.nombre || '';
