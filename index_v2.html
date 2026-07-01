@@ -1787,6 +1787,22 @@ input.field-blocked, select.field-blocked {
     <div><div class="sec-t">Configuracion</div><div class="sec-s">Conexion a Google Sheets y API Keys</div></div>
   </div>
   <div class="tab-body" style="border-radius:0 0 var(--r) var(--r)">
+    <!-- ── Toggle recepción de solicitudes ── -->
+    <div class="cfg-step" style="border:2px solid var(--nv);border-radius:var(--rs)">
+      <div class="cfg-step-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span><span class="cfg-num">★</span>Recepción de Solicitudes</span>
+        <span id="recepcion-badge" style="font-size:11px;padding:3px 10px;border-radius:10px;font-weight:600"></span>
+      </div>
+      <div style="font-size:12px;color:var(--g400);margin-bottom:12px">
+        Controla si el portal público acepta nuevas solicitudes. Al cerrar, el importador verá un aviso de que no hay espacios disponibles.
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <button class="btn btn-nv btn-sm" onclick="setRecepcionSolicitudes(true)">✓ Abrir recepción</button>
+        <button class="btn btn-gh btn-sm" onclick="setRecepcionSolicitudes(false)" style="border-color:var(--err,#c0392b);color:var(--err,#c0392b)">✕ Cerrar recepción</button>
+        <span id="recepcion-result" style="font-size:12px;color:#777"></span>
+      </div>
+    </div>
+
     <div class="cfg-step">
       <div class="cfg-step-title"><span class="cfg-num">1</span>Google Sheets</div>
       <div class="fg" style="grid-template-columns:repeat(6,1fr);gap:10px 14px">
@@ -4019,6 +4035,7 @@ function goStage(n) {
   const stEl=$('stage-'+n); if(stEl) stEl.classList.add('active');
   const navEl=$('nav-'+n); if(navEl) navEl.classList.add('active');
   currentStage=n;
+  if(n==='config') cargarEstadoRecepcion();
   if(n===2) { window._resEspRows=null; updateReadonlyRefs(); }
   if(n===3) {
     updateResBars();
@@ -10484,6 +10501,59 @@ async function habilitarAccesoImportador(rut) {
     if (data.ok) { setS('Acceso habilitado.', 'ok'); cargarImportadoresAcceso(); }
     else setS(data.error || 'Error al habilitar.', 'err');
   } catch (err) { setS('Error de conexión.', 'err'); }
+}
+
+
+// ══════════════════════════════════════════════════════════════════
+// CONTROL RECEPCIÓN DE SOLICITUDES
+// ══════════════════════════════════════════════════════════════════
+async function setRecepcionSolicitudes(abierta) {
+  const badge  = document.getElementById('recepcion-badge');
+  const result = document.getElementById('recepcion-result');
+  result.textContent = 'Guardando...';
+  try {
+    const resp = await fetch(_PORTAL_ENDPOINT, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'setRecepcion', adminToken: _ADMIN_TOKEN, abierta: abierta })
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      renderRecepcionBadge(abierta);
+      result.textContent = abierta ? 'Recepción abierta.' : 'Recepción cerrada.';
+      setTimeout(function(){ result.textContent = ''; }, 3000);
+    } else {
+      result.textContent = data.error || 'Error al guardar.';
+    }
+  } catch (err) {
+    result.textContent = 'Error de conexión.';
+  }
+}
+
+async function cargarEstadoRecepcion() {
+  const badge = document.getElementById('recepcion-badge');
+  if (!badge) return;
+  try {
+    const resp = await fetch(_PORTAL_ENDPOINT, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'getRecepcion', adminToken: _ADMIN_TOKEN })
+    });
+    const data = await resp.json();
+    if (data.ok) renderRecepcionBadge(data.abierta);
+  } catch (err) { /* silencioso */ }
+}
+
+function renderRecepcionBadge(abierta) {
+  const badge = document.getElementById('recepcion-badge');
+  if (!badge) return;
+  if (abierta) {
+    badge.textContent = '● Abierta';
+    badge.style.background = '#e8f5e9';
+    badge.style.color = '#2e7d32';
+  } else {
+    badge.textContent = '● Cerrada';
+    badge.style.background = '#fce4ec';
+    badge.style.color = '#c62828';
+  }
 }
 
 </script>
