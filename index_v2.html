@@ -10464,11 +10464,12 @@ async function cargarImportadoresAcceso() {
           (activo ? 'Activo' : 'Inactivo') + '</span></td>' +
         '<td style="font-size:11px;color:' + (cambioClave ? '#e65100' : '#666') + '">' +
           (cambioClave ? '⚠ Pendiente' : 'OK') + '</td>' +
-        '<td>' +
+        '<td style="display:flex;gap:6px">' +
           (activo
             ? '<button class="btn btn-gh btn-sm" onclick="deshabilitarAccesoImportador(`' + imp.rut + '`)" style="font-size:11px">Deshabilitar</button>'
             : '<button class="btn btn-nv btn-sm" onclick="habilitarAccesoImportador(`' + imp.rut + '`)" style="font-size:11px">Habilitar</button>'
           ) +
+          '<button class="btn btn-sm" onclick="eliminarAccesoImportador(`' + imp.rut + '`)" style="font-size:11px;border:1px solid var(--err,#c0392b);color:var(--err,#c0392b);background:#fff">Eliminar</button>' +
         '</td>' +
       '</tr>';
     }).join('');
@@ -10554,6 +10555,20 @@ function renderRecepcionBadge(abierta) {
     badge.style.background = '#fce4ec';
     badge.style.color = '#c62828';
   }
+}
+
+
+async function eliminarAccesoImportador(rut) {
+  if (!confirm('¿Eliminar definitivamente el registro de ' + rut + '? Esta acción no se puede deshacer.')) return;
+  try {
+    const resp = await fetch(_PORTAL_ENDPOINT, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'eliminarAcceso', adminToken: _ADMIN_TOKEN, rut })
+    });
+    const data = await resp.json();
+    if (data.ok) { setS('Registro eliminado.', 'ok'); cargarImportadoresAcceso(); }
+    else setS(data.error || 'Error al eliminar.', 'err');
+  } catch (err) { setS('Error de conexión.', 'err'); }
 }
 
 </script>
