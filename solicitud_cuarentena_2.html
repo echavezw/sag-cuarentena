@@ -196,6 +196,22 @@
           <label>Dirección</label>
           <input type="text" id="direccion">
         </div>
+        <div class="grid cols-3">
+          <div class="field" id="f-comuna">
+            <label>Comuna <span class="req">*</span></label>
+            <input type="text" id="comuna">
+            <div class="msg">Campo obligatorio.</div>
+          </div>
+          <div class="field" id="f-ciudad">
+            <label>Ciudad</label>
+            <input type="text" id="ciudad">
+          </div>
+          <div class="field" id="f-region">
+            <label>Región <span class="req">*</span></label>
+            <input type="text" id="region">
+            <div class="msg">Campo obligatorio.</div>
+          </div>
+        </div>
         <div class="field">
           <label>Representante (si aplica)</label>
           <input type="text" id="representante">
@@ -571,6 +587,9 @@ function iniciarFormulario(importadorData) {
     document.getElementById('telefono').value      = importadorData.telefono   || '';
     document.getElementById('correo').value        = importadorData.correo     || '';
     document.getElementById('direccion').value     = importadorData.direccion  || '';
+    document.getElementById('comuna').value        = importadorData.comuna     || '';
+    document.getElementById('ciudad').value        = importadorData.ciudad     || '';
+    document.getElementById('region').value        = importadorData.region     || '';
     document.getElementById('representante').value = importadorData.representante || '';
 
     if(importadorData.contraparteImportacion){
@@ -975,6 +994,7 @@ function validarFormulario(){
   const checks = [
     ['nombre','f-nombre'],['telefono','f-telefono'],
     ['proveedor','f-proveedor'],['ciudadProveedor','f-ciudad'],['origen','f-pais'],
+    ['comuna','f-comuna'],['region','f-region'],
     ['uso','f-uso'],['codRegistroVivero','f-vivero'],['ptoIngreso','f-pto'],['mesIngreso','f-mes'],
     ['cpImpNombre','f-cp-imp-nombre'],['cpTerrNombre','f-cp-terr-nombre']
   ];
@@ -1033,6 +1053,9 @@ document.getElementById('solicitudForm').addEventListener('submit', function(e){
       telefono:      document.getElementById('telefono').value.trim(),
       correo:        document.getElementById('correo').value.trim(),
       direccion:     document.getElementById('direccion').value.trim(),
+      comuna:        document.getElementById('comuna').value.trim(),
+      ciudad:        document.getElementById('ciudad').value.trim(),
+      region:        document.getElementById('region').value.trim(),
       representante: document.getElementById('representante').value.trim()
     },
     contraparteImportacion:{
@@ -1100,6 +1123,9 @@ function nuevaSolicitud(){
     telefono:     document.getElementById('telefono').value,
     correo:       document.getElementById('correo').value,
     direccion:    document.getElementById('direccion').value,
+    comuna:       document.getElementById('comuna').value,
+    ciudad:       document.getElementById('ciudad').value,
+    region:       document.getElementById('region').value,
     representante: document.getElementById('representante').value,
     contraparteImportacion: {
       nombre: document.getElementById('cpImpNombre').value,
