@@ -1739,10 +1739,14 @@ input.field-blocked, select.field-blocked {
     <!-- Crear / Regenerar acceso -->
     <div style="background:var(--g50,#f8f8f8);border:1px solid var(--g200,#e0e0e0);border-radius:var(--rs,4px);padding:16px;margin-bottom:18px">
       <div style="font-family:var(--serif);font-size:14px;font-weight:700;color:var(--inkv);margin-bottom:12px">Crear / Regenerar Acceso</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end">
         <div class="ff">
           <label class="lbl">RUT Importador <span style="color:var(--err,#c0392b)">*</span></label>
           <input id="imp-rut" placeholder="ej. 77.115.370-4" style="width:100%">
+        </div>
+        <div class="ff">
+          <label class="lbl">Correo <span style="font-size:10px;color:#888">(requerido si es nuevo)</span></label>
+          <input id="imp-correo" type="email" placeholder="correo@empresa.cl" style="width:100%">
         </div>
         <div class="ff">
           <label class="lbl">Creado por</label>
@@ -10377,6 +10381,7 @@ const _ADMIN_TOKEN     = 'SAG_ECA_2026_xK9mP3qL';
 
 async function crearAccesoImportador() {
   const rut       = document.getElementById('imp-rut').value.trim();
+  const correo    = document.getElementById('imp-correo').value.trim();
   const creadoPor = document.getElementById('imp-creadopor').value.trim() || 'SAG';
   const resultDiv = document.getElementById('imp-result');
 
@@ -10387,7 +10392,7 @@ async function crearAccesoImportador() {
   try {
     const resp = await fetch(_PORTAL_ENDPOINT, {
       method: 'POST',
-      body: JSON.stringify({ action: 'crearAcceso', adminToken: _ADMIN_TOKEN, rut, creadoPor })
+      body: JSON.stringify({ action: 'crearAcceso', adminToken: _ADMIN_TOKEN, rut, correo, creadoPor })
     });
     const data = await resp.json();
     if (data.ok) {
@@ -10401,6 +10406,7 @@ async function crearAccesoImportador() {
         '<span style="font-size:11px;color:#888;display:block;margin-top:6px">Cópiela y envíela al importador. Se pedirá cambio en el primer login.</span>' +
         '</div>';
       document.getElementById('imp-rut').value = '';
+      document.getElementById('imp-correo').value = '';
       cargarImportadoresAcceso();
     } else {
       resultDiv.innerHTML = '<span style="color:var(--err,#c0392b)">✗ ' + (data.error || 'Error desconocido') + '</span>';
