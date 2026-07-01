@@ -10436,6 +10436,8 @@ async function crearAccesoImportador() {
 async function cargarImportadoresAcceso() {
   const tbody = document.getElementById('imp-tbody');
   if (!tbody) return;
+  // Activar formateo RUT si aún no está activo
+  attachRutFormatter('imp-rut');
   tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#999;padding:16px">Cargando...</td></tr>';
 
   try {
@@ -10569,6 +10571,31 @@ async function eliminarAccesoImportador(rut) {
     if (data.ok) { setS('Registro eliminado.', 'ok'); cargarImportadoresAcceso(); }
     else setS(data.error || 'Error al eliminar.', 'err');
   } catch (err) { setS('Error de conexión.', 'err'); }
+}
+
+
+// ══════════════════════════════════════════════════════════════════
+// FORMATEO AUTOMÁTICO RUT (12.345.678-9)
+// ══════════════════════════════════════════════════════════════════
+function formatearRutInput(valor) {
+  const limpio = valor.replace(/[^0-9kK]/g,'').toUpperCase();
+  if (limpio.length === 0) return '';
+  const cuerpo = limpio.slice(0, -1);
+  const dv     = limpio.slice(-1);
+  const cuerpoFormateado = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return cuerpoFormateado + (limpio.length > 1 ? '-' + dv : '');
+}
+
+function attachRutFormatter(inputId) {
+  const el = document.getElementById(inputId);
+  if (!el) return;
+  el.addEventListener('input', function() {
+    const pos = this.selectionStart;
+    const prevLen = this.value.length;
+    this.value = formatearRutInput(this.value);
+    const diff = this.value.length - prevLen;
+    this.setSelectionRange(pos + diff, pos + diff);
+  });
 }
 
 </script>
