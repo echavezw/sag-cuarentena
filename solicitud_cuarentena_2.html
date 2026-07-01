@@ -1123,6 +1123,40 @@ function nuevaSolicitud(){
   iniciarFormulario(datosActuales);
   window.scrollTo({top:0, behavior:'smooth'});
 }
+
+// ══════════════════════════════════════════════════════════════════
+// FORMATEO AUTOMÁTICO RUT (12.345.678-9)
+// ══════════════════════════════════════════════════════════════════
+function formatearRutInput(valor) {
+  // Extraer solo dígitos y K
+  const limpio = valor.replace(/[^0-9kK]/g,'').toUpperCase();
+  if (limpio.length === 0) return '';
+  const cuerpo = limpio.slice(0, -1);
+  const dv     = limpio.slice(-1);
+  // Formatear cuerpo con puntos
+  const cuerpoFormateado = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return cuerpoFormateado + (limpio.length > 1 ? '-' + dv : '');
+}
+
+function attachRutFormatter(inputId) {
+  const el = document.getElementById(inputId);
+  if (!el) return;
+  el.addEventListener('input', function() {
+    const pos = this.selectionStart;
+    const prevLen = this.value.length;
+    this.value = formatearRutInput(this.value);
+    // Ajustar cursor
+    const diff = this.value.length - prevLen;
+    this.setSelectionRange(pos + diff, pos + diff);
+  });
+}
+
+// Activar formateo RUT en campos editables
+(function() {
+  document.addEventListener('DOMContentLoaded', function() {
+    attachRutFormatter('loginRut');
+  });
+})();
 </script>
 </body>
 </html>
