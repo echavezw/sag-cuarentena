@@ -1148,7 +1148,7 @@ input.field-blocked, select.field-blocked {
     <div class="fg" style="grid-template-columns:repeat(6,1fr);gap:10px 14px">
       <!-- Fila 1: N° Res · Año · Fecha Emisión · Vigencia Desde · Vigencia Hasta -->
       <div class="ff c1 ff-primary"><label class="lbl"><span class="req">*</span> N° Resolución</label>
-        <input type="number" id="f2-nres" oninput="onRes();autoEstadoRes()" style="font-size:16px;font-weight:700;font-family:var(--mono)"></div>
+        <input type="number" id="f2-nres" onchange="onRes();autoEstadoRes()" onkeydown="if(event.key==='Enter'){event.preventDefault();onRes();autoEstadoRes();}" style="font-size:16px;font-weight:700;font-family:var(--mono)"></div>
         <div style="display:flex;gap:6px;margin-top:8px;align-items:center">
           <input type="file" id="f2-doc-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png" style="display:none">
           <button class="btn btn-gh btn-sm" id="f2-doc-btn" onclick="adjuntarResolucionPDF()" style="font-size:10px">📎 Adjuntar Resolución</button>
