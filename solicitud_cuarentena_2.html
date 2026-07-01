@@ -1128,26 +1128,27 @@ function nuevaSolicitud(){
 // FORMATEO AUTOMÁTICO RUT (12.345.678-9)
 // ══════════════════════════════════════════════════════════════════
 function formatearRutInput(valor) {
-  // Extraer solo dígitos y K
   const limpio = valor.replace(/[^0-9kK]/g,'').toUpperCase();
   if (limpio.length === 0) return '';
+  if (limpio.length === 1) return limpio;
   const cuerpo = limpio.slice(0, -1);
   const dv     = limpio.slice(-1);
-  // Formatear cuerpo con puntos
   const cuerpoFormateado = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  return cuerpoFormateado + (limpio.length > 1 ? '-' + dv : '');
+  return cuerpoFormateado + '-' + dv;
 }
 
 function attachRutFormatter(inputId) {
   const el = document.getElementById(inputId);
   if (!el) return;
-  el.addEventListener('input', function() {
-    const pos = this.selectionStart;
-    const prevLen = this.value.length;
+  el.addEventListener('keyup', function(e) {
+    // No interferir con teclas de navegación o borrado
+    if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Tab','Shift','Control','Alt','Backspace','Delete'].indexOf(e.key) >= 0) return;
+    const val = this.value;
+    const formatted = formatearRutInput(val);
+    if (formatted !== val) this.value = formatted;
+  });
+  el.addEventListener('blur', function() {
     this.value = formatearRutInput(this.value);
-    // Ajustar cursor
-    const diff = this.value.length - prevLen;
-    this.setSelectionRange(pos + diff, pos + diff);
   });
 }
 
