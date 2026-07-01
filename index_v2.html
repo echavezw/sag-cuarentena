@@ -889,6 +889,7 @@ input.field-blocked, select.field-blocked {
   <div class="sb-sec">Sistema</div>
   <div class="sb-item" id="nav-config" onclick="goStage('config')"><span class="sb-num">C</span>Configuracion</div>
   <div class="sb-item" id="nav-usuarios" onclick="goStage('usuarios')"><span class="sb-num">U</span><span class="sb-lbl">Gestionar Usuarios</span></div>
+  <div class="sb-item" id="nav-importadores" onclick="goStage('importadores');cargarImportadoresAcceso()"><span class="sb-num">I</span><span class="sb-lbl">Acceso Importadores</span></div>
   <div class="sb-actions">
     <button class="btn btn-gd btn-sm" onclick="nuevaSolicitud()">+ Nueva Solicitud</button>
     <button class="btn btn-gh btn-sm" id="compact-btn" onclick="toggleCompact()" title="Alternar modo compacto" style="width:100%;justify-content:center;margin-bottom:6px">⊟ Compacto</button>
@@ -1717,6 +1718,57 @@ input.field-blocked, select.field-blocked {
       <table class="tbl" id="usuarios-table">
         <thead><tr><th>Usuario</th><th>Rol</th><th>Activo</th><th>Acciones</th></tr></thead>
         <tbody id="usuarios-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+     ACCESO IMPORTADORES
+════════════════════════════════════ -->
+<div class="stage" id="stage-importadores">
+  <div class="sec-h">
+    <div class="sec-n">I</div>
+    <div><div class="sec-t">Acceso Importadores</div><div class="sec-s">Crear y gestionar accesos al portal público</div></div>
+    <div class="sec-actions">
+      <button class="btn btn-gh btn-sm" onclick="cargarImportadoresAcceso()">Actualizar</button>
+    </div>
+  </div>
+  <div class="tab-body" style="padding:18px">
+
+    <!-- Crear / Regenerar acceso -->
+    <div style="background:var(--g50,#f8f8f8);border:1px solid var(--g200,#e0e0e0);border-radius:var(--rs,4px);padding:16px;margin-bottom:18px">
+      <div style="font-family:var(--serif);font-size:14px;font-weight:700;color:var(--inkv);margin-bottom:12px">Crear / Regenerar Acceso</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end">
+        <div class="ff">
+          <label class="lbl">RUT Importador <span style="color:var(--err,#c0392b)">*</span></label>
+          <input id="imp-rut" placeholder="ej. 77.115.370-4" style="width:100%">
+        </div>
+        <div class="ff">
+          <label class="lbl">Creado por</label>
+          <input id="imp-creadopor" placeholder="ej. Eduardo" style="width:100%">
+        </div>
+        <button class="btn btn-nv btn-sm" onclick="crearAccesoImportador()" style="white-space:nowrap">+ Crear / Regenerar</button>
+      </div>
+      <div id="imp-result" style="margin-top:12px;font-size:13px"></div>
+    </div>
+
+    <!-- Listado de importadores con acceso -->
+    <div style="overflow:auto;border:1px solid var(--g200,#e0e0e0);border-radius:var(--rs,4px)">
+      <table class="tbl" id="imp-table">
+        <thead>
+          <tr>
+            <th>RUT</th>
+            <th>Fecha Creación</th>
+            <th>Creado Por</th>
+            <th>Activo</th>
+            <th>Cambio Clave</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="imp-tbody">
+          <tr><td colspan="6" style="text-align:center;color:#999;padding:20px">Cargando...</td></tr>
+        </tbody>
       </table>
     </div>
   </div>
@@ -3946,7 +3998,7 @@ function goStage(n) {
       'hist':(p.ver_panel||p.ver_busqueda), 'alerts':p.ver_alertas,
       1:p.editar_e1, 2:p.editar_e2, 3:p.editar_e3, 4:p.editar_e4,
       5:p.editar_e5, 6:p.editar_e6, 7:p.editar_e7,
-      'config':p.ver_config, 'usuarios':p.gestionar_usuarios
+      'config':p.ver_config, 'usuarios':p.gestionar_usuarios,'importadores':p.gestionar_usuarios
     };
     if(stagePermMap.hasOwnProperty(n) && !stagePermMap[n]) {
       setS('No tiene permiso para acceder a esta sección.', 'warn');
@@ -10316,6 +10368,118 @@ document.addEventListener('keydown',function(e){
   }
 });
 // ══════════════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════════════
+// PANEL ACCESO IMPORTADORES
+// ══════════════════════════════════════════════════════════════════
+const _PORTAL_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwxDEFA6OPi-mDYe2eJ9JlWcvA_409E6wfGuCAWxOM58rNzMerCz9tqvdFS2YeBEMp1/exec';
+const _ADMIN_TOKEN     = 'SAG_ECA_2026_xK9mP3qL';
+
+async function crearAccesoImportador() {
+  const rut       = document.getElementById('imp-rut').value.trim();
+  const creadoPor = document.getElementById('imp-creadopor').value.trim() || 'SAG';
+  const resultDiv = document.getElementById('imp-result');
+
+  if (!rut) { resultDiv.innerHTML = '<span style="color:var(--err,#c0392b)">⚠ Ingrese un RUT.</span>'; return; }
+
+  resultDiv.innerHTML = '<span style="color:#999">Procesando...</span>';
+
+  try {
+    const resp = await fetch(_PORTAL_ENDPOINT, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'crearAcceso', adminToken: _ADMIN_TOKEN, rut, creadoPor })
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      resultDiv.innerHTML =
+        '<div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:4px;padding:12px;margin-top:4px">' +
+        '<strong style="color:#2e7d32">✓ Acceso creado / regenerado correctamente</strong><br>' +
+        '<span style="font-size:12px;color:#555">RUT: <strong>' + rut + '</strong></span><br>' +
+        '<span style="font-size:13px;margin-top:6px;display:block">Clave provisoria: ' +
+        '<code style="background:#fff;border:1px solid #ccc;padding:3px 8px;border-radius:3px;font-size:14px;font-weight:700;letter-spacing:2px">' +
+        data.claveProvisoria + '</code></span>' +
+        '<span style="font-size:11px;color:#888;display:block;margin-top:6px">Cópiela y envíela al importador. Se pedirá cambio en el primer login.</span>' +
+        '</div>';
+      document.getElementById('imp-rut').value = '';
+      cargarImportadoresAcceso();
+    } else {
+      resultDiv.innerHTML = '<span style="color:var(--err,#c0392b)">✗ ' + (data.error || 'Error desconocido') + '</span>';
+    }
+  } catch (err) {
+    resultDiv.innerHTML = '<span style="color:var(--err,#c0392b)">✗ Error de conexión: ' + err.message + '</span>';
+  }
+}
+
+async function cargarImportadoresAcceso() {
+  const tbody = document.getElementById('imp-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#999;padding:16px">Cargando...</td></tr>';
+
+  try {
+    const resp = await fetch(_PORTAL_ENDPOINT, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'listarAccesos', adminToken: _ADMIN_TOKEN })
+    });
+    const data = await resp.json();
+    if (!data.ok) {
+      tbody.innerHTML = '<tr><td colspan="6" style="color:var(--err,#c0392b);padding:12px">' + (data.error || 'Error') + '</td></tr>';
+      return;
+    }
+    if (!data.importadores || data.importadores.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#999;padding:16px">Sin registros.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.importadores.map(function(imp) {
+      const activo = imp.activo === 'SI';
+      const cambioClave = imp.cambioClaveRequerido === 'SI';
+      return '<tr>' +
+        '<td style="font-weight:600">' + (imp.rut || '') + '</td>' +
+        '<td>' + (imp.fechaCreacion || '—') + '</td>' +
+        '<td>' + (imp.creadoPor || '—') + '</td>' +
+        '<td><span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;background:' +
+          (activo ? '#e8f5e9;color:#2e7d32' : '#fce4ec;color:#c62828') + '">' +
+          (activo ? 'Activo' : 'Inactivo') + '</span></td>' +
+        '<td style="font-size:11px;color:' + (cambioClave ? '#e65100' : '#666') + '">' +
+          (cambioClave ? '⚠ Pendiente' : 'OK') + '</td>' +
+        '<td>' +
+          (activo
+            ? '<button class="btn btn-gh btn-sm" onclick="deshabilitarAccesoImportador(`' + imp.rut + '`)" style="font-size:11px">Deshabilitar</button>'
+            : '<button class="btn btn-nv btn-sm" onclick="habilitarAccesoImportador(`' + imp.rut + '`)" style="font-size:11px">Habilitar</button>'
+          ) +
+        '</td>' +
+      '</tr>';
+    }).join('');
+  } catch (err) {
+    tbody.innerHTML = '<tr><td colspan="6" style="color:var(--err,#c0392b);padding:12px">Error de conexión: ' + err.message + '</td></tr>';
+  }
+}
+
+async function deshabilitarAccesoImportador(rut) {
+  if (!confirm('¿Deshabilitar acceso para ' + rut + '?')) return;
+  try {
+    const resp = await fetch(_PORTAL_ENDPOINT, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'deshabilitarAcceso', adminToken: _ADMIN_TOKEN, rut })
+    });
+    const data = await resp.json();
+    if (data.ok) { setS('Acceso deshabilitado.', 'ok'); cargarImportadoresAcceso(); }
+    else setS(data.error || 'Error al deshabilitar.', 'err');
+  } catch (err) { setS('Error de conexión.', 'err'); }
+}
+
+async function habilitarAccesoImportador(rut) {
+  if (!confirm('¿Habilitar acceso para ' + rut + '?')) return;
+  try {
+    const resp = await fetch(_PORTAL_ENDPOINT, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'habilitarAcceso', adminToken: _ADMIN_TOKEN, rut })
+    });
+    const data = await resp.json();
+    if (data.ok) { setS('Acceso habilitado.', 'ok'); cargarImportadoresAcceso(); }
+    else setS(data.error || 'Error al habilitar.', 'err');
+  } catch (err) { setS('Error de conexión.', 'err'); }
+}
+
 </script>
 </body>
 </html>
