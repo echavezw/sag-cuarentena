@@ -30,7 +30,12 @@
     width:100%;padding:10px;border:1px solid var(--border);border-radius:4px;
     font-family:inherit;font-size:14px;background:#fff;
   }
-  .field{margin-bottom:14px;}
+  .field{margin-bottom:14px;position:relative;}
+  .ac-list{position:absolute;left:0;right:0;top:100%;margin-top:2px;background:#fff;border:1px solid var(--border);max-height:220px;overflow-y:auto;z-index:60;display:none;box-shadow:0 6px 16px rgba(10,22,40,.12);border-radius:6px;}
+  .ac-list.open{display:block;}
+  .ac-item{padding:9px 12px;cursor:pointer;font-size:14px;color:var(--navy);}
+  .ac-item:hover,.ac-item.active{background:var(--bg);}
+  .ac-empty{padding:9px 12px;color:#999;font-size:13px;}
   .field.error input,.field.error select,.field.error textarea{border-color:var(--error);}
   .field .msg{font-size:12px;color:var(--error);margin-top:4px;display:none;}
   .field.error .msg{display:block;}
@@ -199,7 +204,7 @@
         <div class="grid cols-3">
           <div class="field" id="f-comuna">
             <label>Comuna <span class="req">*</span></label>
-            <input type="text" id="comuna" list="listaComunas" autocomplete="off">
+            <input type="text" id="comuna" autocomplete="off">
             <div class="msg">Campo obligatorio.</div>
           </div>
           <div class="field" id="f-ciudad">
@@ -252,20 +257,17 @@
         <div class="grid cols-3">
           <div class="field" id="f-proveedor">
             <label>Nombre Proveedor <span class="req">*</span></label>
-            <input type="text" id="proveedor" list="listaProveedores" autocomplete="off">
-            <datalist id="listaProveedores"></datalist>
+            <input type="text" id="proveedor" autocomplete="off">
             <div class="msg">Campo obligatorio.</div>
           </div>
           <div class="field" id="f-ciudad">
             <label>Ciudad <span class="req">*</span></label>
-            <input type="text" id="ciudadProveedor" list="listaCiudades" autocomplete="off">
-            <datalist id="listaCiudades"></datalist>
+            <input type="text" id="ciudadProveedor" autocomplete="off">
             <div class="msg">Campo obligatorio.</div>
           </div>
           <div class="field" id="f-pais">
             <label>País de Origen <span class="req">*</span></label>
-            <input type="text" id="origen" list="listaPaises" autocomplete="off">
-            <datalist id="listaPaises"></datalist>
+            <input type="text" id="origen" autocomplete="off">
             <div class="msg">Campo obligatorio.</div>
           </div>
         </div>
@@ -408,7 +410,6 @@
     </form>
   <datalist id="listaEspecies"></datalist>
   <datalist id="listaPortainjertos"></datalist>
-  <datalist id="listaComunas"></datalist>
   </div><!-- /screen-form -->
 
   <footer>
@@ -906,6 +907,8 @@ addMaterialRow();
 let proveedorDetalleMap = {};
 // Mapa global comuna → {ciudad, region}
 let comunaDetalleMap = {};
+// Arrays fuente para los dropdowns personalizados
+let proveedoresArr = [], ciudadesArr = [], paisesArr = [], comunasArr = [];
 
 function cargarListasAutocomplete(){
   fetch(ENDPOINT_URL, {
@@ -915,14 +918,15 @@ function cargarListasAutocomplete(){
   .then(function(r){ return r.json(); })
   .then(function(data){
     if(!data.ok) return;
-    poblarDatalist('listaProveedores', data.proveedores);
-    poblarDatalist('listaCiudades', data.ciudades);
-    poblarDatalist('listaPaises', data.paises);
     poblarDatalist('listaEspecies', data.especies);
     poblarDatalist('listaPortainjertos', data.portainjertos);
-    poblarDatalist('listaComunas', data.comunas || []);
+    proveedoresArr = data.proveedores || [];
+    ciudadesArr    = data.ciudades || [];
+    paisesArr      = data.paises || [];
+    comunasArr     = data.comunas || [];
     proveedorDetalleMap = data.proveedorDetalle || {};
     comunaDetalleMap    = data.comunaDetalle    || {};
+    initAutocompleteEstaticos();
   })
   .catch(function(err){
     console.warn('No se pudieron cargar las listas de autocomplete: ' + err);
@@ -956,6 +960,100 @@ function poblarDatalist(datalistId, valores){
     option.value = v;
     datalist.appendChild(option);
   });
+}
+
+// ============================================================
+// Dropdown personalizado (reemplaza <datalist> en campos estáticos)
+// Se re-muestra completo al enfocar, sin necesidad de borrar el campo.
+// ============================================================
+function attachAutocomplete(input, getOptions){
+  if(!input) return;
+  const box = document.createElement('div');
+  box.className = 'ac-list';
+  input.insertAdjacentElement('afterend', box);
+  let items = [];
+  let activeIndex = -1;
+
+  function norm(s){
+    return (s || '').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+  function escHtml(s){
+    return (s || '').toString().replace(/[&<>"']/g, function(ch){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];
+    });
+  }
+  function render(query){
+    const q = norm(query);
+    const all = getOptions() || [];
+    items = q ? all.filter(function(v){ return norm(v).indexOf(q) !== -1; }) : all.slice();
+    activeIndex = -1;
+    if(items.length === 0){
+      box.innerHTML = q ? '<div class="ac-empty">Sin coincidencias</div>' : '';
+      box.classList.toggle('open', !!q);
+      return;
+    }
+    box.innerHTML = items.slice(0, 100).map(function(v, i){
+      return '<div class="ac-item" data-idx="' + i + '">' + escHtml(v) + '</div>';
+    }).join('');
+    box.classList.add('open');
+  }
+  function updateActive(opts){
+    opts.forEach(function(el, i){ el.classList.toggle('active', i === activeIndex); });
+    if(opts[activeIndex]) opts[activeIndex].scrollIntoView({block:'nearest'});
+  }
+  function selectItem(idx){
+    const val = items[idx];
+    if(val === undefined) return;
+    input.value = val;
+    close();
+    input.dispatchEvent(new Event('change', {bubbles:true}));
+    input.dispatchEvent(new Event('input', {bubbles:true}));
+  }
+  function close(){
+    box.classList.remove('open');
+    box.innerHTML = '';
+    activeIndex = -1;
+  }
+
+  input.addEventListener('focus', function(){ render(''); });
+  input.addEventListener('input', function(){ render(input.value); });
+  input.addEventListener('keydown', function(e){
+    if(e.key === 'ArrowDown'){
+      e.preventDefault();
+      if(!box.classList.contains('open')){ render(''); return; }
+      const opts = box.querySelectorAll('.ac-item');
+      activeIndex = Math.min(activeIndex + 1, opts.length - 1);
+      updateActive(opts);
+    } else if(e.key === 'ArrowUp'){
+      e.preventDefault();
+      const opts = box.querySelectorAll('.ac-item');
+      activeIndex = Math.max(activeIndex - 1, 0);
+      updateActive(opts);
+    } else if(e.key === 'Enter'){
+      if(box.classList.contains('open') && activeIndex >= 0){
+        e.preventDefault();
+        selectItem(activeIndex);
+      }
+    } else if(e.key === 'Escape'){
+      close();
+    }
+  });
+  box.addEventListener('mousedown', function(e){
+    const item = e.target.closest('.ac-item');
+    if(!item) return;
+    e.preventDefault();
+    selectItem(parseInt(item.dataset.idx, 10));
+  });
+  document.addEventListener('click', function(e){
+    if(e.target !== input && !box.contains(e.target)) close();
+  });
+}
+
+function initAutocompleteEstaticos(){
+  attachAutocomplete(document.getElementById('comuna'),         function(){ return comunasArr; });
+  attachAutocomplete(document.getElementById('proveedor'),      function(){ return proveedoresArr; });
+  attachAutocomplete(document.getElementById('ciudadProveedor'),function(){ return ciudadesArr; });
+  attachAutocomplete(document.getElementById('origen'),         function(){ return paisesArr; });
 }
 // ============================================================
 // RADIOS CONDICIONALES
