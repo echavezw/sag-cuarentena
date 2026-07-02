@@ -227,7 +227,7 @@
       <div class="card">
         <h2>Contrapartes Técnicas</h2>
         <p class="helptext">Si ya ha trabajado con SAG-ECA, estos campos se autocompletan. Verifique y corrija si su contraparte cambió.</p>
-        <div class="grid">
+        <div class="grid cols-3">
           <div class="field" id="f-cp-imp-nombre">
             <label>Contraparte Proceso Importación <span class="req">*</span></label>
             <input type="text" id="cpImpNombre">
@@ -237,8 +237,12 @@
             <label>Correo Contraparte Importación</label>
             <input type="email" id="cpImpCorreo">
           </div>
+          <div class="field">
+            <label>Teléfono Contraparte Importación</label>
+            <input type="text" id="cpImpTelefono" placeholder="+56912345678">
+          </div>
         </div>
-        <div class="grid">
+        <div class="grid cols-3">
           <div class="field" id="f-cp-terr-nombre">
             <label>Contraparte Proceso Territorial <span class="req">*</span></label>
             <input type="text" id="cpTerrNombre">
@@ -247,6 +251,10 @@
           <div class="field">
             <label>Correo Contraparte Territorial</label>
             <input type="email" id="cpTerrCorreo">
+          </div>
+          <div class="field">
+            <label>Teléfono Contraparte Territorial</label>
+            <input type="text" id="cpTerrTelefono" placeholder="+56912345678">
           </div>
         </div>
       </div>
@@ -603,12 +611,14 @@ function iniciarFormulario(importadorData) {
     document.getElementById('representante').value = importadorData.representante || '';
 
     if(importadorData.contraparteImportacion){
-      document.getElementById('cpImpNombre').value = importadorData.contraparteImportacion.nombre || '';
-      document.getElementById('cpImpCorreo').value = importadorData.contraparteImportacion.correo || '';
+      document.getElementById('cpImpNombre').value    = importadorData.contraparteImportacion.nombre   || '';
+      document.getElementById('cpImpCorreo').value     = importadorData.contraparteImportacion.correo   || '';
+      document.getElementById('cpImpTelefono').value   = importadorData.contraparteImportacion.telefono || '';
     }
     if(importadorData.contraparteTerritorial){
-      document.getElementById('cpTerrNombre').value = importadorData.contraparteTerritorial.nombre || '';
-      document.getElementById('cpTerrCorreo').value = importadorData.contraparteTerritorial.correo || '';
+      document.getElementById('cpTerrNombre').value    = importadorData.contraparteTerritorial.nombre   || '';
+      document.getElementById('cpTerrCorreo').value     = importadorData.contraparteTerritorial.correo   || '';
+      document.getElementById('cpTerrTelefono').value   = importadorData.contraparteTerritorial.telefono || '';
     }
   } else {
     document.getElementById('rut').value = sesion.rut || '';
@@ -766,10 +776,12 @@ function generarPDFFormulario(){
   <div class="row-2">
     <div class="field-inline"><span class="lbl">Contraparte Proceso Importación:</span><span class="val">${esc(document.getElementById('cpImpNombre').value)}</span></div>
     <div class="field-inline"><span class="lbl">Correo:</span><span class="val">${esc(document.getElementById('cpImpCorreo').value)}</span></div>
+    <div class="field-inline"><span class="lbl">Teléfono:</span><span class="val">${esc(document.getElementById('cpImpTelefono').value)}</span></div>
   </div>
   <div class="row-2">
     <div class="field-inline"><span class="lbl">Contraparte Proceso Territorial:</span><span class="val">${esc(document.getElementById('cpTerrNombre').value)}</span></div>
     <div class="field-inline"><span class="lbl">Correo:</span><span class="val">${esc(document.getElementById('cpTerrCorreo').value)}</span></div>
+    <div class="field-inline"><span class="lbl">Teléfono:</span><span class="val">${esc(document.getElementById('cpTerrTelefono').value)}</span></div>
   </div>
 </div>
 
@@ -1210,12 +1222,14 @@ document.getElementById('solicitudForm').addEventListener('submit', function(e){
       representante: document.getElementById('representante').value.trim()
     },
     contraparteImportacion:{
-      nombre:  document.getElementById('cpImpNombre').value.trim(),
-      correo:  document.getElementById('cpImpCorreo').value.trim()
+      nombre:   document.getElementById('cpImpNombre').value.trim(),
+      correo:   document.getElementById('cpImpCorreo').value.trim(),
+      telefono: document.getElementById('cpImpTelefono').value.trim()
     },
     contraparteTerritorial:{
-      nombre:  document.getElementById('cpTerrNombre').value.trim(),
-      correo:  document.getElementById('cpTerrCorreo').value.trim()
+      nombre:   document.getElementById('cpTerrNombre').value.trim(),
+      correo:   document.getElementById('cpTerrCorreo').value.trim(),
+      telefono: document.getElementById('cpTerrTelefono').value.trim()
     },
     proveedor:          document.getElementById('proveedor').value.trim(),
     ciudadProveedor:    document.getElementById('ciudadProveedor').value.trim(),
@@ -1278,12 +1292,14 @@ function nuevaSolicitud(){
     region:       document.getElementById('region').value,
     representante: document.getElementById('representante').value,
     contraparteImportacion: {
-      nombre: document.getElementById('cpImpNombre').value,
-      correo: document.getElementById('cpImpCorreo').value
+      nombre:   document.getElementById('cpImpNombre').value,
+      correo:   document.getElementById('cpImpCorreo').value,
+      telefono: document.getElementById('cpImpTelefono').value
     },
     contraparteTerritorial: {
-      nombre: document.getElementById('cpTerrNombre').value,
-      correo: document.getElementById('cpTerrCorreo').value
+      nombre:   document.getElementById('cpTerrNombre').value,
+      correo:   document.getElementById('cpTerrCorreo').value,
+      telefono: document.getElementById('cpTerrTelefono').value
     }
   };
   document.getElementById('bannerSuccess').style.display = 'none';
@@ -1359,6 +1375,8 @@ function attachPhoneFormatter(inputId) {
 
 document.addEventListener('DOMContentLoaded', function() {
   attachPhoneFormatter('telefono');
+  attachPhoneFormatter('cpImpTelefono');
+  attachPhoneFormatter('cpTerrTelefono');
 });
 
 </script>
