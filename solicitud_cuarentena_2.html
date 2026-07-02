@@ -636,7 +636,7 @@ function cerrarSesion(){
   document.getElementById('bannerError').style.display = 'none';
   document.getElementById('solicitudForm').reset();
   document.getElementById('solicitudForm').style.display = 'block';
-  pdfBase64 = null; pdfNombreArchivo = null;
+  pdfBase64 = null; pdfNombreArchivo = null; solicitudReservada = null;
   document.getElementById('fileLabel').classList.remove('has-file');
   document.getElementById('fileLabel').textContent = 'Haga clic para seleccionar el PDF firmado (máx. 8MB)';
   showScreen('screen-login');
@@ -645,7 +645,48 @@ function cerrarSesion(){
 // ============================================================
 // GENERAR PDF FORMULARIO F-IIT-IMP-PA-002
 // ============================================================
-function generarPDFFormulario(folioOverride, esCopiaRespaldo){
+function generarPDFFormulario(){
+  const nombre    = document.getElementById('nombre').value.trim();
+  const rut       = document.getElementById('rut').value.trim();
+
+  if(!nombre || !rut){
+    alert('Complete al menos los datos de identificación del importador antes de generar el PDF.');
+    return;
+  }
+
+  const btn = document.getElementById('btnGenerarPDF');
+  if(btn) btn.disabled = true;
+
+  const continuar = function(){
+    if(btn) btn.disabled = false;
+    construirYAbrirPDF();
+  };
+
+  if(solicitudReservada){
+    continuar();
+    return;
+  }
+
+  fetch(ENDPOINT_URL, {
+    method: 'POST',
+    body: JSON.stringify({ action: 'reservarSolicitud', rut: rut, nombreImportador: nombre })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if(data.ok){
+      solicitudReservada = { folio: data.folio, folioDisplay: data.folioDisplay, fecha: data.fecha };
+    } else {
+      alert('No se pudo generar el número de solicitud (' + (data.error||'error desconocido') + '). Intente nuevamente.');
+    }
+    continuar();
+  })
+  .catch(function(){
+    alert('Error de conexión al generar el número de solicitud. Intente nuevamente.');
+    if(btn) btn.disabled = false;
+  });
+}
+
+function construirYAbrirPDF(){
   const mat = getMaterialData();
   const nombre    = document.getElementById('nombre').value.trim();
   const rut       = document.getElementById('rut').value.trim();
@@ -690,13 +731,8 @@ function generarPDFFormulario(folioOverride, esCopiaRespaldo){
     '</tr>';
   }).join('') : '<tr><td colspan="11" style="text-align:center;color:#999;">Sin material ingresado</td></tr>';
 
-  const avisoInstrucciones = esCopiaRespaldo
-    ? '<div class="no-print aviso"><strong>Copia de respaldo:</strong> este documento incluye su N° de Solicitud oficial para sus registros. No reemplaza la solicitud firmada que ya fue enviada a SAG.</div>'
-    : '<div class="no-print aviso"><strong>Instrucciones:</strong> Imprima este documento o guárdelo como PDF (Archivo → Imprimir → Guardar como PDF). Fírmelo y luego adjúntelo en el formulario web para completar el envío de su solicitud.</div>';
-
-  const marcaRespaldo = esCopiaRespaldo
-    ? '<div class="marca-respaldo">COPIA DE RESPALDO — SIN VALIDEZ COMO DOCUMENTO FIRMADO</div>'
-    : '';
+  const avisoInstrucciones = '<div class="no-print aviso"><strong>Instrucciones:</strong> Imprima este documento o guárdelo como PDF (Archivo → Imprimir → Guardar como PDF). Fírmelo (o firme digitalmente) y luego adjúntelo en el formulario web para completar el envío de su solicitud.</div>';
+  const marcaRespaldo = '';
 
   const html = '<!DOCTYPE html>' +
 '<html lang="es">' +
@@ -750,7 +786,7 @@ marcaRespaldo +
 '</tr></table></div>' +
 
 '<table class="header-table">' +
-'<tr><td class="lbl">N° Solicitud / Año</td><td class="val">'+(folioOverride ? esc(folioOverride) : '&nbsp;')+'</td><td class="lbl">Fecha Recepción</td><td class="val">&nbsp;</td></tr>' +
+'<tr><td class="lbl">N° Solicitud / Año</td><td class="val">'+(solicitudReservada ? esc(solicitudReservada.folioDisplay) : '&nbsp;')+'</td><td class="lbl">Fecha Recepción</td><td class="val">&nbsp;</td></tr>' +
 '<tr><td class="lbl">Región</td><td class="val">Región Metropolitana</td><td class="lbl">Oficina Sectorial</td><td class="val">Red de Laboratorios SAG-ECA</td></tr>' +
 '<tr><td class="lbl">Fecha de emisión del formulario</td><td class="val">'+fechaHoy+'</td><td class="lbl">Tipo de cuarentena</td><td class="val">Cuarentena Posentrada Absoluta (EC1)</td></tr>' +
 '</table>' +
@@ -879,6 +915,7 @@ function esc(str){
 // ============================================================
 let materialRowCount = 0;
 let pdfBase64 = null;
+let solicitudReservada = null; // {folio, folioDisplay, fecha} — asignado al generar el primer PDF
 let pdfNombreArchivo = null;
 
 function addMaterialRow(){
@@ -1244,7 +1281,8 @@ document.getElementById('solicitudForm').addEventListener('submit', function(e){
     material:           getMaterialData(),
     autorizaEnvioCorreo: document.querySelector('input[name=autorizaEnvio]:checked').value==='SI',
     pdfBase64:          pdfBase64,
-    pdfNombreArchivo:   pdfNombreArchivo
+    pdfNombreArchivo:   pdfNombreArchivo,
+    folioReservado:     solicitudReservada ? solicitudReservada.folio : null
   };
 
   fetch(ENDPOINT_URL,{ method:'POST', body:JSON.stringify(payload) })
@@ -1252,12 +1290,10 @@ document.getElementById('solicitudForm').addEventListener('submit', function(e){
   .then(function(data){
     document.getElementById('statusText').textContent='';
     if(data.ok){
-      window.__ultimoFolioDisplay = data.folioDisplay;
       document.getElementById('bannerSuccess').innerHTML=
         '<strong>Solicitud enviada correctamente.</strong><br>' +
         'Su número de folio es <strong>'+data.folioDisplay+'</strong>. ' +
         'Recibirá un correo de confirmación. Conserve este número.<br><br>' +
-        '<button type="button" class="btn btn-secondary" style="margin-top:6px;margin-bottom:10px;" onclick="generarPDFFormulario(window.__ultimoFolioDisplay, true)">Descargar copia de respaldo con N° de Solicitud</button><br>' +
         '<strong>¿Desea realizar una nueva solicitud?</strong><br>' +
         '<button type="button" class="btn btn-primary" style="margin-top:10px;margin-right:10px;" onclick="nuevaSolicitud()">Sí, nueva solicitud</button>' +
         '<button type="button" class="btn btn-secondary" style="margin-top:10px;" onclick="cerrarSesion()">No, cerrar sesión</button>';
@@ -1281,6 +1317,9 @@ document.getElementById('solicitudForm').addEventListener('submit', function(e){
 });
 
 function nuevaSolicitud(){
+  solicitudReservada = null;
+  pdfBase64 = null;
+  pdfNombreArchivo = null;
   const datosActuales = {
     rut:          document.getElementById('rut').value,
     nombre:       document.getElementById('nombre').value,
