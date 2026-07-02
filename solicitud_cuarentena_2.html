@@ -1335,6 +1335,32 @@ function attachRutFormatter(inputId) {
   });
 })();
 
+// ══════════════════════════════════════════════════════════════════
+// FORMATEO TELÉFONO CHILENO — normaliza a +56XXXXXXXXX (9 dígitos locales)
+// ══════════════════════════════════════════════════════════════════
+function normalizarTelefonoCL(valor) {
+  let digitos = String(valor || '').replace(/\D/g, '');
+  // Si viene con código de país 56 al inicio y sobran 2 dígitos, quitarlo
+  if (digitos.length === 11 && digitos.slice(0, 2) === '56') {
+    digitos = digitos.slice(2);
+  }
+  // Solo normalizamos si calza con el formato chileno esperado: 9 dígitos locales
+  if (digitos.length !== 9) return valor;
+  return '+56' + digitos;
+}
+
+function attachPhoneFormatter(inputId) {
+  const el = document.getElementById(inputId);
+  if (!el) return;
+  el.addEventListener('blur', function() {
+    this.value = normalizarTelefonoCL(this.value);
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  attachPhoneFormatter('telefono');
+});
+
 </script>
 </body>
 </html>
