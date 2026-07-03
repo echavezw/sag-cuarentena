@@ -3421,8 +3421,12 @@ const selEl = (id, val) => {
   const e=$(id); if(!e||!val) return;
   e.value = val;
   if(e.value===val) return;
-  const v2=String(val).toLowerCase().trim();
-  const opt=Array.from(e.options).find(o=>o.value.toLowerCase().trim()===v2||o.text.toLowerCase().trim()===v2||v2.includes(o.value.toLowerCase().trim()));
+  // Normalizar: lowercase, trim, colapsar espacios múltiples, quitar espacios alrededor de & y -
+  const norm = s => String(s||'').toLowerCase().trim()
+    .replace(/\s*&\s*/g,'&').replace(/\s*-\s*/g,'-')
+    .replace(/\s+/g,' ');
+  const v2 = norm(val);
+  const opt=Array.from(e.options).find(o=>norm(o.value)===v2||norm(o.text)===v2);
   if(opt) e.value=opt.value;
 };
 const esc = v => { const s=String(v||''); return s.includes('<')||s.includes('>')?s.replace(/</g,'&lt;').replace(/>/g,'&gt;'):s; };
