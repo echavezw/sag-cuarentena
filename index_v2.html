@@ -2946,6 +2946,126 @@ function calcStatusAuto(rows) {
   return 'Injertada';
 }
 
+// ── BADGE DE PRIORIDAD — para el panel de búsqueda y ficha desplegable
+// Devuelve {label, cls, pendientes[]} donde pendientes son los ítems bloqueantes
+function calcBadgePriority(rows) {
+  if (!rows || !rows.length) return {label:'Sin datos', cls:'badge-nv', pendientes:[]};
+  const first = rows[0];
+  const norm = s => String(s||'').trim();
+
+  // 10. Cerrado — Liberada / Entregada / Terminada
+  const cerrado = norm(first['Liberada']) || norm(first['Entregada']) || norm(first['Terminada']);
+  if (cerrado) return {label:'Cerrado', cls:'badge-ok', pendientes:[]};
+
+  // 1. No recibida — tiene Res. pero no tiene Recibida ni Fecha de Ingreso
+  const res = norm(first['Res.']);
+  const recibida = norm(first['Recibida']);
+  const fechaIng = norm(first['Fecha de Ingreso']);
+  if (res && !recibida && !fechaIng) {
+    return {label:'No recibida', cls:'badge-nv', pendientes:['Resolución emitida pero material no recibido en ECA']};
+  }
+
+  // 2. Recibida · sin injertar
+  if (fechaIng && !norm(first['Fecha Injertación'])) {
+    return {label:'Recibida · sin injertar', cls:'badge-gd',
+      pendientes:['Material recibido pero aún no injertado (Fecha Injertación vacía)']};
+  }
+
+  // Si no hay injertación y tampoco recepción, es Sin Ingreso
+  if (!fechaIng) return {label:'Sin Ingreso', cls:'badge-warn', pendientes:['Sin fecha de ingreso registrada']};
+
+  // A partir de aquí: registro recibido e injertado — evaluar análisis
+  const filasConAnalisis = rows.filter(r => norm(r['Estado Análisis']) || norm(r['Análisis']));
+
+  // 3. Análisis pendiente (No Analizada / Pendiente)
+  const pendienteAnalisis = filasConAnalisis.filter(r => {
+    const e = norm(r['Estado Análisis']).toLowerCase();
+    return e === 'no analizada' || e === 'pendiente' || e === '';
+  });
+  if (pendienteAnalisis.length) {
+    const items = pendienteAnalisis.map(r =>
+      `${norm(r['Análisis'])||'?'} — ${norm(r['Especie'])||'?'}: ${norm(r['Patógenos'])||'sin patógeno'}`
+    );
+    return {label:'Análisis pendiente', cls:'badge-err', pendientes: items.slice(0,5)};
+  }
+
+  // 4. En análisis
+  const enAnalisis = filasConAnalisis.filter(r => {
+    const e = norm(r['Estado Análisis']).toLowerCase();
+    return e === 'en analisis' || e === 'en análisis';
+  });
+  if (enAnalisis.length) {
+    const items = enAnalisis.map(r =>
+      `${norm(r['Análisis'])||'?'} — ${norm(r['Especie'])||'?'}: ${norm(r['Patógenos'])||'?'}`
+    );
+    return {label:'En análisis', cls:'badge-warn', pendientes: items.slice(0,5)};
+  }
+
+  // Todos los análisis están completos (Analizada / Sin síntomas)
+  // 5. Muestreo pendiente — fecha estimada muestreo pasada y Muestreada? != Si
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const filasConFechaMuest = rows.filter(r => {
+    const fm = norm(r['Fecha Estimada Muestreo']);
+    if (!fm) return false;
+    const d = new Date(fm);
+    return !isNaN(d) && d <= hoy;
+  });
+  const sinMuestra = filasConFechaMuest.filter(r => {
+    const m = norm(r['Muestreada?']).toLowerCase();
+    return m !== 'si' && m !== 'sí';
+  });
+  if (sinMuestra.length) {
+    const esp = [...new Set(sinMuestra.map(r => norm(r['Especie'])))].filter(Boolean);
+    return {label:'Muestreo pendiente', cls:'badge-warn',
+      pendientes: [`Fecha estimada de muestreo vencida — ${esp.join(', ') || 'ver registro'}`]};
+  }
+
+  // 6. SPS/CORE pendiente — solo filas con Estado Análisis = Analizada
+  const filasAnalizadas = filasConAnalisis.filter(r => {
+    const e = norm(r['Estado Análisis']).toLowerCase();
+    return e === 'analizada' || e === 'sin sintomas' || e === 'sin síntomas';
+  });
+  const sinSpsCore = filasAnalizadas.filter(r =>
+    !norm(r['SPS análisis']) || !norm(r['CORE/Factura'])
+  );
+  if (sinSpsCore.length) {
+    const items = sinSpsCore.map(r => {
+      const faltantes = [];
+      if (!norm(r['SPS análisis'])) faltantes.push('SPS');
+      if (!norm(r['CORE/Factura'])) faltantes.push('CORE');
+      return `${norm(r['Análisis'])||'?'} — ${norm(r['Especie'])||'?'}: falta ${faltantes.join(' y ')}`;
+    });
+    return {label:'SPS/CORE pendiente', cls:'badge-warn', pendientes: items.slice(0,5)};
+  }
+
+  // 7. Cobro estadía pendiente
+  const sinCobro = rows.filter(r =>
+    norm(r['SPS estadía']) === '' || norm(r['CORE/Factura3']) === ''
+  );
+  // Solo marcar si hay alguna fila con estos campos (no todas tienen estadía)
+  const hayEstadiaDatos = rows.some(r => norm(r['SPS estadía']) || norm(r['CORE/Factura3']));
+  if (hayEstadiaDatos) {
+    const conPendiente = rows.filter(r =>
+      (norm(r['SPS estadía']) === '' && rows.some(x => norm(x['SPS estadía']))) ||
+      (norm(r['CORE/Factura3']) === '' && rows.some(x => norm(x['CORE/Factura3'])))
+    );
+    if (conPendiente.length) {
+      return {label:'Cobro estadía pendiente', cls:'badge-warn',
+        pendientes:['SPS estadía o CORE/Factura3 incompleto en alguna fila']};
+    }
+  }
+
+  // 8. Recuento pendiente — N° Plantas Finales vacío, todos análisis completos y SPS/CORE ok
+  const sinRecuento = rows.filter(r => !norm(r['N° Plantas Finales']));
+  if (sinRecuento.length) {
+    return {label:'Recuento pendiente', cls:'badge-warn',
+      pendientes:['N° Plantas Finales no registrado']};
+  }
+
+  // 9. Analizado — todo completo
+  return {label:'Analizado', cls:'badge-ok', pendientes:[]};
+}
+
 // Devuelve todas las filas de gsData que pertenecen al mismo registro (por Res. o Solicitud)
 function _filasDelRegistro(r) {
   const res = String(r['Res.'] || '').trim();
@@ -3104,11 +3224,9 @@ function mostrarFichaResumen(r) {
   const res = String(r['Res.']||'').trim();
   const sol = String(r['Solicitud']||'').trim();
   const yr = (fmtD(r['Fecha Res.']||'')).substring(0,4);
-  const status = res ? calcStatusAuto(rows) : (r['Estado Res.']||'Sin Firma');
-  const sc = ['Entregada','Liberada','Terminada','Análisis Completo'].indexOf(status)>=0 ? 'badge-ok'
-    : ['A destruir','Destruida','Perdida'].indexOf(status)>=0 ? 'badge-err'
-    : ['Sin Firma','Sin Ingreso'].indexOf(status)>=0 ? 'badge-warn'
-    : 'badge-nv';
+  const bp = res ? calcBadgePriority(rows) : {label: r['Estado Res.']||'Sin Firma', cls:'badge-nv', pendientes:[]};
+  const status = bp.label;
+  const sc = bp.cls;
 
   // Variedades por especie, consolidadas desde todas las filas del registro
   const variedadesPorEspecie = {};
@@ -3126,44 +3244,14 @@ function mostrarFichaResumen(r) {
 
   // Detalle de análisis: cada fila con su análisis/patógeno y estado individual,
   // agrupado por tipo de análisis, mostrando especie + patógeno + estado.
-  const ESTADO_COLOR = {
-    'No Analizada': 'badge-err', 'Pendiente': 'badge-err',
-    'En analisis': 'badge-warn', 'En análisis': 'badge-warn',
-    'Analizada': 'badge-ok', 'Sin sintomas': 'badge-nv', 'Sin síntomas': 'badge-nv'
-  };
-  const filasAnalisis = rows.filter(row => String(row['Análisis']||'').trim() || String(row['Patógenos']||'').trim());
-  const analisisPorTipo = {};
-  filasAnalisis.forEach(row => {
-    const tipo = String(row['Análisis']||'Sin tipo').trim();
-    if (!analisisPorTipo[tipo]) analisisPorTipo[tipo] = [];
-    analisisPorTipo[tipo].push(row);
-  });
-  const analisisHtml = Object.entries(analisisPorTipo).map(([tipo, filas]) => {
-    const itemsHtml = filas.map(row => {
-      const pat = String(row['Patógenos']||'').trim() || '—';
-      const est = String(row['Estado Análisis']||'').trim() || 'Sin estado';
-      const badgeCls = ESTADO_COLOR[est] || 'badge-nv';
-      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:11.5px">
-        <span style="color:var(--g600)">${esc(pat)}</span>
-        <span class="badge ${badgeCls}" style="font-size:10px">${esc(est)}</span>
-      </div>`;
-    }).join('');
-    return `<div style="margin-bottom:8px">
-      <div style="font-size:11px;font-weight:700;color:var(--inkv);margin-bottom:2px">${esc(tipo)} (${filas.length})</div>
-      ${itemsHtml}
-    </div>`;
-  }).join('') || '<span style="color:var(--g400);font-size:12px">Sin análisis cargados</span>';
-
-  // Resumen rápido de conteos por estado (para vista de un vistazo)
-  const estadosAn = {};
-  filasAnalisis.forEach(row => {
-    const e = String(row['Estado Análisis']||'').trim();
-    if (e) estadosAn[e] = (estadosAn[e]||0) + 1;
-  });
-  const resumenEstadosHtml = Object.entries(estadosAn).map(([e,n]) => {
-    const badgeCls = ESTADO_COLOR[e] || 'badge-nv';
-    return `<span class="badge ${badgeCls}" style="margin-right:4px">${esc(e)}: ${n}</span>`;
-  }).join('') || '<span style="color:var(--g400)">—</span>';
+  // Pendientes — usar calcBadgePriority ya calculado
+  const pendientesHtml = bp.pendientes.length
+    ? bp.pendientes.map(p => `
+        <div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid var(--g50);font-size:11.5px">
+          <span style="color:var(--err);font-weight:700;flex-shrink:0">⚠</span>
+          <span style="color:var(--g700)">${esc(p)}</span>
+        </div>`).join('')
+    : `<div style="color:var(--ok);font-size:12px;padding:8px 0">✓ Sin pendientes críticos</div>`;
 
   const first = rows[0] || r;
   const campo = (label, val) => `
@@ -3172,12 +3260,19 @@ function mostrarFichaResumen(r) {
       <span style="font-weight:600;text-align:right">${val || '—'}</span>
     </div>`;
 
-  // Estado de cierre del proceso — Liberada / Terminada / Entregada / Resolución de Término
-  const liberada = String(first['Liberada']||'').trim();
-  const terminada = String(first['Terminada']||'').trim();
-  const entregada = String(first['Entregada']||'').trim();
-  const resTermino = String(first['Res. Término']||'').trim();
-  const fechaResTermino = fmtDisplay(first['Fecha Res.4']||'');
+  // Variedades por especie
+  const _varPorEsp = {};
+  rows.forEach(row => {
+    const esp = String(row['Especie']||'').trim();
+    const vari = String(row['Variedades']||'').trim();
+    if (!esp || /\bspp\.?$/i.test(esp)) return;
+    if (!_varPorEsp[esp]) _varPorEsp[esp] = new Set();
+    if (vari) _varPorEsp[esp].add(vari);
+  });
+  const especiesHtmlFicha = Object.entries(_varPorEsp).map(([esp, varsSet]) => {
+    const vars = [...varsSet].join(', ') || '—';
+    return `<div style="margin-bottom:4px"><i>${esc(esp)}</i> <span style="color:var(--g400)">— ${esc(vars)}</span></div>`;
+  }).join('') || '<span style="color:var(--g400)">Sin especies registradas</span>';
 
   const html = `
     <div>
@@ -3199,28 +3294,22 @@ function mostrarFichaResumen(r) {
           ${campo('Cubículo', (first['Cubículo']||'') + (first['Cubículo2']?(' / '+first['Cubículo2']):''))}
 
           <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--g400);margin:14px 0 4px">Fechas Clave</div>
+          ${campo('Recibida', first['Recibida']||'')}
           ${campo('Fecha de Ingreso', fmtDisplay(first['Fecha de Ingreso']||''))}
           ${campo('Fecha Injertación', fmtDisplay(first['Fecha Injertación']||''))}
+          ${campo('Fecha Estimada Muestreo', fmtDisplay(first['Fecha Estimada Muestreo']||''))}
           ${campo('Fecha aprox. Levante', fmtDisplay(first['Fecha aprox. Levant.']||''))}
 
           <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--g400);margin:14px 0 4px">Especies y Variedades</div>
-          <div style="font-size:12px">${especiesHtml}</div>
-
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--g400);margin:14px 0 4px">Cierre del Proceso</div>
-          ${campo('Liberada', liberada || 'No')}
-          ${campo('Terminada', terminada || 'No')}
-          ${campo('Entregada', entregada ? fmtDisplay(entregada) : 'No')}
-          ${campo('Resolución de Término', resTermino || '—')}
-          ${campo('Fecha Res. Término', fechaResTermino || '—')}
+          <div style="font-size:12px">${especiesHtmlFicha}</div>
         </div>
 
         <div>
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--g400);margin:0 0 4px">
-            Resumen de Análisis (${filasAnalisis.length} fila${filasAnalisis.length!==1?'s':''})
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--g400);margin:0 0 8px">
+            Pendientes críticos
           </div>
-          <div style="margin-bottom:10px">${resumenEstadosHtml}</div>
           <div style="max-height:380px;overflow-y:auto;border:1px solid var(--g100);border-radius:6px;padding:10px">
-            ${analisisHtml}
+            ${pendientesHtml}
           </div>
         </div>
       </div>
@@ -3522,7 +3611,7 @@ function _colRawValue(key, r) {
     case 'cub': return String(r['Cubículo']||r['Cubiculo']||'').trim() || '(sin cubículo)';
     case 'imp': return (r['Importador']||'').trim() || '(sin importador)';
     case 'esp': return _especiesConsolidadas(r) || '(sin especie)';
-    case 'stat': return calcStatusAuto(_filasDelRegistro(r));
+    case 'stat': return (calcBadgePriority(_filasDelRegistro(r))||{}).label || calcStatusAuto(_filasDelRegistro(r));
     default: return '';
   }
 }
@@ -3845,13 +3934,12 @@ function _panelRowsBuild(found, tbodyEl) {
     var res=r["Res."]||"";
     var yr=(fmtD(r["Fecha Res."]||"")).substring(0,4);
     var sol=r["Solicitud"]||"";
-    var st = res ? calcStatusAuto(_filasDelRegistro(r)) : (r["Estado Res."]||"Sin Firma");
-    var sc = ['Entregada','Liberada','Terminada','Análisis Completo'].indexOf(st)>=0 ? "badge-ok"
-      : ['A destruir','Destruida','Perdida'].indexOf(st)>=0 ? "badge-err"
-      : ['Sin Firma','Sin Ingreso'].indexOf(st)>=0 ? "badge-warn"
-      : "badge-nv";
+    var rows = _filasDelRegistro(r);
+    var bp = res ? calcBadgePriority(rows) : {label: r["Estado Res."]||"Sin Firma", cls:'badge-nv', pendientes:[]};
+    var st = bp.label;
+    var sc = bp.cls;
     var loadRow = function(){ cargarFichaPanel(res, yr, sol); };
-    var ctx = {res, yr, sol, st, sc, loadRow};
+    var ctx = {res, yr, sol, st, sc, loadRow, badgePriority: bp};
 
     var tr = document.createElement('tr');
     tr.style.cursor = 'default';
