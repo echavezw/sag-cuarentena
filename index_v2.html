@@ -8702,24 +8702,27 @@ async function fileToB64(file){ return new Promise((res,rej)=>{ const r=new File
 // ── PROVEEDOR ──
 function saveProveedorIfNew(prov) {
   if(!prov?.trim()) return;
+  const norm = s => (s||'').toLowerCase().trim();
+  // Verificar contra refProveedores (fuente de verdad = Sheet), no solo localStorage
+  const existeEnSheet = refProveedores.some(r => norm(r['Nombre']) === norm(prov));
+  if(existeEnSheet) return; // ya existe en el Sheet — no duplicar
+  // No existe en Sheet — es proveedor nuevo: guardar en localStorage y escribir al Sheet
   const saved=JSON.parse(localStorage.getItem('eca_proveedores')||'[]');
   if(!saved.includes(prov.trim())){
     saved.push(prov.trim()); saved.sort();
     localStorage.setItem('eca_proveedores',JSON.stringify(saved));
     loadProveedores();
-    // Also write to Proveedores sheet if we have a token and ciudad data
-    if(accessToken && GS.sheetId) {
-      const ciudad = v('f1-prov-ciudad')||'';
-      const rowData = [prov.trim(), ciudad];
-      fetch(`${BASE_URL}/${GS.sheetId}/values/Proveedores!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
-        {method:'POST',
-         headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
-         body:JSON.stringify({values:[rowData]})})
-        .catch(e=>console.warn('saveProveedorIfNew sheet error:',e));
-    }
+  }
+  if(accessToken && GS.sheetId) {
+    const ciudad = v('f1-prov-ciudad')||'';
+    const rowData = [prov.trim(), ciudad];
+    fetch(`${BASE_URL}/${GS.sheetId}/values/Proveedores!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+      {method:'POST',
+       headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+       body:JSON.stringify({values:[rowData]})})
+      .catch(e=>console.warn('saveProveedorIfNew sheet error:',e));
   }
 }
-
 // ── LIMPIAR ETAPA ──
 function limpiarEtapa(n) {
   if(!confirm(`Limpiar datos de la Etapa ${n}?`)) return;
