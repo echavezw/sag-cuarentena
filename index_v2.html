@@ -1068,12 +1068,12 @@ input.field-blocked, select.field-blocked {
         <select id="f1-pais" onchange="onPais()"><option value="">— Seleccionar —</option></select></div>
       <div class="ff c1 ff-secondary"><label class="lbl">Zona CE <span class="auto">AUTO</span></label><input id="f1-zona-ce" readonly></div>
       <div class="ff c1"><label class="lbl">Uso Propuesto</label>
-        <select id="f1-uso"><option value="">—</option><option>Investigacion</option><option>Otro</option><option>Propagacion</option></select></div>
+        <select id="f1-uso"><option value="">—</option><option>Investigación</option><option>Otro</option><option>Propagación</option></select></div>
       <div class="ff c1 ff-secondary"><label class="lbl">N° Reg. Vivero</label><input id="f1-vivero"></div>
       <div class="ff c1"><label class="lbl">N° CDA</label><input id="f1-cda" style="font-family:var(--mono)" oninput="cacheField('f1-cda')" placeholder="ej. 1234/2025"></div>
       <div class="ff c1"><label class="lbl">N° Cert. Fitosanitario</label><input id="f1-cert-fito" style="font-family:var(--mono)" oninput="cacheField('f1-cert-fito')" placeholder="ej. 5678/2025"></div>
       <div class="ff c1"><label class="lbl">Pto. Ingreso</label>
-        <select id="f1-pto"><option value="">—</option><option>AMB</option><option>Maritimo</option><option>Otro</option><option>Terrestre</option></select></div>
+        <select id="f1-pto"><option value="">—</option><option>Aeropuerto Internacional CAMB</option><option>AMB</option><option>Maritimo</option><option>Otro</option><option>Terrestre</option></select></div>
       <div class="ff c1"><label class="lbl">Fecha Est. Ingreso</label><input type="date" id="f1-fing" oninput="autoFillFingAsig(this.value)"></div>
       <div class="ff c1"><label class="lbl">Req. Frio</label>
         <select id="f1-frio"><option value="">—</option><option>Si</option><option>No</option></select></div>
@@ -4486,7 +4486,7 @@ async function cargarFilaMulti(rows) {
       espData = matRows.map(x=>({
         especie:     cleanEspecie(x['Especie']||''),
         variedad:    x['Variedad']||'',
-        tipo:        x['Tipo Material']||'',
+        tipo:        normalizeTipoMaterial(x['Tipo Material']||''),
         cant:        x['Cantidad']||'',
         portainjerto:x['Portainjerto']||'',
         nplan:       x['N° Plantas']||'',
@@ -4526,7 +4526,7 @@ async function cargarFilaMulti(rows) {
         espData.push({
           especie:     cleanEspecie(x['Especie']||''),
           variedad:    x['Variedades']||x['Variedad']||'',
-          tipo:        x['Tipo Material']||'',
+          tipo:        normalizeTipoMaterial(x['Tipo Material']||''),
           cant:        x['Cantidad']||'',
           portainjerto:x['Portainjerto']||'',
           nplan:       x['N° Plantas']||'',
