@@ -3193,7 +3193,7 @@ function mostrarFichaResumen(r) {
           <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--g400);margin:0 0 4px">Datos Generales</div>
           ${campo('Solicitud', sol)}
           ${campo('Fecha Solicitud', fmtDisplay(first['Fecha Solicitud']||''))}
-          ${campo('Importador', toTitleCase(first['Importador']||''))}
+          ${campo('Importador', (first['Importador']||'').trim())}
           ${campo('RUT', first['Rut']||'')}
           ${campo('Origen', first['Origen']||'')}
           ${campo('Cubículo', (first['Cubículo']||'') + (first['Cubículo2']?(' / '+first['Cubículo2']):''))}
@@ -3808,7 +3808,7 @@ function _buildPanelCell(key, r, ctx) {
       td.textContent = r["Cubículo"]||r["Cubiculo"]||'\u2014';
       break;
     case 'imp':
-      td.textContent = toTitleCase(r["Importador"]) || '\u2014';
+      td.textContent = (r["Importador"]||'').trim() || '\u2014';
       break;
     case 'esp':
       td.style.fontStyle = 'italic'; td.style.fontSize = '11px';
@@ -4383,7 +4383,7 @@ async function cargarFilaMulti(rows) {
   window._loadedEspKey = '__loading__'+_thisRes+'|'+_thisSol;
   _estabRows = []; // reset so renderEstablecimientoTable refreshes on next render
   // Etapa I
-  selEl('f1-imp', toTitleCase(r['Importador']||''));
+  selEl('f1-imp', (r['Importador']||'').trim());
   selEl('f1-pais', r['Origen']||''); onPais();
   sv('f1-fech-rec', fmtD(r['Fecha Recepcion']||r['Fecha Solicitud']||''));
   sv('f1-rut', r['Rut']||'');
@@ -4432,7 +4432,7 @@ async function cargarFilaMulti(rows) {
   if(refImportadores.length) {
     setTimeout(onImp, 150);
   } else {
-    loadRefData().then(()=>{ selEl('f1-imp', toTitleCase(r['Importador']||'')); setTimeout(onImp, 150); });
+    loadRefData().then(()=>{ selEl('f1-imp', (r['Importador']||'').trim()); setTimeout(onImp, 150); });
   }
   // Etapa II
   sv('f2-nres', r['Res.']||'');
