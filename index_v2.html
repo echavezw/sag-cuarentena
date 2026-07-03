@@ -4384,7 +4384,7 @@ async function cargarFilaMulti(rows) {
   _estabRows = []; // reset so renderEstablecimientoTable refreshes on next render
   // Etapa I
   selEl('f1-imp', (r['Importador']||'').trim());
-  selEl('f1-pais', r['Origen']||''); onPais();
+  selPaisAuto(r['Origen']||''); onPais();
   sv('f1-fech-rec', fmtD(r['Fecha Recepcion']||r['Fecha Solicitud']||''));
   sv('f1-rut', r['Rut']||'');
   sv('f1-rep', r['Representante']||'');
