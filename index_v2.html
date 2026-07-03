@@ -3516,7 +3516,7 @@ function _colRawValue(key, r) {
     case 'anioSol': return (fmtD(r['Fecha Solicitud']||'')).substring(0,4) || '(sin año)';
     case 'ing': return String(r['Año de Ingreso']||r['Ano de Ingreso']||'').trim() || '(sin año)';
     case 'cub': return String(r['Cubículo']||r['Cubiculo']||'').trim() || '(sin cubículo)';
-    case 'imp': return toTitleCase(r['Importador']) || '(sin importador)';
+    case 'imp': return (r['Importador']||'').trim() || '(sin importador)';
     case 'esp': return _especiesConsolidadas(r) || '(sin especie)';
     case 'stat': return calcStatusAuto(_filasDelRegistro(r));
     default: return '';
@@ -4383,7 +4383,7 @@ async function cargarFilaMulti(rows) {
   window._loadedEspKey = '__loading__'+_thisRes+'|'+_thisSol;
   _estabRows = []; // reset so renderEstablecimientoTable refreshes on next render
   // Etapa I
-  selEl('f1-imp', toTitleCase(r['Importador']||''));
+  selEl('f1-imp', (r['Importador']||'').trim());
   selEl('f1-pais', r['Origen']||''); onPais();
   sv('f1-fech-rec', fmtD(r['Fecha Recepcion']||r['Fecha Solicitud']||''));
   sv('f1-rut', r['Rut']||'');
@@ -4432,7 +4432,7 @@ async function cargarFilaMulti(rows) {
   if(refImportadores.length) {
     setTimeout(onImp, 150);
   } else {
-    loadRefData().then(()=>{ selEl('f1-imp', toTitleCase(r['Importador']||'')); setTimeout(onImp, 150); });
+    loadRefData().then(()=>{ selEl('f1-imp', (r['Importador']||'').trim()); setTimeout(onImp, 150); });
   }
   // Etapa II
   sv('f2-nres', r['Res.']||'');
