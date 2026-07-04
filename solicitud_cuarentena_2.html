@@ -793,7 +793,7 @@ marcaRespaldo +
 +'<colgroup><col class="lbl-col"><col class="val-col"><col class="lbl-col2"><col class="val-col2"></colgroup>' +
 '<tr><td class="lbl">N° Solicitud / Año</td><td class="val">'+(solicitudReservada ? esc(solicitudReservada.folioDisplay) : '&nbsp;')+'</td><td class="lbl">Fecha Recepción</td><td class="val">&nbsp;</td></tr>' +
 '<tr><td class="lbl">Región</td><td class="val">Región Metropolitana</td><td class="lbl">Oficina Sectorial</td><td class="val">Red de Laboratorios SAG-ECA</td></tr>' +
-'<tr><td class="lbl">Fecha de emisión del formulario</td><td class="val">'+fechaHoy+'</td><td class="lbl">Tipo de cuarentena</td><td class="val">Cuarentena Posentrada Absoluta (EC1)</td></tr>' +
+'<tr><td class="lbl">Fecha de emisión</td><td class="val">'+fechaHoy+'</td><td class="lbl">Tipo de cuarentena</td><td class="val">Cuarentena Posentrada Absoluta (EC1)</td></tr>' +
 '</table>' +
 
 '<h2>1. Identificación del Importador</h2>' +
@@ -841,7 +841,7 @@ marcaRespaldo +
 '<div class="section-inner">' +
   '<div class="row-3">' +
     '<div class="field-inline"><span class="lbl">Uso Propuesto:</span><span class="val">'+esc(usoFinalPdf)+'</span></div>' +
-    '<div class="field-inline"><span class="lbl">N° Registro Vivero:</span><span class="val">'+esc(document.getElementById('codRegistroVivero').value)+'</span></div>' +
+    '<div class="field-inline"><span class="lbl">N° Registro Vivero:</span><span class="val">'+(function(){var raw=document.getElementById('codRegistroVivero').value.trim();var m=raw.match(/V\/?(\d+)[-]?(.*)/i);var num=m?String(parseInt(m[1],10)):'__';if(m&&parseInt(m[1],10)<10)num='0'+parseInt(m[1],10);var suf=m&&m[2]?m[2]:'';return '<span style="letter-spacing:0.5px;">V/</span>'+'<span style="border-bottom:1px solid #000;display:inline-block;min-width:22px;text-align:center;padding:0 2px;">'+esc(num)+'</span>'+'<span>-</span>'+(suf?'<span style="border-bottom:1px solid #000;display:inline-block;min-width:30px;padding:0 2px;">'+esc(suf)+'</span>':'<span style="border-bottom:1px solid #000;display:inline-block;min-width:30px;">&nbsp;</span>');})()+'</span></div>' +
     '<div class="field-inline"><span class="lbl">Punto de Ingreso:</span><span class="val">'+esc(document.getElementById('ptoIngreso').value)+'</span></div>' +
   '</div>' +
   '<div class="row-3">' +
@@ -897,7 +897,7 @@ marcaRespaldo +
 '<div class="footer-form">' +
   'F-IIT-IMP-PA-002 · Red de Laboratorios SAG-ECA · Región Metropolitana<br>' +
   'Servicio Agrícola y Ganadero | Departamento RED de Laboratorios SAG | Estación de Cuarentena Agrícola (ECA)<br>' +
-  'Documento generado electrónicamente el '+fechaHoy+' — Requiere firma manuscrita para ser válido<br>' +
+  'Documento generado electrónicamente el '+fechaHoy+' — Requiere firma manuscrita o digital para ser válido<br>' +
   'Desarrollado por EChW' +
 '</div>' +
 
