@@ -871,17 +871,25 @@ marcaRespaldo +
 
 '<div class="firma-box">' +
   '<div style="display:grid; grid-template-columns:1fr 1fr; gap:40px; font-size:9.5pt;">' +
-    '<div>' +
-      '<div class="firma-line" style="margin-top:22px;"></div>' +
-      '<div>Firma Importador o Representante Legal</div>' +
-      '<div style="margin-top:6px;">Nombre: ________________________________</div>' +
-      '<div style="margin-top:4px;">RUT: ___________________________________</div>' +
+    '<div style="display:flex; flex-direction:column; justify-content:space-between; min-height:110px;">' +
+      '<div>' +
+        '<div>Nombre: ________________________________</div>' +
+        '<div style="margin-top:6px;">RUT: ___________________________________</div>' +
+      '</div>' +
+      '<div>' +
+        '<div class="firma-line"></div>' +
+        '<div>Firma Importador o Representante Legal</div>' +
+      '</div>' +
     '</div>' +
-    '<div style="border-left:1px solid #ccc; padding-left:20px;">' +
-      '<div style="font-weight:bold; margin-bottom:8px;">USO SAG — No completar</div>' +
-      '<div>Conclusión: ☐ Cumple &nbsp;&nbsp; ☐ No Cumple</div>' +
-      '<div class="firma-line" style="margin-top:40px;"></div>' +
-      '<div>Firma Inspector SAG</div>' +
+    '<div style="border-left:1px solid #ccc; padding-left:20px; display:flex; flex-direction:column; justify-content:space-between; min-height:110px;">' +
+      '<div>' +
+        '<div style="font-weight:bold; margin-bottom:8px;">USO SAG — No completar</div>' +
+        '<div>Conclusión: ☐ Cumple &nbsp;&nbsp; ☐ No Cumple</div>' +
+      '</div>' +
+      '<div>' +
+        '<div class="firma-line"></div>' +
+        '<div>Firma Inspector SAG</div>' +
+      '</div>' +
     '</div>' +
   '</div>' +
 '</div>' +
@@ -890,7 +898,7 @@ marcaRespaldo +
   'F-IIT-IMP-PA-002 · Red de Laboratorios SAG-ECA · Región Metropolitana<br>' +
   'Servicio Agrícola y Ganadero | Departamento RED de Laboratorios SAG | Estación de Cuarentena Agrícola (ECA)<br>' +
   'Documento generado electrónicamente el '+fechaHoy+' — Requiere firma manuscrita para ser válido<br>' +
-  'Desarrollado por Ing. Agr. Eduardo Chávez Weisser' +
+  'Desarrollado por EChW' +
 '</div>' +
 
 '<script>window.onload=function(){ window.print(); }<\/script>' +
