@@ -753,13 +753,13 @@ function construirYAbrirPDF(){
   '.title-cell .sub{font-size:9.5pt; margin-top:3px;}' +
   '.code-cell{width:150px; border-left:1px solid #000; font-size:7.8pt; padding-left:10px; line-height:1.5; color:#333;}' +
   '.header-table{width:100%; border-collapse:collapse; margin-bottom:10px; table-layout:fixed;}' +
-  '.header-table col.lbl-col{width:28%;}' +
-  '.header-table col.val-col{width:22%;}' +
-  '.header-table col.lbl-col2{width:26%;}' +
-  '.header-table col.val-col2{width:24%;}' +
-  '.header-table td{border:1px solid #000; padding:5px 7px; font-size:9.5pt; vertical-align:middle; overflow:hidden; word-break:break-word;}' +
+  '.header-table col.lbl-col{width:22%;}' +
+  '.header-table col.val-col{width:28%;}' +
+  '.header-table col.lbl-col2{width:22%;}' +
+  '.header-table col.val-col2{width:28%;}' +
+  '.header-table td{border:1px solid #000; padding:4px 7px; font-size:9pt; vertical-align:middle; word-wrap:break-word; overflow-wrap:break-word;}' +
   '.header-table .lbl{font-weight:bold; background:#f0f0f0; white-space:nowrap;}' +
-  '.header-table .val{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}' +
+  '.header-table .val{word-break:break-word;}' +
   '.section-inner{border:1px solid #aaa; border-radius:2px; padding:8px 10px; margin-bottom:6px;}' +
   '.row-2{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:8px;}' +
   '.row-3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:8px;}' +
@@ -830,7 +830,7 @@ marcaRespaldo +
 
 '<h2>3. Información Origen del Material</h2>' +
 '<div class="section-inner">' +
-  '<div class="row-3">' +
+  '<div style="display:grid; grid-template-columns:2fr 1fr 1fr; gap:10px; margin-bottom:8px;">' +
     '<div class="field-inline"><span class="lbl">Proveedor:</span><span class="val">'+esc(document.getElementById('proveedor').value)+'</span></div>' +
     '<div class="field-inline"><span class="lbl">Ciudad:</span><span class="val">'+esc(document.getElementById('ciudadProveedor').value)+'</span></div>' +
     '<div class="field-inline"><span class="lbl">País:</span><span class="val">'+esc(document.getElementById('origen').value)+'</span></div>' +
