@@ -2993,8 +2993,12 @@ function calcBadgePriority(rows) {
 
   filasAn.forEach(r => {
     const estado = norm(r['Estado Análisis']);
-    const muestreada = isSi(r['Muestreada?']);
-    const fechaMuest = norm(r['Fecha Estimada Muestreo']);
+    // "Muestra tomada" se determina por la FECHA REAL de muestreo, no por la casilla
+    // Muestreada? (que no tiene input propio y era poco confiable). Si hay Fecha
+    // muestreo/Indexaje o Fecha de envío, la muestra efectivamente se tomó.
+    const fechaMuestreoReal = norm(r['Fecha muestreo/Indexaje']) || norm(r['Fecha de envío']);
+    const muestreada = !!fechaMuestreoReal;
+    const fechaMuestEst = norm(r['Fecha Estimada Muestreo']);
     const tipo = norm(r['Análisis']) || '?';
     const especie = norm(r['Especie']) || '?';
     const pat = norm(r['Patógenos']) || '—';
@@ -3015,13 +3019,13 @@ function calcBadgePriority(rows) {
       p_enAnalisis.push(label);
     } else if (isPendiente(estado)) {
       if (muestreada) {
-        // Muestra tomada pero laboratorio no devuelve resultado → urgente
+        // Muestra efectivamente tomada (hay fecha real) pero sin resultado → urgente
         p_analisisPend.push(label);
-      } else if (fechaMuest && isAntes(fechaMuest)) {
-        // Fecha estimada vencida, aún no muestreada → a muestrear
-        p_aMuestrear.push(`${tipo} — ${especie} (fecha: ${fechaMuest})`);
+      } else if (fechaMuestEst && isAntes(fechaMuestEst)) {
+        // Fecha estimada vencida, aún sin fecha real de muestreo → a muestrear
+        p_aMuestrear.push(`${tipo} — ${especie} (estimada: ${fechaMuestEst})`);
       }
-      // Si fecha no vencida o sin fecha → En establecimiento (no es pendiente todavía)
+      // Sin fecha real ni estimada vencida → En establecimiento (no es pendiente todavía)
     }
   });
 
@@ -3029,7 +3033,7 @@ function calcBadgePriority(rows) {
   // Injertado, ninguna fila tiene fecha vencida ni muestreada=si ni análisis activos
   const hayActividad = p_analisisPend.length || p_aMuestrear.length ||
                        p_enAnalisis.length || p_spsCore.length;
-  if (!hayActividad && filasAn.every(r => !isAntes(norm(r['Fecha Estimada Muestreo'])) && !isSi(r['Muestreada?'])))
+  if (!hayActividad && filasAn.every(r => !isAntes(norm(r['Fecha Estimada Muestreo'])) && !norm(r['Fecha muestreo/Indexaje']) && !norm(r['Fecha de envío'])))
     return {label:'En establecimiento', cls:'badge-nv',
       pendientes:['Injertado — período de establecimiento previo al muestreo']};
 
@@ -4552,7 +4556,7 @@ async function cargarFilaMulti(rows) {
   autoEstadoRes();
   // Stored Estado Res. wins over auto if present
   if(r['Estado Res.']) selEl('f2-estado', r['Estado Res.']);
-  selEl('f2-recibida', r['Recibida']||r['Muestreada?']||'');
+  selEl('f2-recibida', r['Recibida']||'');
   // Etapa III
   sv('f3-fing', fmtD(r['Fecha de Ingreso']||''));
   const _anioIng = r['Año de Ingreso'] ||
@@ -8056,7 +8060,7 @@ function buildRows(nsol,imp) {
     'N° Plantas':      v('f3-nplan')||_lastLoadedRow['N° Plantas']||'',
     'Fecha aprox. Levant.':fmtDisplay(v('f3-flev')),
     'Estado':          v('f3-estado')||_lastLoadedRow['Estado']||'Sin muestrear',
-    'Muestreada?':     v('f2-recibida')||_lastLoadedRow['Muestreada?']||'',
+    'Muestreada?':     _lastLoadedRow['Muestreada?']||'',
     'SPS estadía':     (()=>{ const el=document.getElementById('est-sps-0'); return el ? (el.value||'') : (_lastLoadedRow['SPS estadía']||_lastLoadedRow['SPS estadia']||''); })(),
     'CORE/Factura3':   (()=>{ const el=document.getElementById('est-core-0'); return el ? (el.value||'') : (_lastLoadedRow['CORE/Factura3']||''); })(),
     'Terminada':       getCached('f6-term',v('f6-term'))||_lastLoadedRow['Terminada']||'',
