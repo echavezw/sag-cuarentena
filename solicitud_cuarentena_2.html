@@ -302,7 +302,16 @@
           </div>
           <div class="field" id="f-vivero">
             <label>N° Registro Vivero <span class="req">*</span></label>
-            <input type="text" id="codRegistroVivero" value="V/__-">
+            <div style="display:flex;align-items:baseline;gap:0;">
+              <span style="font-size:1em;padding-right:1px;">V/</span>
+              <input type="number" id="viveroNum" min="1" max="16" step="1"
+                style="width:3em;text-align:center;border:none;border-bottom:1.5px solid #aaa;border-radius:0;padding:2px 2px;font-size:1em;-moz-appearance:textfield;"
+                placeholder="01"
+                oninput="actualizarVivero(this)"
+                onblur="actualizarVivero(this)">
+              <span style="padding-left:1px;">-</span>
+            </div>
+            <input type="hidden" id="codRegistroVivero" value="V/__-">
             <div class="msg">Campo obligatorio.</div>
           </div>
         </div>
@@ -1431,6 +1440,23 @@ document.addEventListener('DOMContentLoaded', function() {
   attachPhoneFormatter('cpTerrTelefono');
 });
 
+
+/* ── Registro Vivero: numero con cero, rango 1-16, campo oculto ── */
+function actualizarVivero(el){
+  var v = parseInt(el.value, 10);
+  if (isNaN(v) || el.value === "") { document.getElementById("codRegistroVivero").value = "V/__-"; return; }
+  if (v < 1) v = 1;
+  if (v > 16) v = 16;
+  el.value = v;
+  var num = v < 10 ? ("0" + v) : String(v);
+  document.getElementById("codRegistroVivero").value = "V/" + num + "-";
+}
+/* ocultar flechas number en webkit */
+(function(){
+  var st = document.createElement("style");
+  st.textContent = "input#viveroNum::-webkit-inner-spin-button,input#viveroNum::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}";
+  document.head.appendChild(st);
+})();
 </script>
 </body>
 </html>
