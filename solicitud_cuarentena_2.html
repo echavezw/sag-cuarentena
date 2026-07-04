@@ -850,7 +850,7 @@ marcaRespaldo +
 '<div class="section-inner">' +
   '<div class="row-3">' +
     '<div class="field-inline"><span class="lbl">Uso Propuesto:</span><span class="val">'+esc(usoFinalPdf)+'</span></div>' +
-    '<div class="field-inline"><span class="lbl">N° Registro Vivero:</span><span class="val">'+(function(){var raw=document.getElementById('codRegistroVivero').value.trim();var m=raw.match(/V\/?(\d+)[-]?(.*)/i);var num=m?String(parseInt(m[1],10)):'__';if(m&&parseInt(m[1],10)<10)num='0'+parseInt(m[1],10);var suf=m&&m[2]?m[2]:'';return '<span style="letter-spacing:0.5px;">V/</span>'+'<span style="border-bottom:1px solid #000;display:inline-block;min-width:22px;text-align:center;padding:0 2px;">'+esc(num)+'</span>'+'<span>-</span>'+(suf?'<span style="border-bottom:1px solid #000;display:inline-block;min-width:30px;padding:0 2px;">'+esc(suf)+'</span>':'<span style="border-bottom:1px solid #000;display:inline-block;min-width:30px;">&nbsp;</span>');})()+'</span></div>' +
+    '<div class="field-inline"><span class="lbl">N° Registro Vivero:</span><span class="val">'+(function(){var raw=document.getElementById('codRegistroVivero').value.trim();var m=raw.match(/V\/?(\d+)[-]?(.*)/i);var num=m?String(parseInt(m[1],10)):'';if(m&&parseInt(m[1],10)<10)num='0'+parseInt(m[1],10);var suf=m&&m[2]?m[2]:'';if(!num)return esc(raw);return 'V/'+esc(num)+'-'+(suf?esc(suf):'');})()+'</span></div>' +
     '<div class="field-inline"><span class="lbl">Punto de Ingreso:</span><span class="val">'+esc(document.getElementById('ptoIngreso').value)+'</span></div>' +
   '</div>' +
   '<div class="row-3">' +
