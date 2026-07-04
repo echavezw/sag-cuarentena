@@ -302,16 +302,20 @@
           </div>
           <div class="field" id="f-vivero">
             <label>N° Registro Vivero <span class="req">*</span></label>
-            <div style="display:flex;align-items:baseline;gap:0;">
-              <span style="font-size:1em;padding-right:1px;">V/</span>
-              <input type="number" id="viveroNum" min="1" max="16" step="1"
+            <div style="display:flex;align-items:center;gap:0;">
+              <span style="font-size:1em;padding-right:1px;white-space:nowrap;">V/</span>
+              <input type="number" id="viveroRegion" min="1" max="16" step="1"
                 style="width:3em;text-align:center;border:none;border-bottom:1.5px solid #aaa;border-radius:0;padding:2px 2px;font-size:1em;-moz-appearance:textfield;"
                 placeholder="01"
-                oninput="actualizarVivero(this)"
-                onblur="actualizarVivero(this)">
-              <span style="padding-left:1px;">-</span>
+                oninput="actualizarVivero()"
+                onblur="actualizarVivero()">
+              <span style="padding:0 1px;white-space:nowrap;">-</span>
+              <input type="text" id="viveroSufijo"
+                style="width:6em;border:none;border-bottom:1.5px solid #aaa;border-radius:0;padding:2px 2px;font-size:1em;"
+                placeholder="12345"
+                oninput="actualizarVivero()">
             </div>
-            <input type="hidden" id="codRegistroVivero" value="V/__-">
+            <input type="hidden" id="codRegistroVivero" value="">
             <div class="msg">Campo obligatorio.</div>
           </div>
         </div>
@@ -1441,20 +1445,23 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 
-/* ── Registro Vivero: numero con cero, rango 1-16, campo oculto ── */
-function actualizarVivero(el){
-  var v = parseInt(el.value, 10);
-  if (isNaN(v) || el.value === "") { document.getElementById("codRegistroVivero").value = "V/__-"; return; }
-  if (v < 1) v = 1;
-  if (v > 16) v = 16;
-  el.value = v;
-  var num = v < 10 ? ("0" + v) : String(v);
-  document.getElementById("codRegistroVivero").value = "V/" + num + "-";
+/* ── Registro Vivero: region (01-16) + sufijo libre, campo oculto ── */
+function actualizarVivero(){
+  var elR = document.getElementById("viveroRegion");
+  var elS = document.getElementById("viveroSufijo");
+  var hidden = document.getElementById("codRegistroVivero");
+  var vr = parseInt(elR.value, 10);
+  if (isNaN(vr) || elR.value === "") { hidden.value = ""; return; }
+  if (vr < 1) { elR.value = 1; vr = 1; }
+  if (vr > 16) { elR.value = 16; vr = 16; }
+  var num = vr < 10 ? ("0" + vr) : String(vr);
+  var suf = (elS.value || "").trim();
+  hidden.value = "V/" + num + "-" + suf;
 }
 /* ocultar flechas number en webkit */
 (function(){
   var st = document.createElement("style");
-  st.textContent = "input#viveroNum::-webkit-inner-spin-button,input#viveroNum::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}";
+  st.textContent = "input#viveroRegion::-webkit-inner-spin-button,input#viveroRegion::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}";
   document.head.appendChild(st);
 })();
 </script>
