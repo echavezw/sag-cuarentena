@@ -667,6 +667,22 @@ function generarPDFFormulario(){
     return;
   }
 
+  const viveroRegion = parseInt(document.getElementById('viveroRegion').value, 10);
+  const viveroSufijo = document.getElementById('viveroSufijo').value.trim();
+  if(isNaN(viveroRegion) || viveroRegion < 1 || viveroRegion > 16){
+    setError('f-vivero', true);
+    document.getElementById('viveroRegion').focus();
+    alert('Ingrese el número de región del Registro de Vivero (01 al 16) antes de generar el PDF.');
+    return;
+  }
+  if(!viveroSufijo){
+    setError('f-vivero', true);
+    document.getElementById('viveroSufijo').focus();
+    alert('Ingrese el código del Registro de Vivero completo (ej: V/05-12345) antes de generar el PDF.');
+    return;
+  }
+  setError('f-vivero', false);
+
   const btn = document.getElementById('btnGenerarPDF');
   if(btn) btn.disabled = true;
 
