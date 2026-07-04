@@ -2955,12 +2955,22 @@ function calcBadgePriority(rows) {
   const hoy = new Date(); hoy.setHours(0,0,0,0);
   const isAntes = fecha => { const d=new Date(fecha); return !isNaN(d) && d<=hoy; };
   const isSi = v => { const n=norm(v).toLowerCase(); return n==='si'||n==='sí'; };
+  // "Cerrado" solo si el campo tiene un valor AFIRMATIVO: 'Si'/'Sí' o una fecha válida.
+  // El texto literal 'NO' NO es cierre (bug previo: norm('NO') era truthy).
+  const isAfirmativo = v => {
+    const n = norm(v);
+    if (!n) return false;
+    if (n.toLowerCase()==='no') return false;
+    if (isSi(n)) return true;
+    const d = new Date(n); if (!isNaN(d)) return true; // fecha = cierre efectivo
+    return false;
+  };
   const isAnalizada = e => { const n=norm(e).toLowerCase(); return n==='analizada'||n==='sin sintomas'||n==='sin síntomas'; };
   const isPendiente = e => { const n=norm(e).toLowerCase(); return n===''||n==='no analizada'||n==='pendiente'; };
   const isEnAnalisis = e => { const n=norm(e).toLowerCase(); return n==='en analisis'||n==='en análisis'; };
 
   // ── 1. CERRADO ──────────────────────────────────────────────────────────────
-  if (norm(first['Liberada'])||norm(first['Entregada'])||norm(first['Terminada']))
+  if (isAfirmativo(first['Liberada'])||isAfirmativo(first['Entregada'])||isAfirmativo(first['Terminada']))
     return {label:'Cerrado', cls:'badge-ok', pendientes:[]};
 
   // ── 2. NO RECIBIDA ──────────────────────────────────────────────────────────
@@ -3076,6 +3086,79 @@ function calcBadgePriority(rows) {
 
   // ── 11. ANALIZADO ────────────────────────────────────────────────────────────
   return {label:'Analizado', cls:'badge-ok', pendientes:[]};
+}
+
+// ── PROGRESO DEL EXPEDIENTE — completado vs pendiente por ítem de proceso ──
+// Devuelve items[] con {etapa, estado:'ok'|'pend'|'na', detalle}. Se usa en la ficha
+// resumen una vez el registro pasó establecimiento. SPS/CORE se desglosa por tipo.
+function calcProgreso(rows) {
+  if (!rows || !rows.length) return [];
+  const norm = s => String(s||'').trim();
+  const first = rows[0];
+  const filasAn = rows.filter(r => norm(r['Análisis']) || norm(r['Patógenos']));
+  const items = [];
+
+  // 1. Recepción
+  const recibida = norm(first['Recibida']).toLowerCase()==='si' || norm(first['Fecha de Ingreso']);
+  items.push({etapa:'Recepción', estado: recibida?'ok':'pend',
+    detalle: recibida ? (norm(first['Fecha de Ingreso'])||'recibida') : 'sin ingreso'});
+
+  // 2. Injertación
+  const inj = norm(first['Fecha Injertación']);
+  items.push({etapa:'Injertación', estado: inj?'ok':'pend', detalle: inj||'pendiente'});
+
+  // 3. Muestreo — por fila con fecha real vs pendiente
+  const conMuestreo = filasAn.filter(r => norm(r['Fecha muestreo/Indexaje'])||norm(r['Fecha de envío']));
+  const sinMuestreo = filasAn.filter(r => !norm(r['Fecha muestreo/Indexaje'])&&!norm(r['Fecha de envío']));
+  items.push({etapa:'Muestreo',
+    estado: sinMuestreo.length===0 && filasAn.length ? 'ok' : (conMuestreo.length?'pend':'pend'),
+    detalle: `${conMuestreo.length}/${filasAn.length} análisis muestreados`});
+
+  // 4. Análisis — por estado
+  const analizadas = filasAn.filter(r => {
+    const e=norm(r['Estado Análisis']).toLowerCase();
+    return e==='analizada'||e==='sin sintomas'||e==='sin síntomas';
+  });
+  items.push({etapa:'Análisis',
+    estado: filasAn.length && analizadas.length===filasAn.length ? 'ok':'pend',
+    detalle: `${analizadas.length}/${filasAn.length} analizados`});
+
+  // 5. SPS — desglosado por tipo de análisis
+  const tipos = [...new Set(filasAn.map(r => norm(r['Análisis'])).filter(Boolean))];
+  const spsFalta = tipos.filter(t => filasAn.some(r => norm(r['Análisis'])===t && !norm(r['SPS análisis'])));
+  items.push({etapa:'SPS análisis',
+    estado: spsFalta.length===0 && tipos.length ? 'ok':'pend',
+    detalle: spsFalta.length ? `falta en: ${spsFalta.join(', ')}` : 'completo'});
+
+  // 6. CORE — desglosado por tipo de análisis (valor válido = numérico, no "sin core")
+  const coreValido = v => { const n=norm(v).toLowerCase(); return n && n!=='sin core' && n!=='no'; };
+  const coreFalta = tipos.filter(t => filasAn.some(r => norm(r['Análisis'])===t && !coreValido(r['CORE/Factura'])));
+  items.push({etapa:'CORE/Factura',
+    estado: coreFalta.length===0 && tipos.length ? 'ok':'pend',
+    detalle: coreFalta.length ? `falta en: ${coreFalta.join(', ')}` : 'completo'});
+
+  // 7. Cobro estadía — solo si aplica
+  const hayEstadia = rows.some(r => norm(r['SPS estadía'])||norm(r['CORE/Factura3']));
+  if (hayEstadia) {
+    const faltaEst = rows.some(r => !norm(r['SPS estadía'])||!norm(r['CORE/Factura3']));
+    items.push({etapa:'Cobro estadía', estado: faltaEst?'pend':'ok',
+      detalle: faltaEst?'SPS estadía o CORE3 incompleto':'completo'});
+  } else {
+    items.push({etapa:'Cobro estadía', estado:'na', detalle:'no aplica aún'});
+  }
+
+  // 8. Recuento
+  const recuento = norm(first['N° Plantas Finales']);
+  items.push({etapa:'Recuento final', estado: recuento?'ok':'pend',
+    detalle: recuento?`${recuento} plantas`:'pendiente'});
+
+  // 9. Cierre
+  const isAfirm = v => { const n=norm(v).toLowerCase(); if(!n||n==='no')return false; if(n==='si'||n==='sí')return true; return !isNaN(new Date(norm(v))); };
+  const cerrado = isAfirm(first['Liberada'])||isAfirm(first['Entregada'])||isAfirm(first['Terminada']);
+  items.push({etapa:'Cierre', estado: cerrado?'ok':'pend',
+    detalle: cerrado?'liberada/entregada/terminada':'sin cierre formal'});
+
+  return items;
 }
 
 // Devuelve todas las filas de gsData que pertenecen al mismo registro (por Res. o Solicitud)
@@ -3254,9 +3337,27 @@ function mostrarFichaResumen(r) {
     return `<div style="margin-bottom:4px"><i>${esc(esp)}</i> <span style="color:var(--g400)">— ${esc(vars)}</span></div>`;
   }).join('') || '<span style="color:var(--g400)">Sin especies registradas</span>';
 
-  // Detalle de análisis: cada fila con su análisis/patógeno y estado individual,
-  // agrupado por tipo de análisis, mostrando especie + patógeno + estado.
-  // Pendientes — usar calcBadgePriority ya calculado
+  // Progreso híbrido — completado vs pendiente por ítem de proceso.
+  // Solo se muestra el desglose completo si el registro pasó establecimiento.
+  const enEstablecimiento = bp.label === 'En establecimiento' || bp.label === 'Sin injertar' ||
+                            bp.label === 'No recibida' || bp.label === 'Sin Ingreso';
+  const progreso = res ? calcProgreso(rows) : [];
+  const icono = {ok:'✓', pend:'○', na:'–'};
+  const colorEstado = {ok:'var(--ok)', pend:'var(--err)', na:'var(--g400)'};
+  const progresoHtml = enEstablecimiento
+    ? `<div style="color:var(--g500);font-size:12px;padding:8px 0">
+         Registro en etapa temprana (${esc(bp.label)}). El desglose de avance aparece una vez iniciado el muestreo.
+       </div>`
+    : (progreso.length
+        ? progreso.map(it => `
+            <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--g50);font-size:11.5px">
+              <span style="color:${colorEstado[it.estado]};font-weight:700;flex-shrink:0;width:14px;text-align:center">${icono[it.estado]}</span>
+              <span style="color:var(--g700);font-weight:600;min-width:110px">${esc(it.etapa)}</span>
+              <span style="color:var(--g500)">${esc(it.detalle)}</span>
+            </div>`).join('')
+        : '<div style="color:var(--g400);font-size:12px;padding:8px 0">Sin datos de progreso</div>');
+
+  // Pendientes críticos (los del badge, para el bloque superior)
   const pendientesHtml = bp.pendientes.length
     ? bp.pendientes.map(p => `
         <div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid var(--g50);font-size:11.5px">
@@ -3320,8 +3421,15 @@ function mostrarFichaResumen(r) {
           <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--g400);margin:0 0 8px">
             Pendientes críticos
           </div>
-          <div style="max-height:380px;overflow-y:auto;border:1px solid var(--g100);border-radius:6px;padding:10px">
+          <div style="max-height:150px;overflow-y:auto;border:1px solid var(--g100);border-radius:6px;padding:10px">
             ${pendientesHtml}
+          </div>
+
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--g400);margin:14px 0 8px">
+            Avance del expediente
+          </div>
+          <div style="max-height:280px;overflow-y:auto;border:1px solid var(--g100);border-radius:6px;padding:10px">
+            ${progresoHtml}
           </div>
         </div>
       </div>
