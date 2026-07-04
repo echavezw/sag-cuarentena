@@ -4004,10 +4004,24 @@ function _buildPanelCell(key, r, ctx) {
       td.style.fontFamily = 'var(--mono)';
       td.textContent = ctx.yr || '\u2014';
       break;
-    case 'sol':
+    case 'sol': {
       td.style.fontFamily = 'var(--mono)';
+      td.style.fontWeight = '700';
       td.textContent = ctx.sol || '\u2014';
+      const linkSol = r['Link Solicitud PDF'] || '';
+      if (linkSol && ctx.sol) {
+        td.style.color = 'var(--gd)';
+        td.style.textDecoration = 'none';
+        td.title = 'Ver solicitud PDF enviada por el importador (clic para abrir)';
+        td.addEventListener('mouseenter', function(){ td.style.textDecoration = 'underline'; });
+        td.addEventListener('mouseleave', function(){ td.style.textDecoration = 'none'; });
+        td.addEventListener('click', function(e){
+          e.stopImmediatePropagation();
+          window.open(linkSol, '_blank');
+        });
+      }
       break;
+    }
     case 'anioSol':
       td.style.fontFamily = 'var(--mono)'; td.style.color = 'var(--g400)'; td.style.fontSize = '11px';
       td.textContent = (fmtD(r["Fecha Solicitud"]||"")).substring(0,4) || '\u2014';
