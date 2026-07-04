@@ -2952,117 +2952,125 @@ function calcBadgePriority(rows) {
   if (!rows || !rows.length) return {label:'Sin datos', cls:'badge-nv', pendientes:[]};
   const first = rows[0];
   const norm = s => String(s||'').trim();
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const isAntes = fecha => { const d=new Date(fecha); return !isNaN(d) && d<=hoy; };
+  const isSi = v => { const n=norm(v).toLowerCase(); return n==='si'||n==='sí'; };
+  const isAnalizada = e => { const n=norm(e).toLowerCase(); return n==='analizada'||n==='sin sintomas'||n==='sin síntomas'; };
+  const isPendiente = e => { const n=norm(e).toLowerCase(); return n===''||n==='no analizada'||n==='pendiente'; };
+  const isEnAnalisis = e => { const n=norm(e).toLowerCase(); return n==='en analisis'||n==='en análisis'; };
 
-  // 10. Cerrado — Liberada / Entregada / Terminada
-  const cerrado = norm(first['Liberada']) || norm(first['Entregada']) || norm(first['Terminada']);
-  if (cerrado) return {label:'Cerrado', cls:'badge-ok', pendientes:[]};
+  // ── 1. CERRADO ──────────────────────────────────────────────────────────────
+  if (norm(first['Liberada'])||norm(first['Entregada'])||norm(first['Terminada']))
+    return {label:'Cerrado', cls:'badge-ok', pendientes:[]};
 
-  // 1. No recibida — tiene Res. pero no tiene Recibida ni Fecha de Ingreso
+  // ── 2. NO RECIBIDA ──────────────────────────────────────────────────────────
   const res = norm(first['Res.']);
   const recibida = norm(first['Recibida']);
   const fechaIng = norm(first['Fecha de Ingreso']);
-  if (res && !recibida && !fechaIng) {
-    return {label:'No recibida', cls:'badge-nv', pendientes:['Resolución emitida pero material no recibido en ECA']};
-  }
+  if (res && !recibida && !fechaIng)
+    return {label:'No recibida', cls:'badge-nv',
+      pendientes:['Resolución emitida — material aún no ingresado a ECA']};
 
-  // 2. Recibida · sin injertar
-  if (fechaIng && !norm(first['Fecha Injertación'])) {
-    return {label:'Recibida · sin injertar', cls:'badge-gd',
-      pendientes:['Material recibido pero aún no injertado (Fecha Injertación vacía)']};
-  }
+  // ── 3. SIN INJERTAR ─────────────────────────────────────────────────────────
+  if (fechaIng && !norm(first['Fecha Injertación']))
+    return {label:'Sin injertar', cls:'badge-gd',
+      pendientes:['Material recibido — pendiente injertación/plantación']};
 
-  // Si no hay injertación y tampoco recepción, es Sin Ingreso
-  if (!fechaIng) return {label:'Sin Ingreso', cls:'badge-warn', pendientes:['Sin fecha de ingreso registrada']};
+  // Sin fecha de ingreso y sin res → sin información suficiente
+  if (!fechaIng) return {label:'Sin Ingreso', cls:'badge-warn',
+    pendientes:['Sin fecha de ingreso registrada']};
 
-  // A partir de aquí: registro recibido e injertado — evaluar análisis
-  const filasConAnalisis = rows.filter(r => norm(r['Estado Análisis']) || norm(r['Análisis']));
+  // ── A partir de aquí: recibido e injertado ──────────────────────────────────
+  // Evaluar cada fila de análisis de forma independiente (paralelo)
+  const filasAn = rows.filter(r => norm(r['Análisis']) || norm(r['Patógenos']));
 
-  // 3. Análisis pendiente (No Analizada / Pendiente)
-  const pendienteAnalisis = filasConAnalisis.filter(r => {
-    const e = norm(r['Estado Análisis']).toLowerCase();
-    return e === 'no analizada' || e === 'pendiente' || e === '';
-  });
-  if (pendienteAnalisis.length) {
-    const items = pendienteAnalisis.map(r =>
-      `${norm(r['Análisis'])||'?'} — ${norm(r['Especie'])||'?'}: ${norm(r['Patógenos'])||'sin patógeno'}`
-    );
-    return {label:'Análisis pendiente', cls:'badge-err', pendientes: items.slice(0,5)};
-  }
+  // Colectar todos los pendientes por categoría
+  const p_analisisPend = [];   // 5. muestreada=si + estado pendiente
+  const p_aMuestrear = [];     // 6. fecha muestreo vencida + no muestreada
+  const p_enAnalisis = [];     // 7. en análisis
+  const p_spsCore = [];        // 8. analizada sin SPS/CORE (por tipo de análisis)
+  const p_spsCoreVisto = new Set(); // dedupe por tipo análisis
 
-  // 4. En análisis
-  const enAnalisis = filasConAnalisis.filter(r => {
-    const e = norm(r['Estado Análisis']).toLowerCase();
-    return e === 'en analisis' || e === 'en análisis';
-  });
-  if (enAnalisis.length) {
-    const items = enAnalisis.map(r =>
-      `${norm(r['Análisis'])||'?'} — ${norm(r['Especie'])||'?'}: ${norm(r['Patógenos'])||'?'}`
-    );
-    return {label:'En análisis', cls:'badge-warn', pendientes: items.slice(0,5)};
-  }
+  filasAn.forEach(r => {
+    const estado = norm(r['Estado Análisis']);
+    const muestreada = isSi(r['Muestreada?']);
+    const fechaMuest = norm(r['Fecha Estimada Muestreo']);
+    const tipo = norm(r['Análisis']) || '?';
+    const especie = norm(r['Especie']) || '?';
+    const pat = norm(r['Patógenos']) || '—';
+    const label = `${tipo} — ${especie}: ${pat}`;
 
-  // Todos los análisis están completos (Analizada / Sin síntomas)
-  // 5. Muestreo pendiente — fecha estimada muestreo pasada y Muestreada? != Si
-  const hoy = new Date(); hoy.setHours(0,0,0,0);
-  const filasConFechaMuest = rows.filter(r => {
-    const fm = norm(r['Fecha Estimada Muestreo']);
-    if (!fm) return false;
-    const d = new Date(fm);
-    return !isNaN(d) && d <= hoy;
-  });
-  const sinMuestra = filasConFechaMuest.filter(r => {
-    const m = norm(r['Muestreada?']).toLowerCase();
-    return m !== 'si' && m !== 'sí';
-  });
-  if (sinMuestra.length) {
-    const esp = [...new Set(sinMuestra.map(r => norm(r['Especie'])))].filter(Boolean);
-    return {label:'Muestreo pendiente', cls:'badge-warn',
-      pendientes: [`Fecha estimada de muestreo vencida — ${esp.join(', ') || 'ver registro'}`]};
-  }
-
-  // 6. SPS/CORE pendiente — solo filas con Estado Análisis = Analizada
-  const filasAnalizadas = filasConAnalisis.filter(r => {
-    const e = norm(r['Estado Análisis']).toLowerCase();
-    return e === 'analizada' || e === 'sin sintomas' || e === 'sin síntomas';
-  });
-  const sinSpsCore = filasAnalizadas.filter(r =>
-    !norm(r['SPS análisis']) || !norm(r['CORE/Factura'])
-  );
-  if (sinSpsCore.length) {
-    const items = sinSpsCore.map(r => {
-      const faltantes = [];
-      if (!norm(r['SPS análisis'])) faltantes.push('SPS');
-      if (!norm(r['CORE/Factura'])) faltantes.push('CORE');
-      return `${norm(r['Análisis'])||'?'} — ${norm(r['Especie'])||'?'}: falta ${faltantes.join(' y ')}`;
-    });
-    return {label:'SPS/CORE pendiente', cls:'badge-warn', pendientes: items.slice(0,5)};
-  }
-
-  // 7. Cobro estadía pendiente
-  const sinCobro = rows.filter(r =>
-    norm(r['SPS estadía']) === '' || norm(r['CORE/Factura3']) === ''
-  );
-  // Solo marcar si hay alguna fila con estos campos (no todas tienen estadía)
-  const hayEstadiaDatos = rows.some(r => norm(r['SPS estadía']) || norm(r['CORE/Factura3']));
-  if (hayEstadiaDatos) {
-    const conPendiente = rows.filter(r =>
-      (norm(r['SPS estadía']) === '' && rows.some(x => norm(x['SPS estadía']))) ||
-      (norm(r['CORE/Factura3']) === '' && rows.some(x => norm(x['CORE/Factura3'])))
-    );
-    if (conPendiente.length) {
-      return {label:'Cobro estadía pendiente', cls:'badge-warn',
-        pendientes:['SPS estadía o CORE/Factura3 incompleto en alguna fila']};
+    if (isAnalizada(estado)) {
+      // Verificar SPS/CORE por tipo de análisis (una vez por tipo)
+      if (!p_spsCoreVisto.has(tipo)) {
+        const faltaSps = !norm(r['SPS análisis']);
+        const faltaCore = !norm(r['CORE/Factura']);
+        if (faltaSps || faltaCore) {
+          const f = [faltaSps?'SPS':'', faltaCore?'CORE':''].filter(Boolean).join(' y ');
+          p_spsCore.push(`${tipo} — falta ${f}`);
+          p_spsCoreVisto.add(tipo);
+        }
+      }
+    } else if (isEnAnalisis(estado)) {
+      p_enAnalisis.push(label);
+    } else if (isPendiente(estado)) {
+      if (muestreada) {
+        // Muestra tomada pero laboratorio no devuelve resultado → urgente
+        p_analisisPend.push(label);
+      } else if (fechaMuest && isAntes(fechaMuest)) {
+        // Fecha estimada vencida, aún no muestreada → a muestrear
+        p_aMuestrear.push(`${tipo} — ${especie} (fecha: ${fechaMuest})`);
+      }
+      // Si fecha no vencida o sin fecha → En establecimiento (no es pendiente todavía)
     }
+  });
+
+  // ── 4. EN ESTABLECIMIENTO ───────────────────────────────────────────────────
+  // Injertado, ninguna fila tiene fecha vencida ni muestreada=si ni análisis activos
+  const hayActividad = p_analisisPend.length || p_aMuestrear.length ||
+                       p_enAnalisis.length || p_spsCore.length;
+  if (!hayActividad && filasAn.every(r => !isAntes(norm(r['Fecha Estimada Muestreo'])) && !isSi(r['Muestreada?'])))
+    return {label:'En establecimiento', cls:'badge-nv',
+      pendientes:['Injertado — período de establecimiento previo al muestreo']};
+
+  // Construir lista de todos los pendientes para la ficha
+  const todosPendientes = [
+    ...p_analisisPend.map(p => `🔴 Análisis pendiente: ${p}`),
+    ...p_aMuestrear.map(p => `🟠 A muestrear: ${p}`),
+    ...p_enAnalisis.map(p => `🟡 En análisis: ${p}`),
+    ...p_spsCore.map(p => `🟡 SPS/CORE: ${p}`)
+  ];
+
+  // Badge = el más urgente que exista
+  if (p_analisisPend.length)
+    return {label:'Análisis pendiente', cls:'badge-err', pendientes: todosPendientes};
+  if (p_aMuestrear.length)
+    return {label:'A muestrear', cls:'badge-warn', pendientes: todosPendientes};
+  if (p_enAnalisis.length)
+    return {label:'En análisis', cls:'badge-gd', pendientes: todosPendientes};
+
+  // ── 8. SPS/CORE pendiente ───────────────────────────────────────────────────
+  if (p_spsCore.length)
+    return {label:'SPS/CORE pendiente', cls:'badge-warn',
+      pendientes: p_spsCore.map(p => `🟡 ${p}`)};
+
+  // ── 9. COBRO ESTADÍA ────────────────────────────────────────────────────────
+  // Solo aplica si el registro tiene al menos un SPS estadía o CORE/Factura3 registrado
+  // en alguna fila (indicador de que corresponde cobrar estadía)
+  const hayEstadiaCampos = rows.some(r => norm(r['SPS estadía']) || norm(r['CORE/Factura3']));
+  if (hayEstadiaCampos) {
+    const sinEstadia = rows.filter(r => !norm(r['SPS estadía']) || !norm(r['CORE/Factura3']));
+    if (sinEstadia.length)
+      return {label:'Cobro estadía pendiente', cls:'badge-warn',
+        pendientes:['🟡 SPS estadía o CORE/Factura3 incompleto']};
   }
 
-  // 8. Recuento pendiente — N° Plantas Finales vacío, todos análisis completos y SPS/CORE ok
-  const sinRecuento = rows.filter(r => !norm(r['N° Plantas Finales']));
-  if (sinRecuento.length) {
+  // ── 10. RECUENTO PENDIENTE ───────────────────────────────────────────────────
+  if (!norm(first['N° Plantas Finales']))
     return {label:'Recuento pendiente', cls:'badge-warn',
-      pendientes:['N° Plantas Finales no registrado']};
-  }
+      pendientes:['🟡 N° Plantas Finales no registrado']};
 
-  // 9. Analizado — todo completo
+  // ── 11. ANALIZADO ────────────────────────────────────────────────────────────
   return {label:'Analizado', cls:'badge-ok', pendientes:[]};
 }
 
