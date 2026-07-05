@@ -1014,8 +1014,8 @@ input.field-blocked, select.field-blocked {
 
     <!-- ── Info ECA ── -->
     <div style="font-family:var(--serif);font-size:14px;font-weight:700;color:var(--inkv);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--gd)">Info ECA</div>
-    <div class="fg" style="grid-template-columns:repeat(8,1fr);gap:10px 14px">
-      <div class="ff c2 ff-primary"><label class="lbl"><span class="req">*</span> N° Solicitud</label>
+    <div class="fg" style="grid-template-columns:repeat(8,1fr);gap:10px 14px;align-items:start">
+      <div class="ff c2 ff-primary" style="align-self:start"><label class="lbl"><span class="req">*</span> N° Solicitud</label>
         <div style="display:flex;gap:6px;align-items:center">
           <input id="f1-nsol" readonly style="font-size:17px;font-weight:700;font-family:var(--mono)" placeholder="ej. 253 o 253.1">
           <button id="nsol-lock" onclick="toggleSolLock()" title="Desbloquear"
@@ -1040,7 +1040,7 @@ input.field-blocked, select.field-blocked {
       <div class="ff c1"><label class="lbl">Fecha Recepcion</label><input type="date" id="f1-fech-rec"></div>
       <div class="ff c2 ff-secondary"><label class="lbl">Oficina <span class="auto">FIJO</span></label><input id="f1-oficina" readonly value="Red Laboratorios SAG - ECA"></div>
       <div class="ff c1 ff-secondary"><label class="lbl">Region</label><input id="f1-region" value="Metropolitana"></div>
-      <div class="ff c2" style="justify-content:flex-end;align-items:flex-start"><span class="timbre-wrap" id="f1-timbre-wrap" style="display:none;margin:0;margin-top:20px"><span id="f1-timbre" class="timbre-aprob"></span></span></div>
+      <div class="ff c2" style="justify-content:flex-start;align-items:flex-start"><label class="lbl" style="visibility:hidden">.</label><span class="timbre-wrap" id="f1-timbre-wrap" style="display:none;margin:0"><span id="f1-timbre" class="timbre-aprob"></span></span></div>
     </div>
 
     <hr class="divider">
