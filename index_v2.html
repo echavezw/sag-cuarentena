@@ -2915,8 +2915,10 @@ function calcStatusAuto(rows) {
   if (ESTADOS_FINALES.includes(statusManual)) return statusManual;
 
   // 2. Sin Fecha de Ingreso → aún no llegó a la ECA
+  // Si tiene resolución emitida → No recibida; si no → Sin Ingreso
   const fechaIng = String(first['Fecha de Ingreso'] || '').trim();
-  if (!fechaIng) return 'Sin Ingreso';
+  const resNum = String(first['Res.'] || '').trim();
+  if (!fechaIng) return resNum ? 'No recibida' : 'Sin Ingreso';
 
   // 3. Con ingreso pero sin injertación → Recibida
   const fechaInj = String(first['Fecha Injertación'] || '').trim();
