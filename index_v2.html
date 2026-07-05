@@ -2906,7 +2906,7 @@ async function getColumnLetter(sheetName, colName) {
 // de fechas y análisis ya existentes, sin depender del campo manual de Etapa VII
 // (que solo cubre estados FINALES: Entregada, Liberada, A destruir, etc.)
 function calcStatusAuto(rows) {
-  if (!rows || !rows.length) return 'Sin Ingreso';
+  if (!rows || !rows.length) return 'Sin resolución';
   const first = rows[0];
 
   // 1. Estado manual final (Etapa VII) tiene prioridad absoluta si está seteado
@@ -2915,10 +2915,10 @@ function calcStatusAuto(rows) {
   if (ESTADOS_FINALES.includes(statusManual)) return statusManual;
 
   // 2. Sin Fecha de Ingreso → aún no llegó a la ECA
-  // Si tiene resolución emitida → No recibida; si no → Sin Ingreso
+  // Si tiene resolución emitida → No recibida; si no → Sin resolución
   const fechaIng = String(first['Fecha de Ingreso'] || '').trim();
   const resNum = String(first['Res.'] || '').trim();
-  if (!fechaIng) return resNum ? 'No recibida' : 'Sin Ingreso';
+  if (!fechaIng) return resNum ? 'No recibida' : 'Sin resolución';
 
   // 3. Con ingreso pero sin injertación → Recibida
   const fechaInj = String(first['Fecha Injertación'] || '').trim();
@@ -2951,7 +2951,7 @@ function calcStatusAuto(rows) {
 // ── BADGE DE PRIORIDAD — para el panel de búsqueda y ficha desplegable
 // Devuelve {label, cls, pendientes[]} donde pendientes son los ítems bloqueantes
 function calcBadgePriority(rows) {
-  if (!rows || !rows.length) return {label:'Sin datos', cls:'badge-nv', pendientes:[]};
+  if (!rows || !rows.length) return {label:'Sin resolución', cls:'badge-nv', pendientes:[]};
   const first = rows[0];
   const norm = s => String(s||'').trim();
   const hoy = new Date(); hoy.setHours(0,0,0,0);
@@ -2989,8 +2989,7 @@ function calcBadgePriority(rows) {
       pendientes:['Material recibido — pendiente injertación/plantación']};
 
   // Sin fecha de ingreso y sin res → sin información suficiente
-  if (!fechaIng) return {label:'Sin Ingreso', cls:'badge-warn',
-    pendientes:['Sin fecha de ingreso registrada']};
+  if (!fechaIng) return {label:'Sin resolución', cls:'badge-nv', pendientes:[]};
 
   // ── A partir de aquí: recibido e injertado ──────────────────────────────────
   // Evaluar cada fila de análisis de forma independiente (paralelo)
@@ -3342,7 +3341,7 @@ function mostrarFichaResumen(r) {
   // Progreso híbrido — completado vs pendiente por ítem de proceso.
   // Solo se muestra el desglose completo si el registro pasó establecimiento.
   const enEstablecimiento = bp.label === 'En establecimiento' || bp.label === 'Sin injertar' ||
-                            bp.label === 'No recibida' || bp.label === 'Sin Ingreso';
+                            bp.label === 'No recibida' || bp.label === 'Sin resolución';
   const progreso = res ? calcProgreso(rows) : [];
   const icono = {ok:'✓', pend:'○', na:'–'};
   const colorEstado = {ok:'var(--ok)', pend:'var(--err)', na:'var(--g400)'};
