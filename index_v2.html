@@ -772,6 +772,28 @@ input.field-blocked, select.field-blocked {
 #login-screen.hidden{display:none!important}
 .perm-hidden{display:none!important}
 
+
+/* ═══ Timbre de aprobación Etapa I (estilo sello institucional) ═══ */
+.timbre-aprob{display:inline-flex;align-items:center;gap:8px;padding:10px 22px;border-radius:4px;
+  font-weight:700;font-size:1.05rem;letter-spacing:1.5px;text-transform:uppercase;
+  border:3px solid;margin:4px 0 2px;font-family:'Inter',sans-serif;line-height:1;
+  box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.timbre-aprob::before{font-size:1.15rem;line-height:1}
+.timbre-verde{color:#14532d;border-color:#14532d;background:rgba(20,83,45,.06)}
+.timbre-verde::before{content:'\2713'}
+.timbre-rojo{color:#7a1c1c;border-color:#7a1c1c;background:rgba(122,28,28,.06)}
+.timbre-rojo::before{content:'\2715'}
+.timbre-gris{color:#5a6472;border-color:#8a94a2;background:rgba(90,100,114,.06)}
+.timbre-gris::before{content:'\29D6'}
+.timbre-wrap{margin:6px 0 10px}
+/* Botones Aprobar/Rechazar Etapa I */
+.aprob-actions{display:flex;gap:12px;margin:18px 0 4px;padding-top:16px;border-top:1px solid var(--gold-bd,#d8cbb0)}
+.btn-aprobar{background:#14532d;color:#fff;border:none;padding:11px 26px;border-radius:5px;
+  font-weight:600;font-size:.95rem;cursor:pointer;letter-spacing:.3px;transition:opacity .15s}
+.btn-aprobar:hover{opacity:.88}
+.btn-rechazar{background:#fff;color:#7a1c1c;border:2px solid #7a1c1c;padding:9px 24px;border-radius:5px;
+  font-weight:600;font-size:.95rem;cursor:pointer;letter-spacing:.3px;transition:background .15s}
+.btn-rechazar:hover{background:rgba(122,28,28,.06)}
 </style>
 </head>
 <body>
@@ -1019,6 +1041,7 @@ input.field-blocked, select.field-blocked {
       <div class="ff c2 ff-secondary"><label class="lbl">Oficina <span class="auto">FIJO</span></label><input id="f1-oficina" readonly value="Red Laboratorios SAG - ECA"></div>
       <div class="ff c2 ff-secondary"><label class="lbl">Region</label><input id="f1-region" value="Metropolitana"></div>
     </div>
+    <div class="timbre-wrap" id="f1-timbre-wrap" style="display:none"><span id="f1-timbre" class="timbre-aprob"></span></div>
 
     <hr class="divider">
 
@@ -1110,6 +1133,10 @@ input.field-blocked, select.field-blocked {
   </div>
   </div>
 
+  <div class="aprob-actions" id="f1-aprob-actions" style="display:none">
+    <button type="button" class="btn-aprobar" onclick="aprobarSolicitud()">&#10003; Aprobar solicitud</button>
+    <button type="button" class="btn-rechazar" onclick="rechazarSolicitud()">&#10007; Rechazar solicitud</button>
+  </div>
   <div class="stage-nav">
     <span></span>
     <span class="stage-pg">1 / 6</span>
@@ -3320,8 +3347,8 @@ function mostrarFichaResumen(r) {
   const res = String(r['Res.']||'').trim();
   const sol = String(r['Solicitud']||'').trim();
   const yr = (fmtD(r['Fecha Res.']||'')).substring(0,4);
-  const _esBorrador = String(r['Status']||'').indexOf('Borrador')===0;
-  const bp = _esBorrador ? {label:'Borrador', cls:'badge-nv', pendientes:['Solicitud reservada — PDF generado, aún no enviada por el importador']} : (res ? (rows.length ? calcBadgePriority(rows) : {label:'No recibida', cls:'badge-nv', pendientes:['Resolución emitida — material aún no ingresado a ECA']}) : {label: r['Estado Res.']||'Sin Firma', cls:'badge-nv', pendientes:[]});
+  const _beEntrada = badgeEstadoEntrada(r['Status']);
+  const bp = _beEntrada ? {label:_beEntrada.label, cls:_beEntrada.cls, pendientes:[]} : (res ? (rows.length ? calcBadgePriority(rows) : {label:'No recibida', cls:'badge-nv', pendientes:['Resolución emitida — material aún no ingresado a ECA']}) : {label: r['Estado Res.']||'Sin Firma', cls:'badge-nv', pendientes:[]});
   const status = bp.label;
   const sc = bp.cls;
 
@@ -4599,6 +4626,146 @@ function navegarReg(dir) {
 }
 
 // ── LOAD RECORD ──
+
+// ═══════════════════════════════════════════════════════════════
+// APROBACIÓN / RECHAZO DE SOLICITUD (Etapa I)
+// ═══════════════════════════════════════════════════════════════
+// Estados de aprobación reconocidos en la columna Status
+const _ST_PEND_APROB = 'Sol. Recibida Pend. Aprobación';
+const _ST_APROBADA   = 'Enviada a Firma Res. Ingreso';
+const _ST_RECHAZADA  = 'Rechazada';
+
+// Actualiza timbre + visibilidad de botones según el Status del registro cargado
+function actualizarTimbreAprob(status) {
+  const st = String(status||'').trim();
+  const wrap = document.getElementById('f1-timbre-wrap');
+  const timbre = document.getElementById('f1-timbre');
+  const actions = document.getElementById('f1-aprob-actions');
+  if(!wrap||!timbre||!actions) return;
+
+  // Reset
+  timbre.className = 'timbre-aprob';
+  wrap.style.display = 'none';
+  actions.style.display = 'none';
+
+  if(st === _ST_PEND_APROB) {
+    timbre.classList.add('timbre-gris');
+    timbre.textContent = 'Pendiente Aprobación';
+    wrap.style.display = '';
+    actions.style.display = 'flex';   // botones visibles solo aquí
+  } else if(st === _ST_APROBADA) {
+    timbre.classList.add('timbre-verde');
+    timbre.textContent = 'Aprobada';
+    wrap.style.display = '';
+  } else if(st === _ST_RECHAZADA) {
+    timbre.classList.add('timbre-rojo');
+    timbre.textContent = 'Rechazada';
+    wrap.style.display = '';
+  }
+  // Cualquier otro estado: sin timbre, sin botones (no aplica aprobación de Etapa I)
+}
+
+// Localiza la fila (1-based) en Detalle para el N° Solicitud dado, leyendo fresco
+async function _filaDetallePorSolicitud(nSol) {
+  const rows = await fetchAllRows();
+  const hdr = rows[0]||[];
+  const iSol = hdr.indexOf('Solicitud');
+  const iRes = hdr.indexOf('Res.');
+  if(iSol < 0) return null;
+  // Sin resolución: match por Solicitud y Res. vacío (registro de entrada)
+  for(let i=1;i<rows.length;i++){
+    const s = String(rows[i][iSol]||'').trim();
+    const r = iRes>=0 ? String(rows[i][iRes]||'').trim() : '';
+    if(s===String(nSol).trim() && !r) return i+1; // 1-based
+  }
+  // Fallback: primera coincidencia por Solicitud
+  for(let i=1;i<rows.length;i++){
+    if(String(rows[i][iSol]||'').trim()===String(nSol).trim()) return i+1;
+  }
+  return null;
+}
+
+async function _escribirCeldaDetalle(rowIndex1, colNombre, valor) {
+  const colLetter = await getColumnLetter(SHEET_DETALLE, colNombre);
+  if(!colLetter) throw new Error('Columna no encontrada: '+colNombre);
+  await fetch(`${BASE_URL}/${GS.sheetId}/values/${SHEET_DETALLE}!${colLetter}${rowIndex1}?valueInputOption=USER_ENTERED`,
+    {method:'PUT',
+     headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+     body:JSON.stringify({values:[[valor]]})});
+}
+
+async function aprobarSolicitud() {
+  const nSol = (document.getElementById('f1-nsol')?.value||'').trim();
+  if(!nSol){ setS('No hay solicitud cargada.','warn'); return; }
+  showModal('Aprobar Solicitud',
+    `¿Confirma la aprobación de la Solicitud N° ${nSol}? El estado pasará a "Enviada a Firma Res. Ingreso".`,
+    async ()=>{
+      closeModal();
+      try{
+        await ensureToken();
+        const fila = await _filaDetallePorSolicitud(nSol);
+        if(!fila){ setS('No se encontró la fila de la solicitud.','err'); return; }
+        await _escribirCeldaDetalle(fila, 'Status', _ST_APROBADA);
+        setS(`Solicitud N° ${nSol} aprobada.`,'ok');
+        actualizarTimbreAprob(_ST_APROBADA);
+        if(_lastLoadedRow) _lastLoadedRow['Status']=_ST_APROBADA;
+        recargar();
+      }catch(e){
+        if(/401/.test(e.message)){ accessToken=null; setS('Token expirado, intente nuevamente.','err'); }
+        else setS('Error al aprobar: '+e.message,'err');
+      }
+    },'Aprobar','btn-ok');
+}
+
+async function rechazarSolicitud() {
+  const nSol = (document.getElementById('f1-nsol')?.value||'').trim();
+  if(!nSol){ setS('No hay solicitud cargada.','warn'); return; }
+  const motivo = window.prompt('Motivo del rechazo (se enviará al importador y se guardará en Obs.):','');
+  if(motivo===null) return;           // canceló
+  const motivoTxt = String(motivo).trim();
+  if(!motivoTxt){ setS('Debe indicar un motivo para rechazar.','warn'); return; }
+
+  showModal('Rechazar Solicitud',
+    `¿Confirma el RECHAZO de la Solicitud N° ${nSol}? Se notificará al importador por correo con el motivo indicado.`,
+    async ()=>{
+      closeModal();
+      try{
+        await ensureToken();
+        const fila = await _filaDetallePorSolicitud(nSol);
+        if(!fila){ setS('No se encontró la fila de la solicitud.','err'); return; }
+        await _escribirCeldaDetalle(fila, 'Status', _ST_RECHAZADA);
+        await _escribirCeldaDetalle(fila, 'Obs.', motivoTxt);
+        // Correo al importador vía Apps Script
+        const correo = _lastLoadedRow ? (_lastLoadedRow['Email Importacion']||_lastLoadedRow['Correo']||'') : '';
+        const nombre = _lastLoadedRow ? (_lastLoadedRow['Importador']||'') : '';
+        try{
+          await fetch(_PORTAL_ENDPOINT,{method:'POST',
+            body:JSON.stringify({action:'rechazarSolicitud',adminToken:_ADMIN_TOKEN,
+              folio:nSol, correo:correo, nombre:nombre, motivo:motivoTxt})});
+        }catch(mailErr){ /* el rechazo ya quedó guardado; el correo es best-effort */ }
+        setS(`Solicitud N° ${nSol} rechazada. Importador notificado.`,'ok');
+        actualizarTimbreAprob(_ST_RECHAZADA);
+        if(_lastLoadedRow){ _lastLoadedRow['Status']=_ST_RECHAZADA; _lastLoadedRow['Obs.']=motivoTxt; }
+        recargar();
+      }catch(e){
+        if(/401/.test(e.message)){ accessToken=null; setS('Token expirado, intente nuevamente.','err'); }
+        else setS('Error al rechazar: '+e.message,'err');
+      }
+    },'Rechazar','btn-err');
+}
+
+
+// Mapea el Status de un registro sin resolución a {label, cls} de badge.
+// Devuelve null si el Status no es un estado de Etapa I (para caer a la lógica normal).
+function badgeEstadoEntrada(status) {
+  const st = String(status||'').trim();
+  if(st.indexOf('Sol. Creada')===0)   return {label:'Borrador Solicitud', cls:'badge-nv'};
+  if(st.indexOf('Sol. Recibida')===0)  return {label:'Pend. Aprobación',   cls:'badge-warn'};
+  if(st==='Enviada a Firma Res. Ingreso') return {label:'Aprobada — A Firma Ingreso', cls:'badge-gd'};
+  if(st==='Rechazada')                 return {label:'Rechazada',          cls:'badge-err'};
+  return null;
+}
+
 async function cargarFilaMulti(rows) {
   if(!rows||!rows.length) return;
   limpiarFormSilent();
@@ -4624,6 +4791,7 @@ async function cargarFilaMulti(rows) {
   selEl('f1-frio', r['Req Frio']||'');
   sv('f1-horas-frio', r['Horas Frio']||'');
   selEl('f1-pto', r['Pto Ingreso']||'');
+  actualizarTimbreAprob(r['Status']||'');
   sv('f1-cda',       r['N° CDA']||'');
   sv('f1-cert-fito', r['N° Cert. Fitosanitario']||'');
   _restoreDocLinks(r);
@@ -4817,6 +4985,7 @@ async function cargarFilaMulti(rows) {
 
 function limpiarFormSilent() {
   clearFieldCache();
+  if(typeof actualizarTimbreAprob==='function') actualizarTimbreAprob('');
   window._f1DocLink = ''; window._f2DocLink = ''; window._extractedData = null;
   ['f1-doc-view','f2-doc-view'].forEach(id => { const el=document.getElementById(id); if(el) el.style.display='none'; });
   ['f1-extract-result','f2-extract-result'].forEach(id => { const el=document.getElementById(id); if(el) el.innerHTML=''; });
@@ -7987,9 +8156,9 @@ function renderRecientes() {
   </tr></thead><tbody>`;
   recent.forEach(r=>{
     const _res=r['Res.']||'';
-    const _esBorrador = String(r['Status']||'').indexOf('Borrador')===0;
-    const st= _esBorrador ? 'Borrador' : (_res ? (r['Status']||'En proceso') : (r['Estado Res.']||'Sin Firma'));
-    const sc=st==='Borrador'?'badge-nv':st==='Entregada'?'badge-ok':st==='A destruir'||st==='No Recibida'?'badge-err':st==='Sin Firma'?'badge-warn':'badge-nv';
+    const _beEntrada = badgeEstadoEntrada(r['Status']);
+    const st= _beEntrada ? _beEntrada.label : (_res ? (r['Status']||'En proceso') : (r['Estado Res.']||'Sin Firma'));
+    const sc= _beEntrada ? _beEntrada.cls : (st==='Entregada'?'badge-ok':st==='A destruir'||st==='No Recibida'?'badge-err':st==='Sin Firma'?'badge-warn':'badge-nv');
     const _yr=fmtD(r['Fecha Res.']||'').substring(0,4);
     const _sol=r['Solicitud']||'';
     const onclick=_res
@@ -8324,7 +8493,7 @@ const CANONICAL_HEADERS = [
   'Liberada','Entregada','Obs.','Status','Proveedor','Representante',
   'Tipo Material','Fecha Ing. Solicitada','Quincena Solicitada',
   'Fecha Ing. Asignada','Quincena Asignada','Proceso','Vigencia Desde',
-  'Especie Análisis','Fecha Estimada Muestreo','Uso','Cod. Registro Vivero',
+  'Especie Análisis','Fecha Estimada Muestreo 2','Uso','Cod. Registro Vivero',
   'Fecha Recepcion','Contraparte Importacion','Tel Importacion','Email Importacion',
   'Contraparte Territorial','Tel Territorial','Email Territorial',
   'Ciudad Proveedor','Req Frio','Horas Frio','Pto Ingreso',
