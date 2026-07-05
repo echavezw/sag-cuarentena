@@ -774,7 +774,7 @@ input.field-blocked, select.field-blocked {
 
 
 /* ═══ Timbre de aprobación Etapa I (estilo sello institucional) ═══ */
-.timbre-aprob{display:inline-flex;align-items:center;gap:8px;padding:10px 22px;border-radius:4px;
+.timbre-aprob{display:inline-flex;align-items:center;gap:8px;padding:10px 22px;border-radius:4px;white-space:nowrap;
   font-weight:700;font-size:1.05rem;letter-spacing:1.5px;text-transform:uppercase;
   border:3px solid;margin:4px 0 2px;font-family:'Inter',sans-serif;line-height:1;
   box-shadow:0 1px 3px rgba(0,0,0,.12)}
@@ -1038,12 +1038,8 @@ input.field-blocked, select.field-blocked {
 
       </div>
       <div class="ff c1"><label class="lbl">Fecha Recepcion</label><input type="date" id="f1-fech-rec"></div>
-      <div class="ff c2 ff-secondary"><label class="lbl">Oficina <span class="auto">FIJO</span></label>
-        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-          <input id="f1-oficina" readonly value="Red Laboratorios SAG - ECA" style="width:15.5rem;flex:0 0 auto">
-          <span class="timbre-wrap" id="f1-timbre-wrap" style="display:none;margin:0"><span id="f1-timbre" class="timbre-aprob"></span></span>
-        </div>
-      </div>
+      <div class="ff c2 ff-secondary"><label class="lbl">Oficina <span class="auto">FIJO</span></label><input id="f1-oficina" readonly value="Red Laboratorios SAG - ECA"></div>
+      <div class="ff c1" style="justify-content:flex-end;align-items:flex-start"><span class="timbre-wrap" id="f1-timbre-wrap" style="display:none;margin:0;margin-top:20px"><span id="f1-timbre" class="timbre-aprob"></span></span></div>
       <div class="ff c2 ff-secondary"><label class="lbl">Region</label><input id="f1-region" value="Metropolitana"></div>
     </div>
 
