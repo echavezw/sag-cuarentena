@@ -3320,7 +3320,8 @@ function mostrarFichaResumen(r) {
   const res = String(r['Res.']||'').trim();
   const sol = String(r['Solicitud']||'').trim();
   const yr = (fmtD(r['Fecha Res.']||'')).substring(0,4);
-  const bp = res ? (rows.length ? calcBadgePriority(rows) : {label:'No recibida', cls:'badge-nv', pendientes:['Resolución emitida — material aún no ingresado a ECA']}) : {label: r['Estado Res.']||'Sin Firma', cls:'badge-nv', pendientes:[]};
+  const _esBorrador = String(r['Status']||'').indexOf('Borrador')===0;
+  const bp = _esBorrador ? {label:'Borrador', cls:'badge-nv', pendientes:['Solicitud reservada — PDF generado, aún no enviada por el importador']} : (res ? (rows.length ? calcBadgePriority(rows) : {label:'No recibida', cls:'badge-nv', pendientes:['Resolución emitida — material aún no ingresado a ECA']}) : {label: r['Estado Res.']||'Sin Firma', cls:'badge-nv', pendientes:[]});
   const status = bp.label;
   const sc = bp.cls;
 
@@ -7986,8 +7987,9 @@ function renderRecientes() {
   </tr></thead><tbody>`;
   recent.forEach(r=>{
     const _res=r['Res.']||'';
-    const st= _res ? (r['Status']||'En proceso') : (r['Estado Res.']||'Sin Firma');
-    const sc=st==='Entregada'?'badge-ok':st==='A destruir'||st==='No Recibida'?'badge-err':st==='Sin Firma'?'badge-warn':'badge-nv';
+    const _esBorrador = String(r['Status']||'').indexOf('Borrador')===0;
+    const st= _esBorrador ? 'Borrador' : (_res ? (r['Status']||'En proceso') : (r['Estado Res.']||'Sin Firma'));
+    const sc=st==='Borrador'?'badge-nv':st==='Entregada'?'badge-ok':st==='A destruir'||st==='No Recibida'?'badge-err':st==='Sin Firma'?'badge-warn':'badge-nv';
     const _yr=fmtD(r['Fecha Res.']||'').substring(0,4);
     const _sol=r['Solicitud']||'';
     const onclick=_res
