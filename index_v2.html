@@ -4098,7 +4098,8 @@ function _panelRowsBuild(found, tbodyEl) {
     var yr=(fmtD(r["Fecha Res."]||"")).substring(0,4);
     var sol=r["Solicitud"]||"";
     var rows = _filasDelRegistro(r);
-    var bp = res ? (rows.length ? calcBadgePriority(rows) : {label:'No recibida', cls:'badge-nv', pendientes:['Resolución emitida — material aún no ingresado a ECA']}) : {label: r["Estado Res."]||"Sin Firma", cls:'badge-nv', pendientes:[]};
+    var _beEntrada = badgeEstadoEntrada(r["Status"]);
+    var bp = _beEntrada ? {label:_beEntrada.label, cls:_beEntrada.cls, pendientes:[]} : (res ? (rows.length ? calcBadgePriority(rows) : {label:'No recibida', cls:'badge-nv', pendientes:['Resolución emitida — material aún no ingresado a ECA']}) : {label: r["Estado Res."]||"Sin Firma", cls:'badge-nv', pendientes:[]});
     var st = bp.label;
     var sc = bp.cls;
     var loadRow = function(){ cargarFichaPanel(res, yr, sol); };
