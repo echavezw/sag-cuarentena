@@ -1057,12 +1057,13 @@ input.field-blocked, select.field-blocked {
         </div>
       </div>
     </div>
-    <div class="fg" style="grid-template-columns:repeat(6,1fr);gap:10px 14px">
-      <div class="ff c1 ff-secondary"><label class="lbl">RUT <span class="auto">AUTO</span></label><input id="f1-rut"></div>
-      <div class="ff c1 ff-secondary"><label class="lbl">Teléfono <span class="auto">AUTO</span></label><input id="f1-tel" type="tel" placeholder="+56 9 XXXX XXXX"></div>
-      <div class="ff c1 ff-secondary"><label class="lbl">Ciudad <span class="auto">AUTO</span></label><input id="f1-ciudad"></div>
-      <div class="ff c3 ff-secondary"><label class="lbl">Dirección <span class="auto">AUTO</span></label><input id="f1-dir" placeholder="Calle y número"></div>
-      <div class="ff c3 ff-secondary"><label class="lbl">Correo Electrónico <span class="auto">AUTO</span></label><input id="f1-email" type="email"></div>
+    <div class="fg" style="grid-template-columns:repeat(14,1fr);gap:10px 14px">
+      <div class="ff ff-secondary" style="grid-column:span 2"><label class="lbl">RUT <span class="auto">AUTO</span></label><input id="f1-rut"></div>
+      <div class="ff ff-secondary" style="grid-column:span 3"><label class="lbl">Dirección <span class="auto">AUTO</span></label><input id="f1-dir" placeholder="Calle y número"></div>
+      <div class="ff ff-secondary" style="grid-column:span 2"><label class="lbl">Comuna <span class="auto">AUTO</span></label><input id="f1-comuna"></div>
+      <div class="ff ff-secondary" style="grid-column:span 2"><label class="lbl">Región <span class="auto">AUTO</span></label><input id="f1-reg-imp"></div>
+      <div class="ff ff-secondary" style="grid-column:span 2"><label class="lbl">Teléfono <span class="auto">AUTO</span></label><input id="f1-tel" type="tel" placeholder="+56 9 XXXX XXXX"></div>
+      <div class="ff ff-secondary" style="grid-column:span 3"><label class="lbl">Correo Electrónico <span class="auto">AUTO</span></label><input id="f1-email" type="email"></div>
     </div>
     <hr class="divider">
     <p style="font-size:11.5px;font-weight:600;color:var(--g600);margin-bottom:12px">Contrapartes</p>
@@ -4992,7 +4993,7 @@ function limpiarFormSilent() {
   ['f1-doc-view','f2-doc-view'].forEach(id => { const el=document.getElementById(id); if(el) el.style.display='none'; });
   ['f1-extract-result','f2-extract-result'].forEach(id => { const el=document.getElementById(id); if(el) el.innerHTML=''; });
   _lastLoadedRow = {};
-  ['f1-fech-rec','f1-rut','f1-rep','f1-tel','f1-dir','f1-ciudad','f1-reg-imp',
+  ['f1-fech-rec','f1-rut','f1-rep','f1-tel','f1-dir','f1-ciudad','f1-comuna','f1-reg-imp',
    'f1-email','f1-cp1-nombre','f1-cp1-email','f1-cp1-tel','f1-cp2-nombre','f1-cp2-email','f1-cp2-tel',
    'f1-prov','f1-prov-ciudad','f1-zona-ce','f1-vivero','f1-fing','f1-horas-frio',
    'f2-nres','f2-anio-res','f2-fres','f2-vigdesde','f2-vighasta','f2-prorroga',
@@ -5103,6 +5104,8 @@ function onImp() {
     if(!v('f1-email'))  sv('f1-email',  get(found,'Email','email','Correo'));
     if(!v('f1-dir'))    sv('f1-dir',    get(found,'Direccion','Dirección','direccion'));
     if(!v('f1-ciudad')) sv('f1-ciudad', get(found,'Ciudad','ciudad'));
+    if(!v('f1-comuna')) sv('f1-comuna', get(found,'Comuna','comuna'));
+    if(!v('f1-reg-imp')) sv('f1-reg-imp', get(found,'Región','Region','region'));
     // Contraparte Importacion — try multiple column name variants that SAG sheets may use
     sv('f1-cp1-nombre', v('f1-cp1-nombre') || get(found,
       'Contraparte Importacion','Contraparte Importación','ContraparteImportacion',
@@ -9138,7 +9141,7 @@ function saveProveedorIfNew(prov) {
 // ── LIMPIAR ETAPA ──
 function limpiarEtapa(n) {
   if(!confirm(`Limpiar datos de la Etapa ${n}?`)) return;
-  if(n===1){ ['f1-fech-rec','f1-rut','f1-rep','f1-tel','f1-dir','f1-ciudad','f1-reg-imp','f1-email','f1-cp1-nombre','f1-cp1-email','f1-cp1-tel','f1-cp2-nombre','f1-cp2-email','f1-cp2-tel','f1-prov','f1-prov-ciudad','f1-zona-ce','f1-vivero','f1-fing','f1-horas-frio'].forEach(id=>{const e=$(id);if(e)e.value='';}); ['f1-imp','f1-pais','f1-uso','f1-frio','f1-pto'].forEach(id=>{const e=$(id);if(e)e.value='';}); renderEspTable(); }
+  if(n===1){ ['f1-fech-rec','f1-rut','f1-rep','f1-tel','f1-dir','f1-ciudad','f1-comuna','f1-reg-imp','f1-email','f1-cp1-nombre','f1-cp1-email','f1-cp1-tel','f1-cp2-nombre','f1-cp2-email','f1-cp2-tel','f1-prov','f1-prov-ciudad','f1-zona-ce','f1-vivero','f1-fing','f1-horas-frio'].forEach(id=>{const e=$(id);if(e)e.value='';}); ['f1-imp','f1-pais','f1-uso','f1-frio','f1-pto'].forEach(id=>{const e=$(id);if(e)e.value='';}); renderEspTable(); }
   if(n===2){ ['f2-nres','f2-anio-res','f2-fres','f2-vigdesde','f2-vighasta','f2-prorroga','f2-res-mod','f2-fres-mod','f2-vfin-desde','f2-vfin-hasta'].forEach(id=>{const e=$(id);if(e)e.value='';}); }
   if(n===3){ ['f3-fing','f3-anio','f3-nplan','f3-nvar','f3-finj','f3-flev'].forEach(id=>{const e=$(id);if(e)e.value='';}); selEl('f3-cub',''); selEl('f3-estado',''); }
   if(n===4){ if(!Object.values(anRows).some(a=>a.length)) initAnRows(); renderAnalisisTabs(); }
