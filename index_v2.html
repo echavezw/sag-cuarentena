@@ -3321,7 +3321,7 @@ function mostrarFichaResumen(r) {
   const res = String(r['Res.']||'').trim();
   const sol = String(r['Solicitud']||'').trim();
   const yr = (fmtD(r['Fecha Res.']||'')).substring(0,4);
-  const bp = res ? calcBadgePriority(rows) : {label: r['Estado Res.']||'Sin Firma', cls:'badge-nv', pendientes:[]};
+  const bp = res ? (rows.length ? calcBadgePriority(rows) : {label:'No recibida', cls:'badge-nv', pendientes:['Resolución emitida — material aún no ingresado a ECA']}) : {label: r['Estado Res.']||'Sin Firma', cls:'badge-nv', pendientes:[]};
   const status = bp.label;
   const sc = bp.cls;
 
