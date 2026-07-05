@@ -4760,9 +4760,9 @@ async function rechazarSolicitud() {
 // Devuelve null si el Status no es un estado de Etapa I (para caer a la lógica normal).
 function badgeEstadoEntrada(status) {
   const st = String(status||'').trim();
-  if(st.indexOf('Sol. Creada')===0)   return {label:'Borrador Solicitud', cls:'badge-nv'};
-  if(st.indexOf('Sol. Recibida')===0)  return {label:'Pend. Aprobación',   cls:'badge-warn'};
-  if(st==='Enviada a Firma Res. Ingreso') return {label:'Aprobada — A Firma Ingreso', cls:'badge-gd'};
+  if(st.indexOf('Sol. Creada')===0)   return {label:'Sol. Creada Pend. Envío PDF', cls:'badge-nv'};
+  if(st.indexOf('Sol. Recibida')===0)  return {label:'Sol. Recibida Pend. Aprobación',   cls:'badge-warn'};
+  if(st==='Enviada a Firma Res. Ingreso') return {label:'Enviada a Firma Res. Ingreso', cls:'badge-gd'};
   if(st==='Rechazada')                 return {label:'Rechazada',          cls:'badge-err'};
   return null;
 }
