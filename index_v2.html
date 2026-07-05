@@ -2979,7 +2979,7 @@ function calcBadgePriority(rows) {
   const res = norm(first['Res.']);
   const recibida = norm(first['Recibida']);
   const fechaIng = norm(first['Fecha de Ingreso']);
-  if (res && !recibida && !fechaIng)
+  if (res && !isAfirmativo(recibida) && !fechaIng)
     return {label:'No recibida', cls:'badge-nv',
       pendientes:['Resolución emitida — material aún no ingresado a ECA']};
 
