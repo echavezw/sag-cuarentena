@@ -785,6 +785,7 @@ input.field-blocked, select.field-blocked {
 .timbre-rojo::before{content:'\2715'}
 .timbre-gris{color:#5a6472;border-color:#8a94a2;background:rgba(90,100,114,.06)}
 .timbre-gris::before{content:'\29D6'}
+.timbre-alto{padding-top:15px;padding-bottom:15px;font-size:1.1rem}
 .timbre-wrap{margin:6px 0 10px}
 /* Botones Aprobar/Rechazar Etapa I */
 .aprob-actions{display:flex;gap:12px;margin:18px 0 4px;padding-top:16px;border-top:1px solid var(--gold-bd,#d8cbb0)}
@@ -1014,8 +1015,8 @@ input.field-blocked, select.field-blocked {
 
     <!-- ── Info ECA ── -->
     <div style="font-family:var(--serif);font-size:14px;font-weight:700;color:var(--inkv);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--gd)">Info ECA</div>
-    <div class="fg" style="grid-template-columns:repeat(8,1fr);gap:10px 14px;align-items:start">
-      <div class="ff c2 ff-primary" style="align-self:start"><label class="lbl"><span class="req">*</span> N° Solicitud</label>
+    <div class="fg" style="grid-template-columns:repeat(12,1fr);gap:10px 14px;align-items:start">
+      <div class="ff ff-primary" style="grid-column:span 2;align-self:start"><label class="lbl"><span class="req">*</span> N° Solicitud</label>
         <div style="display:flex;gap:6px;align-items:center">
           <input id="f1-nsol" readonly style="font-size:17px;font-weight:700;font-family:var(--mono)" placeholder="ej. 253 o 253.1">
           <button id="nsol-lock" onclick="toggleSolLock()" title="Desbloquear"
@@ -1037,10 +1038,10 @@ input.field-blocked, select.field-blocked {
         </div>
 
       </div>
-      <div class="ff c1"><label class="lbl">Fecha Recepcion</label><input type="date" id="f1-fech-rec"></div>
-      <div class="ff c2 ff-secondary"><label class="lbl">Oficina <span class="auto">FIJO</span></label><input id="f1-oficina" readonly value="Red Laboratorios SAG - ECA"></div>
-      <div class="ff c1 ff-secondary"><label class="lbl">Region</label><input id="f1-region" value="Metropolitana"></div>
-      <div class="ff c2" style="justify-content:flex-start;align-items:flex-start"><label class="lbl" style="visibility:hidden">.</label><span class="timbre-wrap" id="f1-timbre-wrap" style="display:none;margin:0"><span id="f1-timbre" class="timbre-aprob"></span></span></div>
+      <div class="ff" style="grid-column:span 2"><label class="lbl">Fecha Recepcion</label><input type="date" id="f1-fech-rec"></div>
+      <div class="ff ff-secondary" style="grid-column:span 3"><label class="lbl">Oficina <span class="auto">FIJO</span></label><input id="f1-oficina" readonly value="Red Laboratorios SAG - ECA"></div>
+      <div class="ff ff-secondary" style="grid-column:span 2"><label class="lbl">Region</label><input id="f1-region" value="Metropolitana"></div>
+      <div class="ff" style="grid-column:span 3;justify-content:flex-start;align-items:flex-end"><label class="lbl" style="visibility:hidden">.</label><span class="timbre-wrap" id="f1-timbre-wrap" style="display:none;margin:0"><span id="f1-timbre" class="timbre-aprob timbre-alto"></span></span></div>
     </div>
 
     <hr class="divider">
