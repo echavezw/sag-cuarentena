@@ -1038,10 +1038,14 @@ input.field-blocked, select.field-blocked {
 
       </div>
       <div class="ff c1"><label class="lbl">Fecha Recepcion</label><input type="date" id="f1-fech-rec"></div>
-      <div class="ff c2 ff-secondary"><label class="lbl">Oficina <span class="auto">FIJO</span></label><input id="f1-oficina" readonly value="Red Laboratorios SAG - ECA"></div>
+      <div class="ff c2 ff-secondary"><label class="lbl">Oficina <span class="auto">FIJO</span></label>
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <input id="f1-oficina" readonly value="Red Laboratorios SAG - ECA" style="width:15.5rem;flex:0 0 auto">
+          <span class="timbre-wrap" id="f1-timbre-wrap" style="display:none;margin:0"><span id="f1-timbre" class="timbre-aprob"></span></span>
+        </div>
+      </div>
       <div class="ff c2 ff-secondary"><label class="lbl">Region</label><input id="f1-region" value="Metropolitana"></div>
     </div>
-    <div class="timbre-wrap" id="f1-timbre-wrap" style="display:none"><span id="f1-timbre" class="timbre-aprob"></span></div>
 
     <hr class="divider">
 
