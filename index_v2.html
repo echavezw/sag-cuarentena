@@ -2922,10 +2922,18 @@ async function toggleUsuarioActivo(rowIndex1, newActivo) {
 }
 
 async function getColumnLetter(sheetName, colName) {
-  const rows = await fetchRawSheet(sheetName);
-  const hdr = rows?.[0]||[];
+  // Leer el header COMPLETO (no truncado). fetchRawSheet corta en Z500, lo que
+  // dejaba fuera columnas como 'Status' (pos 47) y devolvía 'A' por error,
+  // sobrescribiendo el N° de Solicitud. Aquí leemos toda la fila 1.
+  let hdr = [];
+  if(sheetName === SHEET_DETALLE){
+    hdr = await getHeaders();               // header completo de Detalle
+  } else {
+    const rows = await fetchRawSheet(sheetName);
+    hdr = rows?.[0]||[];
+  }
   const idx = hdr.indexOf(colName);
-  if(idx<0) return 'A';
+  if(idx<0) throw new Error('Columna no encontrada en '+sheetName+': '+colName);
   let n = idx, letter = '';
   do { letter = String.fromCharCode(65+(n%26))+letter; n=Math.floor(n/26)-1; } while(n>=0);
   return letter;
