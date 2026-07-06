@@ -646,6 +646,9 @@ function iniciarFormulario(importadorData) {
   }
 
   cargarListasAutocomplete();
+  // Nivel 2-A: con el RUT ya cargado, consultar si hay un pendiente
+  // (envío incompleto o borrador) y mostrar el banner de recuperación.
+  consultarPendienteAlIniciar();
 }
 
 function cerrarSesion(){
@@ -665,11 +668,38 @@ function cerrarSesion(){
 // ============================================================
 // GENERAR PDF FORMULARIO F-IIT-IMP-PA-002
 // ============================================================
-function mostrarBannerBorrador(folioDisplay){
+function consultarPendienteAlIniciar(){
+  var rut = document.getElementById('rut') ? document.getElementById('rut').value.trim() : (sesion.rut||'');
+  if(!rut) rut = sesion.rut || '';
+  if(!rut) return;
+  fetch(ENDPOINT_URL, {
+    method: 'POST',
+    body: JSON.stringify({ action: 'consultarPendiente', rut: rut })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if(data.ok && data.tienePendiente){
+      // Si es un envío incompleto, ya hay un folio reservado en curso: lo
+      // reflejamos en solicitudReservada para coherencia, pero el importador
+      // deberá descartarlo (Nivel 2-A). Si es borrador normal, igual lo avisa.
+      mostrarBannerBorrador(data.folioDisplay || data.folio, data.incompleto);
+    }
+  })
+  .catch(function(){ /* silencioso — si falla la consulta, el flujo sigue normal */ });
+}
+
+function mostrarBannerBorrador(folioDisplay, incompleto){
   var b = document.getElementById('bannerBorradorActivo');
   var t = document.getElementById('bannerBorradorTexto');
-  if(t) t.innerHTML = 'Tiene la solicitud N° <strong>' + folioDisplay + '</strong> generada y pendiente de envío. ' +
-    'Debe enviarla (adjuntando el PDF firmado) o descartarla antes de crear una nueva.';
+  if(t){
+    if(incompleto){
+      t.innerHTML = 'Su solicitud N° <strong>' + folioDisplay + '</strong> quedó con un <strong>envío incompleto</strong> ' +
+        '(el proceso se interrumpió y no se completó correctamente). Por seguridad, descártela y genere una nueva solicitud.';
+    } else {
+      t.innerHTML = 'Tiene la solicitud N° <strong>' + folioDisplay + '</strong> generada y pendiente de envío. ' +
+        'Debe enviarla (adjuntando el PDF firmado) o descartarla antes de crear una nueva.';
+    }
+  }
   if(b){ b.style.display = 'block'; b.scrollIntoView({behavior:'smooth', block:'center'}); }
 }
 
@@ -768,7 +798,7 @@ function generarPDFFormulario(){
     } else if(data.yaExiste){
       // 1H-a: ya existe un borrador activo. Bloquear y mostrar banner con opción de descartar.
       if(btn) btn.disabled = false;
-      mostrarBannerBorrador(data.folioDisplay || data.folio);
+      mostrarBannerBorrador(data.folioDisplay || data.folio, data.incompleto);
     } else {
       alert('No se pudo generar el número de solicitud (' + (data.error||'error desconocido') + '). Intente nuevamente.');
       continuar();
