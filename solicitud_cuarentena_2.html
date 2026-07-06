@@ -169,6 +169,11 @@
     <div id="bannerSuccess" class="banner success"></div>
     <div id="bannerError" class="banner error"></div>
 
+    <div id="bannerBorradorActivo" class="banner" style="display:none;background:#fdf6e3;border:1px solid #d8cbb0;color:#6b5a2e;padding:14px 18px;border-radius:8px;margin-bottom:14px">
+      <div id="bannerBorradorTexto" style="margin-bottom:10px"></div>
+      <button type="button" class="btn btn-secondary" style="font-size:13px;padding:8px 16px" onclick="descartarBorradorPendiente()">Descartar solicitud pendiente</button>
+    </div>
+
     <form id="solicitudForm" novalidate>
 
       <!-- IMPORTADOR -->
@@ -660,6 +665,58 @@ function cerrarSesion(){
 // ============================================================
 // GENERAR PDF FORMULARIO F-IIT-IMP-PA-002
 // ============================================================
+function mostrarBannerBorrador(folioDisplay){
+  var b = document.getElementById('bannerBorradorActivo');
+  var t = document.getElementById('bannerBorradorTexto');
+  if(t) t.innerHTML = 'Tiene la solicitud N° <strong>' + folioDisplay + '</strong> generada y pendiente de envío. ' +
+    'Debe enviarla (adjuntando el PDF firmado) o descartarla antes de crear una nueva.';
+  if(b){ b.style.display = 'block'; b.scrollIntoView({behavior:'smooth', block:'center'}); }
+}
+
+function ocultarBannerBorrador(){
+  var b = document.getElementById('bannerBorradorActivo');
+  if(b) b.style.display = 'none';
+}
+
+function descartarBorradorPendiente(){
+  var rut = document.getElementById('rut').value.trim();
+  if(!rut){ alert('No se identificó el RUT del importador.'); return; }
+  if(!confirm('¿Confirma que desea descartar la solicitud pendiente? Esta acción no se puede deshacer y el número de solicitud quedará anulado.')) return;
+
+  fetch(ENDPOINT_URL, {
+    method: 'POST',
+    body: JSON.stringify({ action: 'descartarBorrador', rut: rut })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if(data.ok){
+      ocultarBannerBorrador();
+      solicitudReservada = null;
+      alert('Solicitud N° ' + (data.folio||'') + ' descartada. Ya puede generar una nueva.');
+    } else {
+      alert('No se pudo descartar la solicitud (' + (data.error||'error') + ').');
+    }
+  })
+  .catch(function(){ alert('Error de conexión al descartar la solicitud. Intente nuevamente.'); });
+}
+
+var _overlayEnvioTimer = null;
+function mostrarOverlayEnvio(){
+  var o = document.getElementById('overlayEnvio');
+  if(o) o.style.display = 'flex';
+  var lento = document.getElementById('overlayEnvioLento');
+  if(lento) lento.style.display = 'none';
+  // Tras 15s sin respuesta, avisar que está tardando (sin desbloquear).
+  _overlayEnvioTimer = setTimeout(function(){
+    if(lento) lento.style.display = 'block';
+  }, 15000);
+}
+function ocultarOverlayEnvio(){
+  var o = document.getElementById('overlayEnvio');
+  if(o) o.style.display = 'none';
+  if(_overlayEnvioTimer){ clearTimeout(_overlayEnvioTimer); _overlayEnvioTimer = null; }
+}
+
 function generarPDFFormulario(){
   const nombre    = document.getElementById('nombre').value.trim();
   const rut       = document.getElementById('rut').value.trim();
@@ -706,10 +763,16 @@ function generarPDFFormulario(){
   .then(function(data){
     if(data.ok){
       solicitudReservada = { folio: data.folio, folioDisplay: data.folioDisplay, fecha: data.fecha };
+      ocultarBannerBorrador();
+      continuar();
+    } else if(data.yaExiste){
+      // 1H-a: ya existe un borrador activo. Bloquear y mostrar banner con opción de descartar.
+      if(btn) btn.disabled = false;
+      mostrarBannerBorrador(data.folioDisplay || data.folio);
     } else {
       alert('No se pudo generar el número de solicitud (' + (data.error||'error desconocido') + '). Intente nuevamente.');
+      continuar();
     }
-    continuar();
   })
   .catch(function(){
     alert('Error de conexión al generar el número de solicitud. Intente nuevamente.');
@@ -1329,9 +1392,11 @@ document.getElementById('solicitudForm').addEventListener('submit', function(e){
     folioReservado:     solicitudReservada ? solicitudReservada.folio : null
   };
 
+  mostrarOverlayEnvio();
   fetch(ENDPOINT_URL,{ method:'POST', body:JSON.stringify(payload) })
   .then(function(r){ return r.json(); })
   .then(function(data){
+    ocultarOverlayEnvio();
     document.getElementById('statusText').textContent='';
     if(data.ok){
       document.getElementById('bannerSuccess').innerHTML=
@@ -1352,6 +1417,7 @@ document.getElementById('solicitudForm').addEventListener('submit', function(e){
     window.scrollTo({top:0,behavior:'smooth'});
   })
   .catch(function(err){
+    ocultarOverlayEnvio();
     document.getElementById('bannerError').textContent='Error de conexión. Intente nuevamente.';
     document.getElementById('bannerError').style.display='block';
     document.getElementById('statusText').textContent='';
@@ -3055,5 +3121,12 @@ function validarVivero(){
   }
 }
 </script>
+<div id="overlayEnvio" style="display:none;position:fixed;inset:0;background:rgba(10,22,40,.72);z-index:9999;align-items:center;justify-content:center;flex-direction:column;color:#fff;text-align:center;padding:24px">
+  <div style="border:4px solid rgba(255,255,255,.25);border-top-color:#B8975A;border-radius:50%;width:52px;height:52px;animation:spinEnvio 1s linear infinite;margin-bottom:20px"></div>
+  <div style="font-size:18px;font-weight:600;margin-bottom:8px">Enviando solicitud…</div>
+  <div style="font-size:14px;max-width:420px;opacity:.9">Por favor no cierre ni recargue esta página. El proceso puede tardar unos segundos.</div>
+  <div id="overlayEnvioLento" style="display:none;font-size:13px;margin-top:16px;color:#f0d9a0;max-width:420px">Está tardando más de lo habitual. No reenvíe todavía; espere a que termine.</div>
+</div>
+<style>@keyframes spinEnvio{to{transform:rotate(360deg)}}</style>
 </body>
 </html>
