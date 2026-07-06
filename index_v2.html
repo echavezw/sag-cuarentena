@@ -4771,9 +4771,11 @@ async function rechazarSolicitud() {
 function badgeEstadoEntrada(status) {
   const st = String(status||'').trim();
   if(st.indexOf('Sol. Creada')===0)   return {label:'Sol. Creada Pend. Envío PDF', cls:'badge-nv'};
+  if(st.indexOf('Sol. En Envío')===0)  return {label:'Envío Incompleto', cls:'badge-err'};
   if(st.indexOf('Sol. Recibida')===0)  return {label:'Sol. Recibida Pend. Aprobación',   cls:'badge-warn'};
   if(st==='Enviada a Firma Res. Ingreso') return {label:'Enviada a Firma Res. Ingreso', cls:'badge-gd'};
   if(st==='Rechazada')                 return {label:'Rechazada',          cls:'badge-err'};
+  if(st==='Cancelada')                 return {label:'Cancelada',          cls:'badge-nv'};
   return null;
 }
 
