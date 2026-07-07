@@ -787,6 +787,7 @@ input.field-blocked, select.field-blocked {
 .timbre-gris::before{content:'\29D6'}
 .timbre-alto{padding-top:15px;padding-bottom:15px;font-size:1.1rem}
 .timbre-wrap{margin:6px 0 10px}
+.hl { background:#fff9c4; padding:0 2px; border-radius:2px; } /* highlight borrador resolución */
 /* Botones Aprobar/Rechazar Etapa I */
 .aprob-actions{display:flex;gap:12px;margin:18px 0 4px;padding-top:16px;border-top:1px solid var(--gold-bd,#d8cbb0)}
 .btn-aprobar{background:#14532d;color:#fff;border:none;padding:11px 26px;border-radius:5px;
@@ -1138,6 +1139,9 @@ input.field-blocked, select.field-blocked {
   <div class="aprob-actions" id="f1-aprob-actions" style="display:none">
     <button type="button" class="btn-aprobar" onclick="aprobarSolicitud()">&#10003; Aprobar solicitud</button>
     <button type="button" class="btn-rechazar" onclick="rechazarSolicitud()">&#10007; Rechazar solicitud</button>
+  </div>
+  <div style="margin-top:10px;padding:0 2px">
+    <button type="button" class="btn btn-gh btn-sm" onclick="generarBorradorResolucion()" title="Genera borrador Word de Resolución de Internación">📄 Generar Borrador Res.</button>
   </div>
   <div class="stage-nav">
     <span></span>
@@ -10497,6 +10501,196 @@ function _today() {
 }
 
 // ── DOC 1: ACTA RECEPCIÓN (F-IIT-IMP-PA-007) — Etapa III ──
+// ══════════════════════════════════════════════════════
+// BORRADOR RESOLUCIÓN DE INTERNACIÓN
+// ══════════════════════════════════════════════════════
+function generarBorradorResolucion() {
+  const imp      = _v('f1-imp');
+  const nsol     = _v('f1-nsol');
+  const pais     = _v('f1-pais');
+  const uso      = _v('f1-uso') || 'Propagación';
+  const vivero   = _v('f1-vivero');
+  const prov     = _v('f1-prov');
+  const fecho    = _v('f1-fech-rec');  // fecha recepción/solicitud
+  const frio     = _v('f1-frio');
+  const horasFrio= _v('f1-horas-frio');
+  const cp1      = _v('f1-cp1-nombre');
+  const cp2      = _v('f1-cp2-nombre');
+
+  if (!imp || !nsol) { setS('Complete al menos Importador y N° Solicitud antes de generar el borrador.', 'warn'); return; }
+
+  // Determinar si es CE
+  const isCE = typeof CE_PAISES !== 'undefined' && CE_PAISES.includes(pais);
+
+  // País de origen para el documento
+  const paisDisplay = isCE ? `PAIS MIEMBRO DE LA COMUNIDAD EUROPEA (${(pais||'').toUpperCase()})` : (pais||'').toUpperCase();
+
+  // País para el Certificado Fitosanitario (resuelvo 2)
+  const paisCert = isCE ? pais : (pais || '______');
+
+  // Uso con código vivero
+  const usoDisplay = uso.toUpperCase() + (vivero ? ` (Cód. Reg. Vivero: ${vivero})` : '');
+
+  // Fecha en texto largo
+  const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  let fechaTexto = '______';
+  if (fecho) {
+    const d = new Date(fecho + 'T12:00:00');
+    if (!isNaN(d)) fechaTexto = `el ${d.getDate()} de ${MESES[d.getMonth()]} del ${d.getFullYear()}`;
+  }
+
+  // Materiales desde _matRows()
+  const mat = _matRows();
+
+  // Tabla de material
+  let matHtml = '';
+  let totalCant = 0;
+  mat.forEach(r => {
+    const esp   = r.esp  || '';
+    const vari  = r.vari || '';
+    const tipo  = r.tipo || '';
+    const cant  = parseFloat(String(r.cant||'0').replace(',','.')) || 0;
+    totalCant  += cant;
+    matHtml += `<tr><td style="font-style:italic">${esp}</td><td>${vari}</td><td>${tipo.toUpperCase()}</td><td style="text-align:center">${cant||''}</td></tr>`;
+  });
+  matHtml += `<tr><td></td><td></td><td><strong>TOTAL</strong></td><td style="text-align:center"><strong>${totalCant}</strong></td></tr>`;
+
+  // Portainjerto: con negrita + especie solo si hay más de una especie
+  const especies = [...new Set(mat.map(r => r.esp).filter(Boolean))];
+  const portainjertos = [...new Set(mat.map(r => r.portainjerto || r.pi || '').filter(Boolean))];
+  const piVal = portainjertos[0] || '______';
+  let portaStr;
+  if (especies.length > 1) {
+    portaStr = `patrón <strong>${piVal}</strong> para <em>${especies.join(' / ')}</em>`;
+  } else {
+    portaStr = `patrón <strong>${piVal}</strong>${especies[0] ? ` para <em>${especies[0]}</em>` : ''}`;
+  }
+
+  // Req frío
+  const sinFrio = !frio || frio === 'No';
+  const frioTexto = sinFrio
+    ? 'El material a internar no requerirá de Horas-Frío, previo a su establecimiento.'
+    : `El material a internar requerirá de <strong>${horasFrio || '______'} Horas-Frío</strong>, previo a su establecimiento.`;
+
+  // Contrapartes
+  let cpTexto;
+  if (!cp1 && !cp2) {
+    cpTexto = 'El importador designa como Contraparte Técnica ante el SAG para la etapa de importación y cuarentena al/la Ing. Agrónomo Sr(a). <span class="hl">______</span>.';
+  } else if (cp1 && cp2 && cp1.trim().toLowerCase() !== cp2.trim().toLowerCase()) {
+    cpTexto = `El importador designa como Contraparte Técnica ante el SAG para la etapa de importación al/la Ing. Agrónomo Sr(a). <span class="hl">${cp1}</span> y para la etapa de cuarentena al/la Ing. Agrónomo Sr(a). <span class="hl">${cp2}</span>.`;
+  } else {
+    cpTexto = `El importador designa como Contraparte Técnica ante el SAG para la etapa de importación y cuarentena al/la Ing. Agrónomo Sr(a). <span class="hl">${cp1 || cp2}</span>.`;
+  }
+
+  // Bloques CE vs no-CE
+  const vistosRes = isCE
+    ? 'y la Resolución N° <span class="hl">______</span> de <span class="hl">______</span> y sus modificaciones, todas del Servicio Agrícola y Ganadero.'
+    : 'y las Resoluciones N° 136 de 2021, 5.561 de 2024 y sus modificaciones, todas del Servicio Agrícola y Ganadero.';
+
+  const considerando3 = isCE ? '' : `
+  <li>Que, se debe corregir el método de análisis para la detección de eriófidos señalado en el resuelvo 1.1.6 de la Resolución N° 136 de 2021.</li>`;
+
+  const resolucionRef = isCE
+    ? 'la Resolución N° <span class="hl">______</span> de <span class="hl">______</span> y sus modificaciones'
+    : 'las Resoluciones N° 136 de 2021, 5.561 de 2024 y sus modificaciones';
+
+  const certRes = isCE
+    ? 'la Resolución N° <span class="hl">______</span> de <span class="hl">______</span> y todas sus modificaciones'
+    : 'las Resoluciones N° 136 de 2021, 5.561 de 2024 y sus modificaciones';
+
+  const resuelvo3eriofidos = isCE ? '' : `
+  <li>Para la certificación de las declaraciones adicionales de las plagas <em>Eriophyes insidiosus</em>, <em>Phytoptus emarginatae</em> y <em>Acalitus phloeocoptes</em> (Ac. Eriophyidae), se deberá realizar apertura de escamas de yemas dormantes bajo un microscopio estereoscópico normal, y ante la detección de ácaros, se deberá proceder a la identificación de la especie utilizando un microscopio binocular con contraste de fase.</li>`;
+
+  const resuelvoAeropuerto = isCE ? `
+  <li>El ingreso del material vegetal al país y trámite de importación solo podrá realizarse en la Oficina SAG de Comercio Exterior situada en el Aeropuerto Internacional Arturo Merino Benítez de la Región Metropolitana. Bajo ninguna circunstancia se permitirá que la carga ingrese vía pasajero como equipaje acompañado.</li>` : '';
+
+  // Numeración dinámica de resuelvo
+  // CE:    1 Autoriza · 2 Certificado · 3 Señalética · 4 Docs aduaneros · 5 Variedades protegidas · 6 Cuarentena · 7 Frío · 8 Portainjertos · 9 Aeropuerto · 10 Contrapartes · 11 Vigencia
+  // noCE:  1 Autoriza · 2 Certificado · 3 Eriofidos · 4 Señalética · 5 Docs aduaneros · 6 Variedades protegidas · 7 Cuarentena · 8 Frío · 9 Portainjertos · 10 Contrapartes · 11 Vigencia
+  const n = isCE
+    ? { cert:2, senaletica:3, docs:4, vrp:5, cuar:6, frio:7, pi:8, amb:9, cp:10, vig:11 }
+    : { cert:2, erio:3, senaletica:4, docs:5, vrp:6, cuar:7, frio:8, pi:9, cp:10, vig:11 };
+
+  const html = `<div class="doc" style="max-width:800px;margin:0 auto;font-family:'Times New Roman',serif;font-size:11pt;line-height:1.5">
+
+  <div style="text-align:center;margin-bottom:24px">
+    <strong>BORRADOR — RESOLUCIÓN EXENTA Nº: <span class="hl">______/______</span></strong><br>
+    <strong>AUTORIZA INTERNACIÓN Y DISPONE CUARENTENA ABSOLUTA A MATERIAL VEGETAL QUE INDICA</strong>
+  </div>
+
+  <p style="text-align:center">Santiago, <span class="hl">______</span></p>
+
+  <p><strong>VISTOS:</strong></p>
+  <p style="text-align:justify">Lo dispuesto en la Ley N° 18.755 Orgánica del Servicio Agrícola y Ganadero, la Ley N° 19.880 que establece bases generales de los procedimientos administrativos que rigen los actos de los órganos de la administración del Estado, la Ley 19.342 de 1994 que regula derecho de obtentores de nuevas variedades vegetales, el Decreto Ley N° 3.557 de 1980 sobre Protección Agrícola, el Decreto N° 510 de 2016 que habilita puertos para la importación de mercancías sujetas a revisión del Servicio Agrícola y Ganadero, todos del Ministerio de Agricultura, las Resoluciones N°s 733 de 1998, 3.080 de 2003, 3.815 de 2003, 3.589 de 2012, 6.383 de 2013, 7.316 de 2013, 373 de 2019, 1.284 de 2021 y sus modificaciones, ${vistosRes}</p>
+
+  <p><strong>CONSIDERANDO:</strong></p>
+  <ol style="text-align:justify">
+    <li>La Solicitud de Autorización de Cuarentena Posentrada Absoluta N° <span class="hl">${nsol}</span>, presentada por <strong><span class="hl">${imp}</span></strong>, <span class="hl">${fechaTexto}</span> ante la Estación de Cuarentena Agrícola (ECA) del SAG.</li>
+    <li>Que, en virtud de los compromisos adquiridos por el país ante la Unión Internacional para la Protección de las Obtenciones Vegetales (UPOV), y lo estipulado en la Ley N° 19.342, el SAG debe velar para que se cumplan con los acuerdos internacionales relativos a la protección de las variedades de plantas y partes de plantas en el país.</li>
+    ${considerando3}
+  </ol>
+
+  <p><strong>RESUELVO:</strong></p>
+  <ol style="text-align:justify">
+    <li><strong>AUTORÍZASE A <span class="hl">${imp.toUpperCase()}</span>,</strong> la internación bajo Cuarentena Posentrada Absoluta de los materiales vegetales de propagación que más adelante se detallan, a condición de cumplir con la normativa general establecida en ${resolucionRef}, todas del Servicio Agrícola y Ganadero y las particularidades que a continuación se indican:
+
+    <table style="width:100%;border-collapse:collapse;margin:12px 0;font-size:10.5pt">
+      <tr><td style="border:1px solid #333;padding:5px 8px;width:35%;font-weight:bold">Puerto ingreso</td><td style="border:1px solid #333;padding:5px 8px;text-align:center">AEROPUERTO A. MERINO BENITEZ</td></tr>
+      <tr><td style="border:1px solid #333;padding:5px 8px;font-weight:bold">País origen</td><td style="border:1px solid #333;padding:5px 8px;text-align:center"><span class="hl">${paisDisplay}</span></td></tr>
+      <tr><td style="border:1px solid #333;padding:5px 8px;font-weight:bold">Uso</td><td style="border:1px solid #333;padding:5px 8px;text-align:center"><span class="hl">${usoDisplay}</span></td></tr>
+      <tr><td style="border:1px solid #333;padding:5px 8px;font-weight:bold">Nombre proveedor</td><td style="border:1px solid #333;padding:5px 8px;text-align:center"><span class="hl">${(prov||'______').toUpperCase()}</span></td></tr>
+      <tr><td style="border:1px solid #333;padding:5px 8px;font-weight:bold">Tipo de Estación Cuarentenaria</td><td style="border:1px solid #333;padding:5px 8px;text-align:center">EC1</td></tr>
+    </table>
+
+    El detalle del material vegetal de propagación a internar es el siguiente:
+    <table style="width:100%;border-collapse:collapse;margin:10px 0;font-size:10.5pt">
+      <tr style="background:#e8e8e8"><th style="border:1px solid #333;padding:5px 8px">ESPECIE</th><th style="border:1px solid #333;padding:5px 8px">VARIEDAD</th><th style="border:1px solid #333;padding:5px 8px">TIPO MATERIAL</th><th style="border:1px solid #333;padding:5px 8px;text-align:center">CANTIDAD</th></tr>
+      ${matHtml}
+    </table>
+    </li>
+
+    <li>El envío deberá venir amparado por un Certificado del Servicio Fitosanitario de <span class="hl">${paisCert}</span>, en el que consten los requisitos, declaraciones adicionales y tratamientos de desinfección descritos para la especie en ${certRes}.</li>
+
+    ${resuelvo3eriofidos}
+
+    <li>Se deberá consignar en cada unidad de importación la especie y variedad del material vegetal y lo establecido en el artículo N° 5 de la Resolución N° 3.815 de 2003. Adicionalmente, el envío deberá estar identificado con una señalética, a lo menos, en las dos caras de mayor dimensión de cada una de las unidades de empaque que conforman el envío, las que deberán cubrir una superficie mínima de 20%, indicando en letras destacadas de color rojo: CUARENTENA MATERIAL VEGETAL; SAG.<br>
+    La documentación será revisada y la partida inspeccionada por profesionales del SAG destacados en el Punto de Ingreso, quienes verificarán la condición fitosanitaria y con la documentación adjunta resolverán su ingreso a Cuarentena Posentrada.</li>
+
+    <li>Los documentos aduaneros relacionados con la importación de material vegetal de propagación que deba cumplir con cuarentena de postentrada, deberán señalar en forma clara y explícita la denominación de la variedad (nombre de la variedad).</li>
+
+    <li>Si alguna de las variedades indicadas en esta Resolución se encuentra inscrita en el Registro de Variedades Protegidas en Chile, el importador deberá presentar ante el SAG de la Oficina correspondiente, previo al término de las restricciones cuarentenarias, un documento que acredite la autorización para multiplicar y/o comercializar dicha variedad en Chile, emitido por el propietario, el obtentor o su representante legal en el país. Si este documento no es presentado en el plazo señalado, no podrá autorizarse la liberación de la variedad, y deberá ser destruida en caso de no regularizarse su situación.</li>
+
+    <li>La totalidad del material deberá cumplir Cuarentena de Posentrada bajo las condiciones establecidas en las Resoluciones N° 6.383, 7.316 de 2013, 373 de 2019 y sus modificaciones, instancia en que se realizarán los controles oficiales tendientes a la verificación de ausencia de las Plagas Reglamentadas.</li>
+
+    <li>${frioTexto}</li>
+
+    <li>Los portainjertos requeridos para la injertación serán proporcionados por el importador, correspondiendo a ${portaStr}, los cuales deberán cumplir con la normativa de viveros y ser entregados en la Estación Cuarentenaria Agrícola del SAG, 30 días previo al ingreso del material de cuarentena.</li>
+
+    ${resuelvoAeropuerto}
+
+    <li>${cpTexto}</li>
+
+    <li>Esta autorización tendrá una vigencia de ingreso de los materiales de 30 días a contar de la fecha de su emisión y contempla la importación de un único envío.</li>
+  </ol>
+
+  <p style="margin-top:24px">ANÓTESE, COMUNÍQUESE Y NOTIFÍQUESE</p>
+
+  <div style="margin-top:60px;text-align:center">
+    <div style="border-top:1px solid #333;width:260px;margin:0 auto;padding-top:6px">
+      <strong>______________________________</strong><br>
+      JEFA (S) DEPARTAMENTO RED SAG DE LABORATORIOS
+    </div>
+  </div>
+
+  <p style="margin-top:32px;font-size:9pt;color:#555">
+    <em>Borrador generado automáticamente desde datos de Solicitud N° ${nsol} — ${imp}.<br>
+    Los campos marcados en amarillo deben ser verificados y completados antes de la firma oficial.</em>
+  </p>
+</div>`;
+
+  _openDoc(html, `Borrador Res. — Sol. ${nsol} — ${imp}`, 'Borrador Resolución de Internación');
+}
+
 function generarActaRecepcion() {
   const mat = _matRows();
   if(!_v('f1-imp')){ setS('Complete datos del registro primero.','warn'); return; }
