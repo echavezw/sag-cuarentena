@@ -8968,6 +8968,15 @@ async function guardarNuevo(type) {
       return;
     }
   }
+  // Validar duplicados para proveedor
+  if(type === 'proveedor') {
+    const nombreNuevo = (v('n-prov-nombre')||'').toLowerCase().trim();
+    const yaExiste = refProveedores.some(r => (r['Nombre']||'').toLowerCase().trim() === nombreNuevo);
+    if(yaExiste) {
+      if(errEl) { errEl.textContent='Este proveedor ya existe en el listado.'; errEl.style.display='block'; }
+      return;
+    }
+  }
   try {
     await ensureToken();
     const row = cfg.buildRow();
@@ -9141,6 +9150,8 @@ function saveProveedorIfNew(prov) {
   if(accessToken && GS.sheetId) {
     const ciudad = v('f1-prov-ciudad')||'';
     const rowData = [prov.trim(), ciudad];
+    // Actualizar refProveedores optimísticamente para evitar race conditions en duplicados
+    refProveedores.push({'Nombre': prov.trim(), 'Ciudad': ciudad});
     fetch(`${BASE_URL}/${GS.sheetId}/values/Proveedores!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
       {method:'POST',
        headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
