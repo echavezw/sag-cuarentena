@@ -1018,11 +1018,16 @@ marcaRespaldo +
   '</div>' +
 '</div>' +
 
+'<div style="background:#fff8e1;border:0.5px solid #e0a800;border-radius:2px;padding:5px 10px;margin-top:8px;font-size:8pt;display:flex;align-items:center;gap:12px">' +
+  '<span style="font-weight:bold;color:#7a5c00">Fecha de Envío al SAG:</span>&nbsp;' +
+  '<span style="font-weight:bold;color:#4a3500">'+(function(){ const n=new Date(); return ('0'+n.getDate()).slice(-2)+'-'+('0'+(n.getMonth()+1)).slice(-2)+'-'+n.getFullYear()+' '+('0'+n.getHours()).slice(-2)+':'+('0'+n.getMinutes()).slice(-2)+':'+('0'+n.getSeconds()).slice(-2); })()+'</span>' +
+  '<span style="font-size:7pt;color:#7a5c00;margin-left:auto">Registrado automáticamente por el sistema al momento del envío</span>' +
+'</div>' +
 '<div class="footer-form">' +
   'F-IIT-IMP-PA-002 · Red de Laboratorios SAG-ECA · Región Metropolitana<br>' +
   'Servicio Agrícola y Ganadero | Departamento RED de Laboratorios SAG | Estación de Cuarentena Agrícola (ECA)<br>' +
   'Documento generado electrónicamente el '+fechaHoy+' — Requiere firma manuscrita o digital para ser válido<br>' +
-  'Desarrollado por EChW' +
+  'Desarrollado por Ing. Agr. Eduardo Chávez Weisser' +
 '</div>' +
 
 '<script>window.onload=function(){ window.print(); }<\/script>' +
@@ -1419,7 +1424,8 @@ document.getElementById('solicitudForm').addEventListener('submit', function(e){
     autorizaEnvioCorreo: document.querySelector('input[name=autorizaEnvio]:checked').value==='SI',
     pdfBase64:          pdfBase64,
     pdfNombreArchivo:   pdfNombreArchivo,
-    folioReservado:     solicitudReservada ? solicitudReservada.folio : null
+    folioReservado:     solicitudReservada ? solicitudReservada.folio : null,
+    fechaEnvio:         (function(){ const n=new Date(); return ('0'+n.getDate()).slice(-2)+'-'+('0'+(n.getMonth()+1)).slice(-2)+'-'+n.getFullYear()+' '+('0'+n.getHours()).slice(-2)+':'+('0'+n.getMinutes()).slice(-2)+':'+('0'+n.getSeconds()).slice(-2); })()
   };
 
   mostrarOverlayEnvio();
