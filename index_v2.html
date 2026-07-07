@@ -10583,13 +10583,346 @@ function generarBorradorResolucion() {
 }
 
 function _cargarDocxJsYGenerar(d) {
-  if (window.docx) { _buildDocx(d); return; }
-  setS('Cargando librería Word…', 'info');
-  const s = document.createElement('script');
-  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.umd.min.js';
-  s.onload = () => { setS('', ''); _buildDocx(d); };
-  s.onerror = () => setS('No se pudo cargar la librería para generar Word. Verifique conexión.', 'err');
-  document.head.appendChild(s);
+  // Genera .docx directamente sin librerías externas
+  // Un .docx es un ZIP con archivos XML — implementamos ZIP mínimo en JS puro
+  try { _buildDocx(d); }
+  catch(e) { console.error('_buildDocx error:', e); setS('Error al generar Word: ' + e.message, 'err'); }
+}
+
+// ── ZIP mínimo (solo lo necesario para .docx: store sin compresión) ──────────
+function _zipCreate() {
+  const files = [];
+  return {
+    add(name, data) { // data: string o Uint8Array
+      const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : data;
+      files.push({ name, bytes });
+    },
+    toUint8Array() {
+      const enc = s => new TextEncoder().encode(s);
+      const u16le = n => [n & 0xff, (n >> 8) & 0xff];
+      const u32le = n => [n & 0xff, (n >> 8) & 0xff, (n >> 16) & 0xff, (n >> 24) & 0xff];
+      const crc32 = (() => {
+        const t = new Uint32Array(256);
+        for (let i = 0; i < 256; i++) {
+          let c = i;
+          for (let j = 0; j < 8; j++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+          t[i] = c;
+        }
+        return (b) => { let c = 0xFFFFFFFF; for (const x of b) c = t[(c ^ x) & 0xff] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+      })();
+      const parts = []; const central = []; let offset = 0;
+      const now = new Date();
+      const dosDate = ((now.getFullYear()-1980) << 9) | ((now.getMonth()+1) << 5) | now.getDate();
+      const dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
+      for (const {name, bytes} of files) {
+        const nameB = enc(name); const crc = crc32(bytes);
+        const lh = [...enc('PK\x03\x04'), ...u16le(20), ...u16le(0), ...u16le(0),
+          ...u16le(dosTime), ...u16le(dosDate), ...u32le(crc),
+          ...u32le(bytes.length), ...u32le(bytes.length),
+          ...u16le(nameB.length), ...u16le(0), ...nameB];
+        parts.push(new Uint8Array(lh), bytes);
+        const ch = [...enc('PK\x01\x02'), ...u16le(0x0314), ...u16le(20), ...u16le(0), ...u16le(0),
+          ...u16le(dosTime), ...u16le(dosDate), ...u32le(crc),
+          ...u32le(bytes.length), ...u32le(bytes.length),
+          ...u16le(nameB.length), ...u16le(0), ...u16le(0), ...u16le(0), ...u16le(0),
+          ...u32le(0), ...u32le(offset), ...nameB];
+        central.push(new Uint8Array(ch));
+        offset += lh.length + bytes.length;
+      }
+      const centralBytes = central.reduce((a,b)=>[...a,...b],[]);
+      const centralLen = centralBytes.length;
+      const eocd = [...enc('PK\x05\x06'), ...u16le(0), ...u16le(0),
+        ...u16le(files.length), ...u16le(files.length),
+        ...u32le(centralLen), ...u32le(offset), ...u16le(0)];
+      const allParts = [...parts, new Uint8Array(centralBytes), new Uint8Array(eocd)];
+      const total = allParts.reduce((s,p)=>s+p.length,0);
+      const out = new Uint8Array(total); let pos = 0;
+      for (const p of allParts) { out.set(p, pos); pos += p.length; }
+      return out;
+    }
+  };
+}
+
+// ── Helpers XML Word ──────────────────────────────────────────────────────────
+function _wxEsc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function _wxRun(text, opts = {}) {
+  const rPr = [
+    opts.bold    ? '<w:b/><w:bCs/>' : '',
+    opts.italic  ? '<w:i/><w:iCs/>' : '',
+    opts.hl      ? '<w:highlight w:val="yellow"/>' : '',
+    opts.color   ? `<w:color w:val="${opts.color}"/>` : '',
+    opts.size    ? `<w:sz w:val="${opts.size}"/><w:szCs w:val="${opts.size}"/>` : '',
+  ].join('');
+  // Split por saltos de línea reales
+  const segments = String(text||'').split(/\r?\n/);
+  let out = '';
+  segments.forEach((seg, idx) => {
+    if (idx > 0) out += '<w:r><w:br/></w:r>';
+    out += `<w:r>${rPr ? '<w:rPr>'+rPr+'</w:rPr>' : ''}<w:t xml:space="preserve">${_wxEsc(seg)}</w:t></w:r>`;
+  });
+  return out;
+}
+
+function _wxPara(runs, opts = {}) {
+  const jc = opts.center ? '<w:jc w:val="center"/>' : '<w:jc w:val="both"/>';
+  const spacing = `<w:spacing w:after="${opts.after ?? 120}" w:line="276" w:lineRule="auto"/>`;
+  const indent = opts.indent ? `<w:ind w:left="720" w:hanging="720"/>` : '';
+  return `<w:p><w:pPr>${jc}${spacing}${indent}<w:rPr><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr></w:pPr>${Array.isArray(runs)?runs.join(''):runs}</w:p>`;
+}
+
+function _wxCell(content, opts = {}) {
+  const shd = opts.header ? '<w:shd w:val="clear" w:color="auto" w:fill="D9D9D9"/>' : '';
+  const w = opts.w ? `<w:tcW w:w="${opts.w}" w:type="dxa"/>` : '';
+  const vAlign = '<w:vAlign w:val="center"/>';
+  const jc = opts.center ? '<w:jc w:val="center"/>' : '';
+  const pPr = `<w:pPr>${jc||'<w:jc w:val="center"/>'}<w:spacing w:after="40"/><w:rPr><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr></w:pPr>`;
+  const runs = Array.isArray(content) ? content.join('') : content;
+  return `<w:tc><w:tcPr>${w}${shd}${vAlign}<w:tcMar><w:top w:w="80" w:type="dxa"/><w:bottom w:w="80" w:type="dxa"/><w:left w:w="120" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tcMar></w:tcPr><w:p>${pPr}${runs}</w:p></w:tc>`;
+}
+
+function _wxTable(rows) {
+  const tblPr = `<w:tblPr><w:tblW w:w="10800" w:type="dxa"/><w:tblBorders>
+    <w:top w:val="single" w:sz="4" w:space="0" w:color="333333"/>
+    <w:left w:val="single" w:sz="4" w:space="0" w:color="333333"/>
+    <w:bottom w:val="single" w:sz="4" w:space="0" w:color="333333"/>
+    <w:right w:val="single" w:sz="4" w:space="0" w:color="333333"/>
+    <w:insideH w:val="single" w:sz="4" w:space="0" w:color="333333"/>
+    <w:insideV w:val="single" w:sz="4" w:space="0" w:color="333333"/>
+  </w:tblBorders></w:tblPr>`;
+  return `<w:tbl>${tblPr}${rows.join('')}</w:tbl>`;
+}
+
+function _wxRow(cells) { return `<w:tr>${cells.join('')}</w:tr>`; }
+
+// ── Documento principal ───────────────────────────────────────────────────────
+function _buildDocx(d) {
+  const t  = (txt, o) => _wxRun(txt, o);
+  const hl = (txt, o) => _wxRun(txt, {...o, hl:true});
+  const p  = (runs, o) => _wxPara(runs, o);
+  const pc = (runs, o) => _wxPara(runs, {...o, center:true});
+
+  // ── Tabla info general ──
+  const infoRows = [
+    ['Puerto ingreso',              t('AEROPUERTO A. MERINO BENITEZ'),        false, 4000, 6800],
+    ['País origen',                 hl(d.paisDisplay),                         true,  4000, 6800],
+    ['Uso',                         hl(d.usoDisplay),                          true,  4000, 6800],
+    ['Nombre proveedor',            hl((d.prov||'______').toUpperCase()),       true,  4000, 6800],
+    ['Tipo de Estación Cuarentenaria', t('EC1'),                               false, 4000, 6800],
+  ].map(([lbl, val, , w1, w2]) =>
+    _wxRow([
+      _wxCell(t(lbl, {bold:true}), {w:w1}),
+      _wxCell(val, {w:w2, center:true}),
+    ])
+  );
+
+  // ── Tabla material ──
+  const matHeader = _wxRow([
+    _wxCell(t('ESPECIE',{bold:true}),       {w:3000,header:true,center:true}),
+    _wxCell(t('VARIEDAD',{bold:true}),      {w:2700,header:true,center:true}),
+    _wxCell(t('TIPO MATERIAL',{bold:true}), {w:2800,header:true,center:true}),
+    _wxCell(t('CANTIDAD',{bold:true}),      {w:2300,header:true,center:true}),
+  ]);
+  const matRows = d.mat.map(r => {
+    const cant = parseFloat(String(r.cant||'0').replace(',','.')) || 0;
+    return _wxRow([
+      _wxCell(hl(r.esp||'', {italic:true}),         {w:3000}),
+      _wxCell(hl(r.vari||''),                        {w:2700,center:true}),
+      _wxCell(hl((r.tipo||'').toUpperCase()),        {w:2800,center:true}),
+      _wxCell(hl(String(cant||'')),                  {w:2300,center:true}),
+    ]);
+  });
+  const matTotal = _wxRow([
+    _wxCell(t(''), {w:3000}),
+    _wxCell(t(''), {w:2700}),
+    _wxCell(t('TOTAL',{bold:true}), {w:2800,center:true}),
+    _wxCell(hl(String(d.totalCant),{bold:true}), {w:2300,center:true}),
+  ]);
+
+  // ── Resuelvo items ──
+  const items = [];
+  let idx = 2;
+
+  // 2: Certificado fitosanitario
+  items.push(p([t(`${idx}.\t`), t('El envío deberá venir amparado por un Certificado del Servicio Fitosanitario de '),
+    hl(d.paisCert), t(', en el que consten los requisitos, declaraciones adicionales y tratamientos de desinfección descritos para la especie en '),
+    t(d.certRes + '.')], {indent:true})); idx++;
+
+  // 3 (no-CE): eriófidos
+  if (!d.isCE) {
+    items.push(p([t(`${idx}.\t`), t('Para la certificación de las declaraciones adicionales de las plagas '),
+      t('Eriophyes insidiosus',{italic:true}), t(', '), t('Phytoptus emarginatae',{italic:true}),
+      t(' y '), t('Acalitus phloeocoptes',{italic:true}),
+      t(' (Ac. Eriophyidae), se deberá realizar apertura de escamas de yemas dormantes bajo un microscopio estereoscópico normal, y ante la detección de ácaros, se deberá proceder a la identificación de la especie utilizando un microscopio binocular con contraste de fase.')],
+      {indent:true})); idx++;
+  }
+
+  // Señalética
+  items.push(p([t(`${idx}.\t`), t('Se deberá consignar en cada unidad de importación la especie y variedad del material vegetal y lo establecido en el artículo N° 5 de la Resolución N° 3.815 de 2003. Adicionalmente, el envío deberá estar identificado con una señalética, a lo menos, en las dos caras de mayor dimensión de cada una de las unidades de empaque que conforman el envío, las que deberán cubrir una superficie mínima de 20%, indicando en letras destacadas de color rojo: CUARENTENA MATERIAL VEGETAL; SAG.\n\tLa documentación será revisada y la partida inspeccionada por profesionales del SAG destacados en el Punto de Ingreso, quienes verificarán la condición fitosanitaria y con la documentación adjunta resolverán su ingreso a Cuarentena Posentrada.')],
+    {indent:true})); idx++;
+
+  // Docs aduaneros
+  items.push(p([t(`${idx}.\t`), t('Los documentos aduaneros relacionados con la importación de material vegetal de propagación que deba cumplir con cuarentena de postentrada, deberán señalar en forma clara y explícita la denominación de la variedad (nombre de la variedad).')], {indent:true})); idx++;
+
+  // Variedades protegidas
+  items.push(p([t(`${idx}.\t`), t('Si alguna de las variedades indicadas en esta Resolución se encuentra inscrita en el Registro de Variedades Protegidas en Chile, el importador deberá presentar ante el SAG de la Oficina correspondiente, previo al término de las restricciones cuarentenarias, un documento que acredite la autorización para multiplicar y/o comercializar dicha variedad en Chile, emitido por el propietario, el obtentor o su representante legal en el país. Si este documento no es presentado en el plazo señalado, no podrá autorizarse la liberación de la variedad, y deberá ser destruida en caso de no regularizarse su situación.')], {indent:true})); idx++;
+
+  // Cuarentena posentrada
+  items.push(p([t(`${idx}.\t`), t('La totalidad del material deberá cumplir Cuarentena de Posentrada bajo las condiciones establecidas en las Resoluciones N° 6.383, 7.316 de 2013, 373 de 2019 y sus modificaciones, instancia en que se realizarán los controles oficiales tendientes a la verificación de ausencia de las Plagas Reglamentadas.')], {indent:true})); idx++;
+
+  // Req frío
+  items.push(p([t(`${idx}.\t`), t(d.frioTexto)], {indent:true})); idx++;
+
+  // Portainjertos
+  const piRuns = [t(`${idx}.\t`), t('Los portainjertos requeridos para la injertación serán proporcionados por el importador, correspondiendo a patrón '),
+    hl(d.piVal, {bold:true})];
+  if (d.especies && d.especies[0]) { piRuns.push(t(' para ')); piRuns.push(hl(d.especies.join(' / '), {italic:true})); }
+  piRuns.push(t(', los cuales deberán cumplir con la normativa de viveros y ser entregados en la Estación Cuarentenaria Agrícola del SAG, 30 días previo al ingreso del material de cuarentena.'));
+  items.push(p(piRuns, {indent:true})); idx++;
+
+  // Aeropuerto (solo CE)
+  if (d.isCE) {
+    items.push(p([t(`${idx}.\t`), t('El ingreso del material vegetal al país y trámite de importación solo podrá realizarse en la Oficina SAG de Comercio Exterior situada en el Aeropuerto Internacional Arturo Merino Benítez de la Región Metropolitana. Bajo ninguna circunstancia se permitirá que la carga ingrese vía pasajero como equipaje acompañado.')], {indent:true})); idx++;
+  }
+
+  // Contrapartes
+  items.push(p([t(`${idx}.\t`), hl(d.cpTexto)], {indent:true})); idx++;
+
+  // Vigencia
+  items.push(p([t(`${idx}.\t`), t('Esta autorización tendrá una vigencia de ingreso de los materiales de 30 días a contar de la fecha de su emisión y contempla la importación de un único envío.')], {indent:true}));
+
+  // ── Considerando ──
+  const considerandoItems = [
+    p([t('1.\t'), t('La Solicitud de Autorización de Cuarentena Posentrada Absoluta N° '),
+      hl(d.nsol), t(', presentada por '), t(d.imp, {bold:true}),
+      t(', '), hl(d.fechaTexto), t(' ante la Estación de Cuarentena Agrícola (ECA) del SAG.')], {indent:true}),
+    p([t('2.\t'), t('Que, en virtud de los compromisos adquiridos por el país ante la Unión Internacional para la Protección de las Obtenciones Vegetales (UPOV), y lo estipulado en la Ley N° 19.342, el SAG debe velar para que se cumplan con los acuerdos internacionales relativos a la protección de las variedades de plantas y partes de plantas en el país.')], {indent:true}),
+  ];
+  if (!d.isCE) {
+    considerandoItems.push(p([t('3.\t'), t('Que, se debe corregir el método de análisis para la detección de eriófidos señalado en el resuelvo 1.1.6 de la Resolución N° 136 de 2021.')], {indent:true}));
+  }
+
+  // ── Resuelvo 1 ──
+  const resuelvo1 = [
+    p([t('1.\t'), t('AUTORÍZASE A ', {bold:true}), hl(d.imp.toUpperCase(), {bold:true}),
+      t(', la internación bajo Cuarentena Posentrada Absoluta de los materiales vegetales de propagación que más adelante se detallan, a condición de cumplir con la normativa general establecida en '),
+      t(d.resolucionRef), t(', todas del Servicio Agrícola y Ganadero y las particularidades que a continuación se indican:')], {indent:true}),
+    p('', {after:80}),
+    _wxTable(infoRows),
+    p([t('El detalle del material vegetal de propagación a internar es el siguiente:')], {after:80}),
+    _wxTable([matHeader, ...matRows, matTotal]),
+    p('', {after:120}),
+  ];
+
+  // ── Armar body.xml ──
+  const bodyContent = [
+    // Título
+    pc([t('BORRADOR — RESOLUCIÓN EXENTA N°: ', {bold:true}), hl('______/______', {bold:true})], {after:80}),
+    pc([t('AUTORIZA INTERNACIÓN Y DISPONE CUARENTENA ABSOLUTA A MATERIAL VEGETAL QUE INDICA', {bold:true})], {after:160}),
+    pc([t('Santiago, '), hl('______')], {after:200}),
+
+    // VISTOS
+    pc([t('VISTOS:', {bold:true})], {after:120}),
+    p([t('Lo dispuesto en la Ley N° 18.755 Orgánica del Servicio Agrícola y Ganadero, la Ley N° 19.880 que establece bases generales de los procedimientos administrativos que rigen los actos de los órganos de la administración del Estado, la Ley 19.342 de 1994 que regula derecho de obtentores de nuevas variedades vegetales, el Decreto Ley N° 3.557 de 1980 sobre Protección Agrícola, el Decreto N° 510 de 2016 que habilita puertos para la importación de mercancías sujetas a revisión del Servicio Agrícola y Ganadero, todos del Ministerio de Agricultura, las Resoluciones N°s 733 de 1998, 3.080 de 2003, 3.815 de 2003, 3.589 de 2012, 6.383 de 2013, 7.316 de 2013, 373 de 2019, 1.284 de 2021 y sus modificaciones, '), t(d.vistosRes)]),
+    p('', {after:120}),
+
+    // CONSIDERANDO
+    pc([t('CONSIDERANDO:', {bold:true})], {after:120}),
+    ...considerandoItems,
+    p('', {after:120}),
+
+    // RESUELVO
+    pc([t('RESUELVO:', {bold:true})], {after:120}),
+    ...resuelvo1,
+    ...items,
+    p('', {after:400}),
+
+    // Cierre
+    p([t('ANÓTESE, COMUNÍQUESE Y NOTIFÍQUESE')]),
+    p('', {after:700}),
+    pc([t('______________________________')], {after:40}),
+    pc([t('JEFA (S) DEPARTAMENTO RED SAG DE LABORATORIOS', {bold:true})], {after:40}),
+    p('', {after:300}),
+    pc([t(`Borrador generado automáticamente — Sol. N° ${d.nsol} — ${d.imp}`, {color:'888888'})]),
+  ].join('');
+
+  const fontDecl = `<w:font w:name="Times New Roman"><w:panose1 w:val="02020603050405020304"/><w:charset w:val="00"/><w:family w:val="roman"/><w:pitch w:val="variable"/><w:sig w:usb0="E0002EFF" w:usb1="C000785B" w:usb2="00000009" w:usb3="00000000" w:csb0="000001FF" w:csb1="00000000"/></w:font>`;
+
+  const docXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:o="urn:schemas-microsoft-com:office:office"
+  xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+  xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"
+  xmlns:v="urn:schemas-microsoft-com:vml"
+  xmlns:wp14="http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing"
+  xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+  xmlns:w10="urn:schemas-microsoft-com:office:word"
+  xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+  xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml"
+  xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup"
+  xmlns:wpi="http://schemas.microsoft.com/office/word/2010/wordprocessingInk"
+  xmlns:wne="http://schemas.microsoft.com/office/word/2006/wordml"
+  xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"
+  mc:Ignorable="w14 wp14">
+<w:body>
+<w:sectPr>
+  <w:pgSz w:w="12240" w:h="15840"/>
+  <w:pgMar w:top="1417" w:right="1134" w:bottom="1417" w:left="1701" w:header="709" w:footer="709" w:gutter="0"/>
+</w:sectPr>
+${bodyContent}
+</w:body></w:document>`;
+
+  const relsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`;
+
+  const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:docDefaults>
+    <w:rPrDefault><w:rPr>
+      <w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/>
+      <w:sz w:val="22"/><w:szCs w:val="22"/>
+    </w:rPr></w:rPrDefault>
+    <w:pPrDefault><w:pPr>
+      <w:jc w:val="both"/>
+      <w:spacing w:after="120" w:line="276" w:lineRule="auto"/>
+    </w:pPr></w:pPrDefault>
+  </w:docDefaults>
+</w:styles>`;
+
+  const contentTypesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+</Types>`;
+
+  const rootRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`;
+
+  const zip = _zipCreate();
+  zip.add('[Content_Types].xml', contentTypesXml);
+  zip.add('_rels/.rels', rootRelsXml);
+  zip.add('word/document.xml', docXml);
+  zip.add('word/styles.xml', stylesXml);
+  zip.add('word/_rels/document.xml.rels', relsXml);
+
+  const bytes = zip.toUint8Array();
+  const blob = new Blob([bytes], {type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Borrador_Res_Sol${d.nsol}_${(d.imp||'').replace(/[^a-zA-Z0-9]/g,'_').substring(0,30)}.docx`;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+  setS('Borrador Word descargado correctamente.', 'ok');
 }
 
 function _buildDocx(d) {
