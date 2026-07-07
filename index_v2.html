@@ -10511,27 +10511,16 @@ function generarBorradorResolucion() {
   const uso      = _v('f1-uso') || 'Propagación';
   const vivero   = _v('f1-vivero');
   const prov     = _v('f1-prov');
-  const fecho    = _v('f1-fech-rec');  // fecha recepción/solicitud
+  const fecho    = _v('f1-fech-rec');
   const frio     = _v('f1-frio');
   const horasFrio= _v('f1-horas-frio');
   const cp1      = _v('f1-cp1-nombre');
   const cp2      = _v('f1-cp2-nombre');
 
-  if (!imp || !nsol) { setS('Complete al menos Importador y N° Solicitud antes de generar el borrador.', 'warn'); return; }
+  if (!imp || !nsol) { setS('Complete al menos Importador y N° Solicitud antes de generar el borrador.','warn'); return; }
 
-  // Determinar si es CE
   const isCE = typeof CE_PAISES !== 'undefined' && CE_PAISES.includes(pais);
 
-  // País de origen para el documento
-  const paisDisplay = isCE ? `PAIS MIEMBRO DE LA COMUNIDAD EUROPEA (${(pais||'').toUpperCase()})` : (pais||'').toUpperCase();
-
-  // País para el Certificado Fitosanitario (resuelvo 2)
-  const paisCert = isCE ? pais : (pais || '______');
-
-  // Uso con código vivero
-  const usoDisplay = uso.toUpperCase() + (vivero ? ` (Cód. Reg. Vivero: ${vivero})` : '');
-
-  // Fecha en texto largo
   const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
   let fechaTexto = '______';
   if (fecho) {
@@ -10539,156 +10528,322 @@ function generarBorradorResolucion() {
     if (!isNaN(d)) fechaTexto = `el ${d.getDate()} de ${MESES[d.getMonth()]} del ${d.getFullYear()}`;
   }
 
-  // Materiales desde _matRows()
+  const paisDisplay = isCE
+    ? `PAIS MIEMBRO DE LA COMUNIDAD EUROPEA (${(pais||'').toUpperCase()})`
+    : (pais||'').toUpperCase();
+  const paisCert = pais || '______';
+  const usoDisplay = uso.toUpperCase() + (vivero ? ` (Cód. Reg. Vivero: ${vivero})` : '');
+
   const mat = _matRows();
-
-  // Tabla de material
-  let matHtml = '';
-  let totalCant = 0;
-  mat.forEach(r => {
-    const esp   = r.esp  || '';
-    const vari  = r.vari || '';
-    const tipo  = r.tipo || '';
-    const cant  = parseFloat(String(r.cant||'0').replace(',','.')) || 0;
-    totalCant  += cant;
-    matHtml += `<tr><td style="font-style:italic">${esp}</td><td>${vari}</td><td>${tipo.toUpperCase()}</td><td style="text-align:center">${cant||''}</td></tr>`;
-  });
-  matHtml += `<tr><td></td><td></td><td><strong>TOTAL</strong></td><td style="text-align:center"><strong>${totalCant}</strong></td></tr>`;
-
-  // Portainjerto: con negrita + especie solo si hay más de una especie
   const especies = [...new Set(mat.map(r => r.esp).filter(Boolean))];
   const portainjertos = [...new Set(mat.map(r => r.portainjerto || r.pi || '').filter(Boolean))];
   const piVal = portainjertos[0] || '______';
-  let portaStr;
-  if (especies.length > 1) {
-    portaStr = `patrón <strong>${piVal}</strong> para <em>${especies.join(' / ')}</em>`;
-  } else {
-    portaStr = `patrón <strong>${piVal}</strong>${especies[0] ? ` para <em>${especies[0]}</em>` : ''}`;
-  }
+  const multiEsp = especies.length > 1;
 
-  // Req frío
+  let totalCant = 0;
+  mat.forEach(r => { totalCant += parseFloat(String(r.cant||'0').replace(',','.')) || 0; });
+
   const sinFrio = !frio || frio === 'No';
   const frioTexto = sinFrio
     ? 'El material a internar no requerirá de Horas-Frío, previo a su establecimiento.'
-    : `El material a internar requerirá de <strong>${horasFrio || '______'} Horas-Frío</strong>, previo a su establecimiento.`;
+    : `El material a internar requerirá de ${horasFrio || '______'} Horas-Frío, previo a su establecimiento.`;
 
-  // Contrapartes
   let cpTexto;
   if (!cp1 && !cp2) {
-    cpTexto = 'El importador designa como Contraparte Técnica ante el SAG para la etapa de importación y cuarentena al/la Ing. Agrónomo Sr(a). <span class="hl">______</span>.';
+    cpTexto = 'El importador designa como Contraparte Técnica ante el SAG para la etapa de importación y cuarentena al/la Ing. Agrónomo Sr(a). ______.';
   } else if (cp1 && cp2 && cp1.trim().toLowerCase() !== cp2.trim().toLowerCase()) {
-    cpTexto = `El importador designa como Contraparte Técnica ante el SAG para la etapa de importación al/la Ing. Agrónomo Sr(a). <span class="hl">${cp1}</span> y para la etapa de cuarentena al/la Ing. Agrónomo Sr(a). <span class="hl">${cp2}</span>.`;
+    cpTexto = `El importador designa como Contraparte Técnica ante el SAG para la etapa de importación al/la Ing. Agrónomo Sr(a). ${cp1} y para la etapa de cuarentena al/la Ing. Agrónomo Sr(a). ${cp2}.`;
   } else {
-    cpTexto = `El importador designa como Contraparte Técnica ante el SAG para la etapa de importación y cuarentena al/la Ing. Agrónomo Sr(a). <span class="hl">${cp1 || cp2}</span>.`;
+    cpTexto = `El importador designa como Contraparte Técnica ante el SAG para la etapa de importación y cuarentena al/la Ing. Agrónomo Sr(a). ${cp1 || cp2}.`;
   }
 
-  // Bloques CE vs no-CE
+  // Textos que varían CE vs no-CE
   const vistosRes = isCE
-    ? 'y la Resolución N° <span class="hl">______</span> de <span class="hl">______</span> y sus modificaciones, todas del Servicio Agrícola y Ganadero.'
+    ? 'y la Resolución N° ______ de ______ y sus modificaciones, todas del Servicio Agrícola y Ganadero.'
     : 'y las Resoluciones N° 136 de 2021, 5.561 de 2024 y sus modificaciones, todas del Servicio Agrícola y Ganadero.';
-
-  const considerando3 = isCE ? '' : `
-  <li>Que, se debe corregir el método de análisis para la detección de eriófidos señalado en el resuelvo 1.1.6 de la Resolución N° 136 de 2021.</li>`;
-
   const resolucionRef = isCE
-    ? 'la Resolución N° <span class="hl">______</span> de <span class="hl">______</span> y sus modificaciones'
+    ? 'la Resolución N° ______ de ______ y sus modificaciones'
     : 'las Resoluciones N° 136 de 2021, 5.561 de 2024 y sus modificaciones';
-
   const certRes = isCE
-    ? 'la Resolución N° <span class="hl">______</span> de <span class="hl">______</span> y todas sus modificaciones'
+    ? 'la Resolución N° ______ de ______ y todas sus modificaciones'
     : 'las Resoluciones N° 136 de 2021, 5.561 de 2024 y sus modificaciones';
 
-  const resuelvo3eriofidos = isCE ? '' : `
-  <li>Para la certificación de las declaraciones adicionales de las plagas <em>Eriophyes insidiosus</em>, <em>Phytoptus emarginatae</em> y <em>Acalitus phloeocoptes</em> (Ac. Eriophyidae), se deberá realizar apertura de escamas de yemas dormantes bajo un microscopio estereoscópico normal, y ante la detección de ácaros, se deberá proceder a la identificación de la especie utilizando un microscopio binocular con contraste de fase.</li>`;
+  // Portainjerto texto
+  const portaTexto = multiEsp
+    ? `patrón ${piVal} para ${especies.join(' / ')}`
+    : `patrón ${piVal}${especies[0] ? ` para ${especies[0]}` : ''}`;
 
-  const resuelvoAeropuerto = isCE ? `
-  <li>El ingreso del material vegetal al país y trámite de importación solo podrá realizarse en la Oficina SAG de Comercio Exterior situada en el Aeropuerto Internacional Arturo Merino Benítez de la Región Metropolitana. Bajo ninguna circunstancia se permitirá que la carga ingrese vía pasajero como equipaje acompañado.</li>` : '';
+  // Cargar docx desde CDN y generar
+  _cargarDocxJsYGenerar({
+    imp, nsol, pais, paisDisplay, paisCert, usoDisplay, prov, fechaTexto,
+    isCE, mat, totalCant, piVal, portaTexto, multiEsp, especies,
+    frioTexto, sinFrio, horasFrio, cpTexto,
+    vistosRes, resolucionRef, certRes
+  });
+}
 
-  // Numeración dinámica de resuelvo
-  // CE:    1 Autoriza · 2 Certificado · 3 Señalética · 4 Docs aduaneros · 5 Variedades protegidas · 6 Cuarentena · 7 Frío · 8 Portainjertos · 9 Aeropuerto · 10 Contrapartes · 11 Vigencia
-  // noCE:  1 Autoriza · 2 Certificado · 3 Eriofidos · 4 Señalética · 5 Docs aduaneros · 6 Variedades protegidas · 7 Cuarentena · 8 Frío · 9 Portainjertos · 10 Contrapartes · 11 Vigencia
-  const n = isCE
-    ? { cert:2, senaletica:3, docs:4, vrp:5, cuar:6, frio:7, pi:8, amb:9, cp:10, vig:11 }
-    : { cert:2, erio:3, senaletica:4, docs:5, vrp:6, cuar:7, frio:8, pi:9, cp:10, vig:11 };
+function _cargarDocxJsYGenerar(d) {
+  if (window.docx) { _buildDocx(d); return; }
+  setS('Cargando librería Word…', 'info');
+  const s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.umd.min.js';
+  s.onload = () => { setS('', ''); _buildDocx(d); };
+  s.onerror = () => setS('No se pudo cargar la librería para generar Word. Verifique conexión.', 'err');
+  document.head.appendChild(s);
+}
 
-  const html = `<div class="doc" style="max-width:800px;margin:0 auto;font-family:'Times New Roman',serif;font-size:11pt;line-height:1.5">
+function _buildDocx(d) {
+  try {
+    const {
+      Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
+      WidthType, AlignmentType, BorderStyle, HeadingLevel,
+      NumberingLevel, convertInchesToTwip, ShadingType
+    } = window.docx;
 
-  <div style="text-align:center;margin-bottom:24px">
-    <strong>BORRADOR — RESOLUCIÓN EXENTA Nº: <span class="hl">______/______</span></strong><br>
-    <strong>AUTORIZA INTERNACIÓN Y DISPONE CUARENTENA ABSOLUTA A MATERIAL VEGETAL QUE INDICA</strong>
-  </div>
+    const PT = n => n * 20; // puntos → half-points (twips para fuente)
+    const CM = n => Math.round(n * 567); // cm → twips (1cm = 567 twips aprox)
 
-  <p style="text-align:center">Santiago, <span class="hl">______</span></p>
+    const FONT = 'Times New Roman';
+    const SZ = 22; // 11pt en half-points
 
-  <p><strong>VISTOS:</strong></p>
-  <p style="text-align:justify">Lo dispuesto en la Ley N° 18.755 Orgánica del Servicio Agrícola y Ganadero, la Ley N° 19.880 que establece bases generales de los procedimientos administrativos que rigen los actos de los órganos de la administración del Estado, la Ley 19.342 de 1994 que regula derecho de obtentores de nuevas variedades vegetales, el Decreto Ley N° 3.557 de 1980 sobre Protección Agrícola, el Decreto N° 510 de 2016 que habilita puertos para la importación de mercancías sujetas a revisión del Servicio Agrícola y Ganadero, todos del Ministerio de Agricultura, las Resoluciones N°s 733 de 1998, 3.080 de 2003, 3.815 de 2003, 3.589 de 2012, 6.383 de 2013, 7.316 de 2013, 373 de 2019, 1.284 de 2021 y sus modificaciones, ${vistosRes}</p>
+    // Helper: párrafo justificado
+    const pj = (runs, opts = {}) => new Paragraph({
+      alignment: AlignmentType.JUSTIFIED,
+      spacing: { after: 120 },
+      ...opts,
+      children: Array.isArray(runs) ? runs : [runs]
+    });
 
-  <p><strong>CONSIDERANDO:</strong></p>
-  <ol style="text-align:justify">
-    <li>La Solicitud de Autorización de Cuarentena Posentrada Absoluta N° <span class="hl">${nsol}</span>, presentada por <strong><span class="hl">${imp}</span></strong>, <span class="hl">${fechaTexto}</span> ante la Estación de Cuarentena Agrícola (ECA) del SAG.</li>
-    <li>Que, en virtud de los compromisos adquiridos por el país ante la Unión Internacional para la Protección de las Obtenciones Vegetales (UPOV), y lo estipulado en la Ley N° 19.342, el SAG debe velar para que se cumplan con los acuerdos internacionales relativos a la protección de las variedades de plantas y partes de plantas en el país.</li>
-    ${considerando3}
-  </ol>
+    // Helper: texto normal
+    const t = (txt, opts = {}) => new TextRun({ text: txt, font: FONT, size: SZ, ...opts });
 
-  <p><strong>RESUELVO:</strong></p>
-  <ol style="text-align:justify">
-    <li><strong>AUTORÍZASE A <span class="hl">${imp.toUpperCase()}</span>,</strong> la internación bajo Cuarentena Posentrada Absoluta de los materiales vegetales de propagación que más adelante se detallan, a condición de cumplir con la normativa general establecida en ${resolucionRef}, todas del Servicio Agrícola y Ganadero y las particularidades que a continuación se indican:
+    // Helper: texto resaltado amarillo (campos variables)
+    const hl = (txt, opts = {}) => new TextRun({
+      text: txt, font: FONT, size: SZ,
+      highlight: 'yellow',
+      ...opts
+    });
 
-    <table style="width:100%;border-collapse:collapse;margin:12px 0;font-size:10.5pt">
-      <tr><td style="border:1px solid #333;padding:5px 8px;width:35%;font-weight:bold">Puerto ingreso</td><td style="border:1px solid #333;padding:5px 8px;text-align:center">AEROPUERTO A. MERINO BENITEZ</td></tr>
-      <tr><td style="border:1px solid #333;padding:5px 8px;font-weight:bold">País origen</td><td style="border:1px solid #333;padding:5px 8px;text-align:center"><span class="hl">${paisDisplay}</span></td></tr>
-      <tr><td style="border:1px solid #333;padding:5px 8px;font-weight:bold">Uso</td><td style="border:1px solid #333;padding:5px 8px;text-align:center"><span class="hl">${usoDisplay}</span></td></tr>
-      <tr><td style="border:1px solid #333;padding:5px 8px;font-weight:bold">Nombre proveedor</td><td style="border:1px solid #333;padding:5px 8px;text-align:center"><span class="hl">${(prov||'______').toUpperCase()}</span></td></tr>
-      <tr><td style="border:1px solid #333;padding:5px 8px;font-weight:bold">Tipo de Estación Cuarentenaria</td><td style="border:1px solid #333;padding:5px 8px;text-align:center">EC1</td></tr>
-    </table>
+    // Helper: párrafo centrado
+    const pc = (runs, opts = {}) => new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 80 },
+      ...opts,
+      children: Array.isArray(runs) ? runs : [runs]
+    });
 
-    El detalle del material vegetal de propagación a internar es el siguiente:
-    <table style="width:100%;border-collapse:collapse;margin:10px 0;font-size:10.5pt">
-      <tr style="background:#e8e8e8"><th style="border:1px solid #333;padding:5px 8px">ESPECIE</th><th style="border:1px solid #333;padding:5px 8px">VARIEDAD</th><th style="border:1px solid #333;padding:5px 8px">TIPO MATERIAL</th><th style="border:1px solid #333;padding:5px 8px;text-align:center">CANTIDAD</th></tr>
-      ${matHtml}
-    </table>
-    </li>
+    // Helper: celda de tabla
+    const tc = (children, opts = {}) => new TableCell({
+      margins: { top: CM(0.08), bottom: CM(0.08), left: CM(0.12), right: CM(0.12) },
+      ...opts,
+      children: Array.isArray(children) ? children : [children]
+    });
 
-    <li>El envío deberá venir amparado por un Certificado del Servicio Fitosanitario de <span class="hl">${paisCert}</span>, en el que consten los requisitos, declaraciones adicionales y tratamientos de desinfección descritos para la especie en ${certRes}.</li>
+    // ── TABLA INFO GENERAL ──
+    const infoRows = [
+      ['Puerto ingreso',           'AEROPUERTO A. MERINO BENITEZ', false],
+      ['País origen',              d.paisDisplay,                  true],
+      ['Uso',                      d.usoDisplay,                   true],
+      ['Nombre proveedor',         (d.prov||'______').toUpperCase(), true],
+      ['Tipo de Estación Cuarentenaria', 'EC1',                   false],
+    ].map(([label, val, isHl]) => new TableRow({ children: [
+      tc(new Paragraph({ children: [t(label, {bold:true})], alignment: AlignmentType.LEFT,
+        spacing:{after:0} }), { width:{ size: 4000, type: WidthType.DXA } }),
+      tc(new Paragraph({ children: [isHl ? hl(val) : t(val)], alignment: AlignmentType.CENTER,
+        spacing:{after:0} }), { width:{ size: 6800, type: WidthType.DXA } }),
+    ]}));
 
-    ${resuelvo3eriofidos}
+    const tblInfo = new Table({
+      width: { size: 10800, type: WidthType.DXA },
+      rows: infoRows,
+    });
 
-    <li>Se deberá consignar en cada unidad de importación la especie y variedad del material vegetal y lo establecido en el artículo N° 5 de la Resolución N° 3.815 de 2003. Adicionalmente, el envío deberá estar identificado con una señalética, a lo menos, en las dos caras de mayor dimensión de cada una de las unidades de empaque que conforman el envío, las que deberán cubrir una superficie mínima de 20%, indicando en letras destacadas de color rojo: CUARENTENA MATERIAL VEGETAL; SAG.<br>
-    La documentación será revisada y la partida inspeccionada por profesionales del SAG destacados en el Punto de Ingreso, quienes verificarán la condición fitosanitaria y con la documentación adjunta resolverán su ingreso a Cuarentena Posentrada.</li>
+    // ── TABLA MATERIAL ──
+    const headerRow = new TableRow({ children: [
+      tc(new Paragraph({ children: [t('ESPECIE', {bold:true})], alignment: AlignmentType.CENTER, spacing:{after:0} }),
+        { width:{ size: 3000, type: WidthType.DXA }, shading:{type:ShadingType.CLEAR,fill:'D9D9D9'} }),
+      tc(new Paragraph({ children: [t('VARIEDAD', {bold:true})], alignment: AlignmentType.CENTER, spacing:{after:0} }),
+        { width:{ size: 2700, type: WidthType.DXA }, shading:{type:ShadingType.CLEAR,fill:'D9D9D9'} }),
+      tc(new Paragraph({ children: [t('TIPO MATERIAL', {bold:true})], alignment: AlignmentType.CENTER, spacing:{after:0} }),
+        { width:{ size: 2800, type: WidthType.DXA }, shading:{type:ShadingType.CLEAR,fill:'D9D9D9'} }),
+      tc(new Paragraph({ children: [t('CANTIDAD', {bold:true})], alignment: AlignmentType.CENTER, spacing:{after:0} }),
+        { width:{ size: 2300, type: WidthType.DXA }, shading:{type:ShadingType.CLEAR,fill:'D9D9D9'} }),
+    ]});
 
-    <li>Los documentos aduaneros relacionados con la importación de material vegetal de propagación que deba cumplir con cuarentena de postentrada, deberán señalar en forma clara y explícita la denominación de la variedad (nombre de la variedad).</li>
+    const matDataRows = d.mat.map(r => {
+      const cant = parseFloat(String(r.cant||'0').replace(',','.')) || 0;
+      return new TableRow({ children: [
+        tc(new Paragraph({ children: [hl(r.esp||'', {italics:true})], spacing:{after:0} }),
+          { width:{ size:3000, type:WidthType.DXA } }),
+        tc(new Paragraph({ children: [hl(r.vari||'')], alignment: AlignmentType.CENTER, spacing:{after:0} }),
+          { width:{ size:2700, type:WidthType.DXA } }),
+        tc(new Paragraph({ children: [hl((r.tipo||'').toUpperCase())], alignment: AlignmentType.CENTER, spacing:{after:0} }),
+          { width:{ size:2800, type:WidthType.DXA } }),
+        tc(new Paragraph({ children: [hl(String(cant||''))], alignment: AlignmentType.CENTER, spacing:{after:0} }),
+          { width:{ size:2300, type:WidthType.DXA } }),
+      ]});
+    });
 
-    <li>Si alguna de las variedades indicadas en esta Resolución se encuentra inscrita en el Registro de Variedades Protegidas en Chile, el importador deberá presentar ante el SAG de la Oficina correspondiente, previo al término de las restricciones cuarentenarias, un documento que acredite la autorización para multiplicar y/o comercializar dicha variedad en Chile, emitido por el propietario, el obtentor o su representante legal en el país. Si este documento no es presentado en el plazo señalado, no podrá autorizarse la liberación de la variedad, y deberá ser destruida en caso de no regularizarse su situación.</li>
+    const totalRow = new TableRow({ children: [
+      tc(new Paragraph({ children: [t('')], spacing:{after:0} }), { width:{size:3000,type:WidthType.DXA} }),
+      tc(new Paragraph({ children: [t('')], spacing:{after:0} }), { width:{size:2700,type:WidthType.DXA} }),
+      tc(new Paragraph({ children: [t('TOTAL', {bold:true})], alignment:AlignmentType.CENTER, spacing:{after:0} }),
+        { width:{size:2800,type:WidthType.DXA} }),
+      tc(new Paragraph({ children: [hl(String(d.totalCant), {bold:true})], alignment:AlignmentType.CENTER, spacing:{after:0} }),
+        { width:{size:2300,type:WidthType.DXA} }),
+    ]});
 
-    <li>La totalidad del material deberá cumplir Cuarentena de Posentrada bajo las condiciones establecidas en las Resoluciones N° 6.383, 7.316 de 2013, 373 de 2019 y sus modificaciones, instancia en que se realizarán los controles oficiales tendientes a la verificación de ausencia de las Plagas Reglamentadas.</li>
+    const tblMat = new Table({
+      width: { size: 10800, type: WidthType.DXA },
+      rows: [headerRow, ...matDataRows, totalRow],
+    });
 
-    <li>${frioTexto}</li>
+    // ── CONSTRUIR RESUELVO ITEMS ──
+    // Resuelvo 1 usa tablas, el resto son párrafos de lista numerada
+    // Construimos la lista de ítems 2..N como párrafos con numeración manual
+    const resuelvoItems = [];
 
-    <li>Los portainjertos requeridos para la injertación serán proporcionados por el importador, correspondiendo a ${portaStr}, los cuales deberán cumplir con la normativa de viveros y ser entregados en la Estación Cuarentenaria Agrícola del SAG, 30 días previo al ingreso del material de cuarentena.</li>
+    // Ítem 2: certificado fitosanitario
+    resuelvoItems.push(pj([
+      t(`2.\tEl envío deberá venir amparado por un Certificado del Servicio Fitosanitario de `),
+      hl(d.paisCert),
+      t(`, en el que consten los requisitos, declaraciones adicionales y tratamientos de desinfección descritos para la especie en `),
+      t(d.certRes + '.'),
+    ]));
 
-    ${resuelvoAeropuerto}
+    let idx = 3;
 
-    <li>${cpTexto}</li>
+    // Ítem 3 (solo no-CE): eriófidos
+    if (!d.isCE) {
+      resuelvoItems.push(pj([t(`${idx}.\tPara la certificación de las declaraciones adicionales de las plagas `),
+        t('Eriophyes insidiosus', {italics:true}), t(', '), t('Phytoptus emarginatae', {italics:true}),
+        t(' y '), t('Acalitus phloeocoptes', {italics:true}),
+        t(' (Ac. Eriophyidae), se deberá realizar apertura de escamas de yemas dormantes bajo un microscopio estereoscópico normal, y ante la detección de ácaros, se deberá proceder a la identificación de la especie utilizando un microscopio binocular con contraste de fase.'),
+      ]));
+      idx++;
+    }
 
-    <li>Esta autorización tendrá una vigencia de ingreso de los materiales de 30 días a contar de la fecha de su emisión y contempla la importación de un único envío.</li>
-  </ol>
+    // Señalética
+    resuelvoItems.push(pj([t(`${idx}.\tSe deberá consignar en cada unidad de importación la especie y variedad del material vegetal y lo establecido en el artículo N° 5 de la Resolución N° 3.815 de 2003. Adicionalmente, el envío deberá estar identificado con una señalética, a lo menos, en las dos caras de mayor dimensión de cada una de las unidades de empaque que conforman el envío, las que deberán cubrir una superficie mínima de 20%, indicando en letras destacadas de color rojo: CUARENTENA MATERIAL VEGETAL; SAG.\n\tLa documentación será revisada y la partida inspeccionada por profesionales del SAG destacados en el Punto de Ingreso, quienes verificarán la condición fitosanitaria y con la documentación adjunta resolverán su ingreso a Cuarentena Posentrada.`)])); idx++;
 
-  <p style="margin-top:24px">ANÓTESE, COMUNÍQUESE Y NOTIFÍQUESE</p>
+    // Docs aduaneros
+    resuelvoItems.push(pj([t(`${idx}.\tLos documentos aduaneros relacionados con la importación de material vegetal de propagación que deba cumplir con cuarentena de postentrada, deberán señalar en forma clara y explícita la denominación de la variedad (nombre de la variedad).`)])); idx++;
 
-  <div style="margin-top:60px;text-align:center">
-    <div style="border-top:1px solid #333;width:260px;margin:0 auto;padding-top:6px">
-      <strong>______________________________</strong><br>
-      JEFA (S) DEPARTAMENTO RED SAG DE LABORATORIOS
-    </div>
-  </div>
+    // Variedades protegidas
+    resuelvoItems.push(pj([t(`${idx}.\tSi alguna de las variedades indicadas en esta Resolución se encuentra inscrita en el Registro de Variedades Protegidas en Chile, el importador deberá presentar ante el SAG de la Oficina correspondiente, previo al término de las restricciones cuarentenarias, un documento que acredite la autorización para multiplicar y/o comercializar dicha variedad en Chile, emitido por el propietario, el obtentor o su representante legal en el país. Si este documento no es presentado en el plazo señalado, no podrá autorizarse la liberación de la variedad, y deberá ser destruida en caso de no regularizarse su situación.`)])); idx++;
 
-  <p style="margin-top:32px;font-size:9pt;color:#555">
-    <em>Borrador generado automáticamente desde datos de Solicitud N° ${nsol} — ${imp}.<br>
-    Los campos marcados en amarillo deben ser verificados y completados antes de la firma oficial.</em>
-  </p>
-</div>`;
+    // Cuarentena posentrada
+    resuelvoItems.push(pj([t(`${idx}.\tLa totalidad del material deberá cumplir Cuarentena de Posentrada bajo las condiciones establecidas en las Resoluciones N° 6.383, 7.316 de 2013, 373 de 2019 y sus modificaciones, instancia en que se realizarán los controles oficiales tendientes a la verificación de ausencia de las Plagas Reglamentadas.`)])); idx++;
 
-  _openDoc(html, `Borrador Res. — Sol. ${nsol} — ${imp}`, 'Borrador Resolución de Internación');
+    // Req frío
+    resuelvoItems.push(pj([t(`${idx}.\t${d.frioTexto}`)])); idx++;
+
+    // Portainjertos
+    const piRuns = [t(`${idx}.\tLos portainjertos requeridos para la injertación serán proporcionados por el importador, correspondiendo a patrón `), hl(d.piVal, {bold:true})];
+    if (d.especies[0]) { piRuns.push(t(' para ')); piRuns.push(hl(d.especies.join(' / '), {italics:true})); }
+    piRuns.push(t(', los cuales deberán cumplir con la normativa de viveros y ser entregados en la Estación Cuarentenaria Agrícola del SAG, 30 días previo al ingreso del material de cuarentena.'));
+    resuelvoItems.push(pj(piRuns)); idx++;
+
+    // Aeropuerto (solo CE)
+    if (d.isCE) {
+      resuelvoItems.push(pj([t(`${idx}.\tEl ingreso del material vegetal al país y trámite de importación solo podrá realizarse en la Oficina SAG de Comercio Exterior situada en el Aeropuerto Internacional Arturo Merino Benítez de la Región Metropolitana. Bajo ninguna circunstancia se permitirá que la carga ingrese vía pasajero como equipaje acompañado.`)])); idx++;
+    }
+
+    // Contrapartes
+    resuelvoItems.push(pj([t(`${idx}.\t`), hl(d.cpTexto)])); idx++;
+
+    // Vigencia
+    resuelvoItems.push(pj([t(`${idx}.\tEsta autorización tendrá una vigencia de ingreso de los materiales de 30 días a contar de la fecha de su emisión y contempla la importación de un único envío.`)]));
+
+    // ── CONSIDERANDO 3 (no-CE) ──
+    const considerandoItems = [
+      pj([t('1.\tLa Solicitud de Autorización de Cuarentena Posentrada Absoluta N° '), hl(d.nsol),
+        t(', presentada por '), t(d.imp, {bold:true}),
+        t(', '), hl(d.fechaTexto), t(' ante la Estación de Cuarentena Agrícola (ECA) del SAG.')]),
+      pj([t('2.\tQue, en virtud de los compromisos adquiridos por el país ante la Unión Internacional para la Protección de las Obtenciones Vegetales (UPOV), y lo estipulado en la Ley N° 19.342, el SAG debe velar para que se cumplan con los acuerdos internacionales relativos a la protección de las variedades de plantas y partes de plantas en el país.')]),
+    ];
+    if (!d.isCE) {
+      considerandoItems.push(pj([t('3.\tQue, se debe corregir el método de análisis para la detección de eriófidos señalado en el resuelvo 1.1.6 de la Resolución N° 136 de 2021.')]));
+    }
+
+    // ── RESUELVO 1: párrafo + tablas ──
+    const resuelvo1 = [
+      pj([
+        t('1.\t'), t('AUTORÍZASE A ', {bold:true}), hl(d.imp.toUpperCase(), {bold:true}),
+        t(',', {bold:true}),
+        t(' la internación bajo Cuarentena Posentrada Absoluta de los materiales vegetales de propagación que más adelante se detallan, a condición de cumplir con la normativa general establecida en '),
+        t(d.resolucionRef),
+        t(', todas del Servicio Agrícola y Ganadero y las particularidades que a continuación se indican:'),
+      ]),
+      new Paragraph({ children: [], spacing:{after:80} }),
+      tblInfo,
+      new Paragraph({ children: [t('El detalle del material vegetal de propagación a internar es el siguiente:')], spacing:{before:120, after:80} }),
+      tblMat,
+      new Paragraph({ children: [], spacing:{after:120} }),
+    ];
+
+    // ── DOCUMENTO FINAL ──
+    const doc = new Document({
+      styles: {
+        default: {
+          document: { run: { font: FONT, size: SZ } }
+        }
+      },
+      sections: [{
+        properties: {
+          page: {
+            margin: { top: CM(2.5), bottom: CM(2.5), left: CM(3), right: CM(2) }
+          }
+        },
+        children: [
+          // Encabezado
+          pc([t('BORRADOR — RESOLUCIÓN EXENTA N°: ', {bold:true}), hl('______/______', {bold:true})]),
+          pc([t('AUTORIZA INTERNACIÓN Y DISPONE CUARENTENA ABSOLUTA A MATERIAL VEGETAL QUE INDICA', {bold:true})]),
+          new Paragraph({ children: [], spacing:{after:200} }),
+          pc([t('Santiago, '), hl('______')]),
+          new Paragraph({ children: [], spacing:{after:200} }),
+
+          // VISTOS
+          new Paragraph({ children: [t('VISTOS:', {bold:true})], alignment: AlignmentType.CENTER, spacing:{after:120} }),
+          pj([t('Lo dispuesto en la Ley N° 18.755 Orgánica del Servicio Agrícola y Ganadero, la Ley N° 19.880 que establece bases generales de los procedimientos administrativos que rigen los actos de los órganos de la administración del Estado, la Ley 19.342 de 1994 que regula derecho de obtentores de nuevas variedades vegetales, el Decreto Ley N° 3.557 de 1980 sobre Protección Agrícola, el Decreto N° 510 de 2016 que habilita puertos para la importación de mercancías sujetas a revisión del Servicio Agrícola y Ganadero, todos del Ministerio de Agricultura, las Resoluciones N°s 733 de 1998, 3.080 de 2003, 3.815 de 2003, 3.589 de 2012, 6.383 de 2013, 7.316 de 2013, 373 de 2019, 1.284 de 2021 y sus modificaciones, '), t(d.vistosRes)]),
+          new Paragraph({ children: [], spacing:{after:120} }),
+
+          // CONSIDERANDO
+          new Paragraph({ children: [t('CONSIDERANDO:', {bold:true})], alignment: AlignmentType.CENTER, spacing:{after:120} }),
+          ...considerandoItems,
+          new Paragraph({ children: [], spacing:{after:120} }),
+
+          // RESUELVO
+          new Paragraph({ children: [t('RESUELVO:', {bold:true})], alignment: AlignmentType.CENTER, spacing:{after:120} }),
+          ...resuelvo1,
+          ...resuelvoItems,
+          new Paragraph({ children: [], spacing:{after:300} }),
+
+          // Cierre
+          pj([t('ANÓTESE, COMUNÍQUESE Y NOTIFÍQUESE')]),
+          new Paragraph({ children: [], spacing:{after:800} }),
+          pc([t('______________________________')]),
+          pc([t('JEFA (S) DEPARTAMENTO RED SAG DE LABORATORIOS', {bold:true})]),
+          new Paragraph({ children: [], spacing:{after:400} }),
+          pc([t(`Borrador generado automáticamente — Sol. N° ${d.nsol} — ${d.imp}`, {italics:true, color:'888888', size:18})]),
+        ]
+      }]
+    });
+
+    Packer.toBlob(doc).then(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Borrador_Res_Sol${d.nsol}_${(d.imp||'').replace(/[^a-zA-Z0-9]/g,'_').substring(0,30)}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+      setS('Borrador Word descargado correctamente.', 'ok');
+    });
+  } catch(e) {
+    console.error('_buildDocx error:', e);
+    setS('Error al generar el Word: ' + e.message, 'err');
+  }
 }
 
 function generarActaRecepcion() {
