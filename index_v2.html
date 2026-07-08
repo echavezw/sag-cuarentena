@@ -4879,6 +4879,15 @@ async function cargarFilaMulti(rows) {
   } else {
     loadRefData().then(()=>{ selEl('f1-imp', (r['Importador']||'').trim()); setTimeout(onImp, 150); });
   }
+  // Backfill Ciudad Proveedor desde la pestaña Proveedores (fuente de verdad) cuando
+  // el registro guardado no la tiene (ej. registros antiguos) — mismo patrón que onImp arriba.
+  if(!v('f1-prov-ciudad')) {
+    if(refProveedores.length) {
+      setTimeout(onProv, 150);
+    } else {
+      loadRefData().then(()=>{ setTimeout(onProv, 150); });
+    }
+  }
   // Etapa II
   sv('f2-nres', r['Res.']||'');
   // Derive año resolución — from Fecha Res., fallback to Fecha Solicitud year, then current year
@@ -5212,11 +5221,20 @@ function loadPaises() {
 
 const CE_PAISES = ["Alemania", "Austria", "Bélgica", "España", "Francia", "Holanda", "Italia", "Países Bajos", "República Checa", "BELGICA", "FRANCIA"];
 
+// Normalización robusta de nombre de proveedor para comparar/matchear contra la pestaña
+// Proveedores: quita acentos, apóstrofes/comillas tipográficas y puntuación, colapsa espacios.
+// Un simple lowercase+trim no detecta "Zaiger's Genetics" == "ZAIGER GENETICS" y genera
+// falsos "proveedor nuevo" (duplicados en el Sheet) o falla el autocompletado de Ciudad.
+const normProvNombre = s => String(s||'')
+  .normalize('NFD').replace(/[\u0300-\u036f]/g,'') // quitar acentos
+  .toLowerCase().trim()
+  .replace(/['’`.,]/g,'')  // quitar apóstrofes/comillas y puntos/comas
+  .replace(/\s+/g,' ');
+
 function onProv() {
   const prov = v('f1-prov').trim();
   if(!prov || !refProveedores.length) return;
-  const norm = s => (s||'').toLowerCase().trim();
-  const found = refProveedores.find(r => norm(r['Nombre']) === norm(prov));
+  const found = refProveedores.find(r => normProvNombre(r['Nombre']) === normProvNombre(prov));
   if(found) {
     if(found['Ciudad']) sv('f1-prov-ciudad', found['Ciudad']);
   }
@@ -9016,8 +9034,8 @@ async function guardarNuevo(type) {
   }
   // Validar duplicados para proveedor
   if(type === 'proveedor') {
-    const nombreNuevo = (v('n-prov-nombre')||'').toLowerCase().trim();
-    const yaExiste = refProveedores.some(r => (r['Nombre']||'').toLowerCase().trim() === nombreNuevo);
+    const nombreNuevo = v('n-prov-nombre')||'';
+    const yaExiste = refProveedores.some(r => normProvNombre(r['Nombre']) === normProvNombre(nombreNuevo));
     if(yaExiste) {
       if(errEl) { errEl.textContent='Este proveedor ya existe en el listado.'; errEl.style.display='block'; }
       return;
@@ -9182,9 +9200,8 @@ async function fileToB64(file){ return new Promise((res,rej)=>{ const r=new File
 // ── PROVEEDOR ──
 function saveProveedorIfNew(prov) {
   if(!prov?.trim()) return;
-  const norm = s => (s||'').toLowerCase().trim();
   // Verificar contra refProveedores (fuente de verdad = Sheet), no solo localStorage
-  const existeEnSheet = refProveedores.some(r => norm(r['Nombre']) === norm(prov));
+  const existeEnSheet = refProveedores.some(r => normProvNombre(r['Nombre']) === normProvNombre(prov));
   if(existeEnSheet) return; // ya existe en el Sheet — no duplicar
   // No existe en Sheet — es proveedor nuevo: guardar en localStorage y escribir al Sheet
   const saved=JSON.parse(localStorage.getItem('eca_proveedores')||'[]');
