@@ -3668,6 +3668,10 @@ const fmtDisplay = v => {
   const d=fmtD(v); if(!d||d.length<10) return d||'';
   const [yr,mo,dy]=d.split('-'); return `${dy}-${mo}-${yr}`;
 };
+// ── CORE/Factura: "sin core" es un placeholder válido (análisis que no requiere CORE),
+// no debe confundirse con un número de CORE real. Usado en Etapa V (Cobro) y en Alertas.
+const coreEsSinCore = v => { const n=String(v||'').trim().toLowerCase(); return n==='sin core'||n==='no'; };
+const coreEsValido  = v => { const n=String(v||'').trim().toLowerCase(); return !!n && !coreEsSinCore(n); };
 
 const selEl = (id, val) => {
   const e=$(id); if(!e||!val) return;
@@ -7151,8 +7155,14 @@ function renderCobroTabs() {
 
 function makeCobroRow(key, i, r, nAn) {
   const tr=document.createElement('tr');
-  const badgeClass = (r.sps&&r.core)?'badge-ok':r.sps?'badge-warn':'badge-err';
-  const badgeText  = (r.sps&&r.core)?'Pagado':r.sps?'Pend.CORE':'Sin pago';
+  const hasSps    = !!(r.sps);
+  const hasCoreOk = coreEsValido(r.core);
+  const hasCoreSC = coreEsSinCore(r.core);
+  let badgeClass, badgeText;
+  if(hasSps && hasCoreOk)      { badgeClass='badge-ok';   badgeText='Pagado'; }
+  else if(hasSps && hasCoreSC) { badgeClass='badge-ok';   badgeText='Pagado/Sin CORE'; }
+  else if(hasSps)               { badgeClass='badge-warn'; badgeText='Pend.CORE'; }
+  else                           { badgeClass='badge-err';  badgeText='Sin pago'; }
   tr.innerHTML=`
     <td style="text-align:center;padding:4px 6px">
       <label style="cursor:pointer;display:flex;align-items:center;justify-content:center"
@@ -7343,12 +7353,16 @@ function updateCobroStatus(tr, key, otherVal) {
   const spsInp  = tr.querySelector('[id^="cobro-sps-"]');
   const coreInp = tr.querySelector('[id^="cobro-core-"]');
   const hasSps  = !!(spsInp?.value?.trim());
-  const hasCore = !!(coreInp?.value?.trim());
-  if(hasSps && hasCore) {
+  const coreVal = coreInp?.value?.trim() || '';
+  const hasCoreOk = coreEsValido(coreVal);
+  const hasCoreSC = coreEsSinCore(coreVal);
+  if(hasSps && hasCoreOk) {
     badge.className='badge badge-ok'; badge.textContent='Pagado';
+  } else if(hasSps && hasCoreSC) {
+    badge.className='badge badge-ok'; badge.textContent='Pagado/Sin CORE';
   } else if(hasSps) {
     badge.className='badge badge-warn'; badge.textContent='Pend.CORE';
-  } else if(hasCore) {
+  } else if(coreVal) {
     badge.className='badge badge-warn'; badge.textContent='Pend.SPS';
   } else {
     badge.className='badge badge-err'; badge.textContent='Sin pago';
