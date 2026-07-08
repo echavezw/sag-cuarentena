@@ -3706,8 +3706,9 @@ function showPanelTab(idx) {
 function buscarPanelDefault() {
   if(!gsData.length) return;
   const thisYear = new Date().getFullYear();
-  const prevYear = thisYear - 1;
-  const inRangeYr = y => y && (y===String(thisYear)||y===String(prevYear));
+  const YEARS_BACK = 3; // ventana: thisYear y 3 años atrás (4 años en total)
+  const minYear = thisYear - YEARS_BACK;
+  const inRangeYr = y => y && (parseInt(y,10)>=minYear && parseInt(y,10)<=thisYear);
 
   // Pre-index all rows by key so we can check ANY row of a record for year match
   const allByKey = {};
@@ -3760,7 +3761,7 @@ function buscarPanelDefault() {
   if(!pThead||!pTbody) return;
   pThead.innerHTML = _panelThead();
   _panelRowsBuild(filtered, pTbody);
-  setS(`${filtered.length} de ${found.length} registros (${prevYear}-${thisYear}).`,'ok');
+  setS(`${filtered.length} de ${found.length} registros (${minYear}-${thisYear}).`,'ok');
 }
 
 // ── FILTROS POR COLUMNA (Búsqueda Rápida) ──
