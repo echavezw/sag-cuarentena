@@ -3025,7 +3025,12 @@ function calcBadgePriority(rows) {
       pendientes:['Resolución emitida — material aún no ingresado a ECA']};
 
   // ── 3. SIN INJERTAR ─────────────────────────────────────────────────────────
-  if (fechaIng && !norm(first['Fecha Injertación']))
+  // "Injertado/plantado" se confirma con Fecha Injertación/Plantación, PERO si el
+  // usuario ya marcó el campo Estado como Injertada/Plantada en Etapa III (aunque
+  // todavía no haya cargado la fecha), no corresponde mostrar "Sin injertar".
+  const estadoManual = norm(first['Estado']).toLowerCase();
+  const injertadoManual = estadoManual==='injertada' || estadoManual==='plantada';
+  if (fechaIng && !norm(first['Fecha Injertación']) && !injertadoManual)
     return {label:'Sin injertar', cls:'badge-gd',
       pendientes:['Material recibido — pendiente injertación/plantación']};
 
@@ -3147,7 +3152,9 @@ function calcProgreso(rows) {
 
   // 2. Injertación
   const inj = norm(first['Fecha Injertación']);
-  items.push({etapa:'Injertación', estado: inj?'ok':'pend', detalle: inj||'pendiente'});
+  const estadoManualProg = norm(first['Estado']).toLowerCase();
+  const injOk = !!inj || estadoManualProg==='injertada' || estadoManualProg==='plantada';
+  items.push({etapa:'Injertación', estado: injOk?'ok':'pend', detalle: inj||(injOk?(first['Estado']||'marcado'):'pendiente')});
 
   // 3. Muestreo — por fila con fecha real vs pendiente
   const conMuestreo = filasAn.filter(r => norm(r['Fecha muestreo/Indexaje'])||norm(r['Fecha de envío']));
@@ -3452,7 +3459,8 @@ function mostrarFichaResumen(r) {
           <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--g400);margin:14px 0 4px">Fechas Clave</div>
           ${campo('Recibida', first['Recibida']||'')}
           ${campo('Fecha de Ingreso', fmtDisplay(first['Fecha de Ingreso']||''))}
-          ${campo('Fecha Injertación', fmtDisplay(first['Fecha Injertación']||''))}
+          ${campo('Estado (Etapa III)', first['Estado']||'')}
+          ${campo('Fecha Injertación / Plantación', fmtDisplay(first['Fecha Injertación']||''))}
           ${campo('Fecha Estimada Muestreo', fmtDisplay(first['Fecha Estimada Muestreo']||''))}
           ${campo('Fecha aprox. Levante', fmtDisplay(first['Fecha aprox. Levant.']||''))}
 
