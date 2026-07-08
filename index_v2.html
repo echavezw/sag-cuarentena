@@ -4311,9 +4311,36 @@ function goStage(n) {
   if(n===3) {
     updateResBars();
     // Re-render verif table with latest data from Material — keeps Etapa III in sync
-    // with anything changed in Etapa I/II since last load
+    // with anything changed in Etapa I/II since last load, PERO preservando
+    // ediciones sin guardar (N° Plantas Establ./Brotadas/Cant.Real/Obs./check)
+    // que el usuario ya haya tipeado en la tabla antes de cambiar de etapa.
     if(window._loadedEspData && window._loadedEspData.length) {
-      setTimeout(()=>renderVerifTable(window._loadedEspData), 60);
+      setTimeout(()=>{
+        const tbExists = document.getElementById('verif-body');
+        let liveMap = null;
+        if(tbExists && tbExists.children.length) {
+          syncVerifFromDOM();
+          liveMap = {};
+          verifRows.forEach(r=>{
+            const key=(r.especie||'')+'|'+(r.variedad||'');
+            liveMap[key]=r;
+          });
+        }
+        const merged = liveMap ? window._loadedEspData.map(e=>{
+          const key=(e.especie||'')+'|'+(e.variedad||'');
+          const live=liveMap[key];
+          if(!live) return e;
+          return Object.assign({}, e, {
+            nplanEstab: live.nplan,
+            nplan:      live.nplan,
+            nplanBrot:  live.nplanBrot,
+            cantReal:   live.cantReal,
+            obs:        live.obs,
+            ok:         live.ok
+          });
+        }) : window._loadedEspData;
+        renderVerifTable(merged);
+      }, 60);
     }
   }
   if(n===4) { updateResBars(); renderAnalisisTabs(); }
