@@ -8182,9 +8182,21 @@ function makeHistResizable() {
 
 function descargarExcelHistorial() {
   const rows=_histAllRows; if(!rows.length){ setS('Sin datos.','warn'); return; }
-  const cols=HIST_COLS.map(c=>c.key);
+  // Cols de exportación = HIST_COLS + Año Solicitud/Año Resolución insertadas junto
+  // a Solicitud y Res. respectivamente (no afecta las columnas de la tabla en pantalla).
+  const cols=[];
+  HIST_COLS.forEach(c=>{
+    cols.push(c.key);
+    if(c.key==='Solicitud') cols.push('Año Solicitud');
+    if(c.key==='Res.') cols.push('Año Resolución');
+  });
+  const cellVal = (r,c) => {
+    if(c==='Año Solicitud') return fmtD(r['Fecha Solicitud']||'').substring(0,4);
+    if(c==='Año Resolución') return fmtD(r['Fecha Res.']||'').substring(0,4);
+    return r[c];
+  };
   const esc2=v=>{ const s=String(v||''); return s.includes(',')||s.includes('"')||s.includes('\n')?'"'+s.replace(/"/g,'""')+'"':s; };
-  const csv='\uFEFF'+cols.join(',')+'\n'+rows.map(r=>cols.map(c=>esc2(r[c])).join(',')).join('\n');
+  const csv='\uFEFF'+cols.join(',')+'\n'+rows.map(r=>cols.map(c=>esc2(cellVal(r,c))).join(',')).join('\n');
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
   a.download='ECA_Historial_'+new Date().toISOString().slice(0,10)+'.csv';
