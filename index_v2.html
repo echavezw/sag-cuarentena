@@ -11247,11 +11247,16 @@ function generarActaEntrega() {
 function exportarCSVBusqueda() {
   const found = window._lastPanelFound;
   if(!found || !found.length){ setS('Realice una búsqueda primero.','warn'); return; }
-  const cols = ['Res.','Fecha Res.','Solicitud','Importador','Origen','Especie',
-    'Variedades','Estado','Análisis','Patógenos','Status','Año de Ingreso',
-    'Fecha de Ingreso','Cubículo','N° Plantas','Entregada'];
+  const cols = ['Solicitud','Año Solicitud','Res.','Año Resolución','Fecha Res.',
+    'Importador','Origen','Especie','Variedades','Estado','Análisis','Patógenos',
+    'Status','Año de Ingreso','Fecha de Ingreso','Cubículo','N° Plantas','Entregada'];
   const esc=v=>{const s=String(v||'');return s.includes(',')||s.includes('"')||s.includes('\n')?'"'+s.replace(/"/g,'""')+'"':s;};
-  const csv='\uFEFF'+cols.join(',')+'\n'+found.map(r=>cols.map(c=>esc(r[c])).join(',')).join('\n');
+  const cellVal = (r,c) => {
+    if(c==='Año Solicitud') return fmtD(r['Fecha Solicitud']||'').substring(0,4);
+    if(c==='Año Resolución') return fmtD(r['Fecha Res.']||'').substring(0,4);
+    return r[c];
+  };
+  const csv='\uFEFF'+cols.join(',')+'\n'+found.map(r=>cols.map(c=>esc(cellVal(r,c))).join(',')).join('\n');
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
   a.download='ECA_Busqueda_'+new Date().toISOString().slice(0,10)+'.csv';
