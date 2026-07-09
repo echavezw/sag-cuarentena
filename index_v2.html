@@ -10720,7 +10720,7 @@ function generarBorradorTerminoCPE() {
     _buildDocxTermino({
       imp, nres, resAutorizaFull, resAutorizaTitle, resAutorizaVistos,
       cert: (cert||'______'), cda: (cda||'______'), paisDisplay,
-      prov: (prov||'______').toUpperCase(), vivero: (vivero||'______'),
+      prov: (prov||'______'), vivero: (vivero||'______'),
       matRes, totalFin
     });
   } catch(e) { console.error('_buildDocxTermino error:', e); setS('Error al generar Word: ' + e.message, 'err'); }
