@@ -1659,7 +1659,7 @@ input.field-blocked, select.field-blocked {
       <div style="font-size:11px;font-weight:600;color:var(--g400);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">
         Registros recientes <span id="recientes-sub" style="font-weight:300"></span>
       </div>
-      <div id="recientes-body"></div>
+      <div id="recientes-body" style="overflow:auto;height:600px;min-height:180px;max-height:85vh;resize:vertical;border:1px solid var(--g200);border-radius:var(--rs)"></div>
     </div>
   </div>
 </div>
@@ -3723,9 +3723,28 @@ function _restoreHistTableHeight() {
   } catch(e) { console.warn('_restoreHistTableHeight:', e); }
 }
 
+// ── Alto ajustable de "Registros recientes" en Búsqueda rápida (persistido) ─
+function _restoreRecientesHeight() {
+  try {
+    const h = localStorage.getItem('recientesHeight');
+    const el = document.getElementById('recientes-body');
+    if (h && el) el.style.height = h + 'px';
+    if (el && window.ResizeObserver) {
+      let t;
+      new ResizeObserver(() => {
+        clearTimeout(t);
+        t = setTimeout(() => {
+          try { localStorage.setItem('recientesHeight', Math.round(el.getBoundingClientRect().height)); } catch(e){}
+        }, 300);
+      }).observe(el);
+    }
+  } catch(e) { console.warn('_restoreRecientesHeight:', e); }
+}
+
 async function init() {
   loadSavedConfig();
   _restoreHistTableHeight();
+  _restoreRecientesHeight();
   // Try existing session first — if found, proceed straight to app (showApp resumes init)
   await checkExistingSession();
   // If no session was found, login screen stays visible and showApp() is triggered by doLogin()
