@@ -1728,7 +1728,7 @@ input.field-blocked, select.field-blocked {
       <button class="btn btn-gh btn-sm" onclick="exportarCSVBusqueda()" title="Exportar resultados a CSV/Excel">⬇ CSV</button>
       <button class="btn btn-danger btn-sm" onclick="confirmarEliminarSeleccionadosPanel()">🗑 Eliminar selec.</button>
     </div>
-    <div id="panel-results" style="overflow:auto;max-height:440px;border:1px solid var(--g200);border-radius:var(--rs)">
+    <div id="panel-results" style="overflow:auto;height:650px;min-height:200px;max-height:85vh;resize:vertical;border:1px solid var(--g200);border-radius:var(--rs)">
       <table class="tbl" id="panel-table"><thead id="panel-thead"></thead><tbody id="panel-tbody"></tbody></table>
     </div>
   </div>
@@ -3741,10 +3741,29 @@ function _restoreRecientesHeight() {
   } catch(e) { console.warn('_restoreRecientesHeight:', e); }
 }
 
+// ── Alto ajustable de resultados en Panel de Consulta > Busqueda Rapida (persistido) ─
+function _restorePanelResultsHeight() {
+  try {
+    const h = localStorage.getItem('panelResultsHeight');
+    const el = document.getElementById('panel-results');
+    if (h && el) el.style.height = h + 'px';
+    if (el && window.ResizeObserver) {
+      let t;
+      new ResizeObserver(() => {
+        clearTimeout(t);
+        t = setTimeout(() => {
+          try { localStorage.setItem('panelResultsHeight', Math.round(el.getBoundingClientRect().height)); } catch(e){}
+        }, 300);
+      }).observe(el);
+    }
+  } catch(e) { console.warn('_restorePanelResultsHeight:', e); }
+}
+
 async function init() {
   loadSavedConfig();
   _restoreHistTableHeight();
   _restoreRecientesHeight();
+  _restorePanelResultsHeight();
   // Try existing session first — if found, proceed straight to app (showApp resumes init)
   await checkExistingSession();
   // If no session was found, login screen stays visible and showApp() is triggered by doLogin()
