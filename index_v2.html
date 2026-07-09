@@ -1700,7 +1700,7 @@ input.field-blocked, select.field-blocked {
       </details>
     </div>
     <!-- Tabla historial -->
-    <div style="overflow:auto;max-height:500px;border:1px solid var(--g200);border-radius:var(--rs)">
+    <div id="hist-table-wrap" style="overflow:auto;height:750px;min-height:220px;max-height:85vh;resize:vertical;border:1px solid var(--g200);border-radius:var(--rs)">
       <table class="tbl" id="hist-table-main" style="table-layout:auto">
         <thead id="hist-thead"></thead>
         <tbody id="ht-body">
@@ -3705,8 +3705,27 @@ const selEl = (id, val) => {
 const esc = v => { const s=String(v||''); return s.includes('<')||s.includes('>')?s.replace(/</g,'&lt;').replace(/>/g,'&gt;'):s; };
 
 // ── INIT ──
+// ── Alto ajustable de tabla Panel de Consulta (persistido) ──────────────────
+function _restoreHistTableHeight() {
+  try {
+    const h = localStorage.getItem('histTableHeight');
+    const el = document.getElementById('hist-table-wrap');
+    if (h && el) el.style.height = h + 'px';
+    if (el && window.ResizeObserver) {
+      let t;
+      new ResizeObserver(() => {
+        clearTimeout(t);
+        t = setTimeout(() => {
+          try { localStorage.setItem('histTableHeight', Math.round(el.getBoundingClientRect().height)); } catch(e){}
+        }, 300);
+      }).observe(el);
+    }
+  } catch(e) { console.warn('_restoreHistTableHeight:', e); }
+}
+
 async function init() {
   loadSavedConfig();
+  _restoreHistTableHeight();
   // Try existing session first — if found, proceed straight to app (showApp resumes init)
   await checkExistingSession();
   // If no session was found, login screen stays visible and showApp() is triggered by doLogin()
