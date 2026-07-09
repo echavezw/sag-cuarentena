@@ -1176,8 +1176,9 @@ input.field-blocked, select.field-blocked {
 
   <!-- Tab 2.0: Resolución (Datos Resolución + Solicitud Asociada fusionados) -->
   <div class="tab-panel active" id="t2-0">
-  <div class="tab-body">
+  <div class="tab-body cards">
 
+    <div class="card">
     <!-- ── Datos Resolución ── -->
     <div style="font-family:var(--serif);font-size:14px;font-weight:700;color:var(--inkv);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--gd)">Datos Resolución</div>
     <div class="info-box">Al ingresar el N° de resolucion y el año, se cargaran automaticamente todos los datos desde Google Sheets.</div>
@@ -1217,8 +1218,9 @@ input.field-blocked, select.field-blocked {
         <select id="f2-proceso"><option value="Sin Res.">Sin Res.</option><option value="Con Res.">Con Res.</option></select></div>
     </div>
 
-    <hr class="divider">
+    </div>
 
+    <div class="card">
     <!-- ── Solicitud Asociada ── -->
     <div style="font-family:var(--serif);font-size:14px;font-weight:700;color:var(--inkv);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--gd)">Solicitud Asociada</div>
     <div class="fg" style="grid-template-columns:repeat(6,1fr);gap:10px 14px">
@@ -1232,6 +1234,7 @@ input.field-blocked, select.field-blocked {
       <div class="ff c1"><label class="lbl"><span class="ro">REF</span> Uso</label><input id="r-uso" readonly></div>
       <div class="ff c1"><label class="lbl"><span class="ro">REF</span> Cod. Vivero</label><input id="r-vivero" readonly></div>
     </div>
+  </div>
 
   </div>
   </div>
