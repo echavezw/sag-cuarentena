@@ -1605,6 +1605,7 @@ input.field-blocked, select.field-blocked {
     <button class="btn btn-gh btn-sm" onclick="goStage(6)">&#8592; VI. Recuento Final</button>
     <span class="stage-pg">7 / 7</span>
     <div style="display:flex;gap:5px">
+      <button type="button" class="btn btn-gh btn-sm" onclick="generarBorradorTerminoCPE()" title="Genera borrador Word de Resolución de Término CPE">📄 Borrador Res. Término</button>
       <button class="btn btn-gh btn-sm" onclick="generarInformeTermino()" title="PDF">📄 Informe Término</button>
       <button class="btn btn-gh btn-sm" onclick="generarActaEntrega()" title="PDF">📄 Acta Entrega</button>
     </div>
@@ -10673,6 +10674,194 @@ function _cargarDocxJsYGenerar(d) {
   try { _buildDocx(d); }
   catch(e) { console.error('_buildDocx error:', e); setS('Error al generar Word: ' + e.message, 'err'); }
 }
+
+// ── Borrador Resolución de Término CPE (Word) ────────────────────────────────
+function generarBorradorTerminoCPE() {
+  const imp  = _v('f1-imp');
+  const nres = _v('f2-nres');
+  if (!imp || !nres) { setS('Complete al menos Importador y N° Resolución antes de generar el borrador de término.','warn'); return; }
+  const fres   = _v('f2-fres');
+  const cert   = _v('f1-cert-fito');
+  const cda    = _v('f1-cda');
+  const pais   = _v('f1-pais');
+  const prov   = _v('f1-prov');
+  const vivero = _v('f1-vivero');
+
+  const isCE = typeof CE_PAISES !== 'undefined' && CE_PAISES.includes(pais);
+  const paisDisplay = isCE
+    ? `PAIS MIEMBRO DE LA COMUNIDAD EUROPEA (${(pais||'').toUpperCase()})`
+    : (pais||'______').toUpperCase();
+
+  function fmtDate(s){ if(!s) return ''; const d=new Date(s+'T12:00:00'); if(isNaN(d)) return s;
+    const dd=String(d.getDate()).padStart(2,'0'), mm=String(d.getMonth()+1).padStart(2,'0');
+    return `${dd}.${mm}.${d.getFullYear()}`; }
+  const fresFmt = fmtDate(fres);
+  const anio = fres ? (new Date(fres+'T12:00:00')).getFullYear() : '______';
+  const resAutorizaFull  = fresFmt ? `N° ${nres} / ${fresFmt}` : `N° ${nres}`;
+  const resAutorizaTitle = fresFmt ? `${nres} / ${fresFmt}` : `${nres}`;
+  const resAutorizaVistos = `${nres} de ${anio}`;
+
+  // Material resultante con recuento final (Etapa VI)
+  const mat = _matRows();
+  const pf = {};
+  document.querySelectorAll('[id^="pf-"]').forEach(inp => {
+    if (inp.id === 'pf-total' || inp.id.startsWith('pf-obs')) return;
+    const i = parseInt(inp.id.replace('pf-','')); if (!isNaN(i)) pf[i] = inp.value || '';
+  });
+  const pfTotalEl = (document.getElementById('pf-total')||{}).value || '';
+  const matRes = mat.map((r,i) => ({
+    esp: r.esp || '', vari: r.vari || '',
+    fin: (pf[i] !== undefined && pf[i] !== '') ? pf[i] : (r.nplan || r.cantR || '')
+  }));
+  let totalFin = 0; matRes.forEach(r => { totalFin += parseInt(r.fin) || 0; });
+  if (!totalFin && pfTotalEl) totalFin = parseInt(pfTotalEl) || 0;
+
+  try {
+    _buildDocxTermino({
+      imp, nres, resAutorizaFull, resAutorizaTitle, resAutorizaVistos,
+      cert: (cert||'______'), cda: (cda||'______'), paisDisplay,
+      prov: (prov||'______').toUpperCase(), vivero: (vivero||'______'),
+      matRes, totalFin
+    });
+  } catch(e) { console.error('_buildDocxTermino error:', e); setS('Error al generar Word: ' + e.message, 'err'); }
+}
+
+function _buildDocxTermino(d) {
+  const t  = (txt, o) => _wxRun(txt, o);
+  const hl = (txt, o) => _wxRun(txt, {...o, hl:true});
+  const p  = (runs, o) => _wxPara(runs, o);
+  const pc = (runs, o) => _wxPara(runs, {...o, center:true});
+
+  // Tabla de datos
+  const kv = (lbl, val) => _wxRow([ _wxCell(t(lbl,{bold:true}), {w:4600}), _wxCell(val, {w:6200, center:true}) ]);
+  const tablaDatos = _wxTable([
+    kv('Resolución Autoriza Cuarentena Post-entrada', hl(d.resAutorizaFull)),
+    kv('Tipo Estación Cuarentenaria', t('EC 1')),
+    kv('Certificado Fitosanitario', hl(d.cert)),
+    kv('CDA', hl(d.cda)),
+    kv('Importador', hl((d.imp||'').toUpperCase())),
+    kv('País de origen', hl(d.paisDisplay)),
+    kv('Nombre proveedor', hl(d.prov)),
+    kv('Cód. Registro Vivero', hl(d.vivero)),
+  ]);
+
+  // Tabla material resultante
+  const matHead = _wxRow([
+    _wxCell(t('ESPECIE',{bold:true}),                 {w:3800, header:true, center:true}),
+    _wxCell(t('VARIEDAD / CLON',{bold:true}),         {w:3800, header:true, center:true}),
+    _wxCell(t('RECUENTO FINAL (Plantas)',{bold:true}),{w:3200, header:true, center:true}),
+  ]);
+  const matBody = (d.matRes.length ? d.matRes : [{esp:'',vari:'',fin:''}]).map(r => _wxRow([
+    _wxCell(hl(r.esp, {italic:true}),   {w:3800}),
+    _wxCell(hl(r.vari),                 {w:3800, center:true}),
+    _wxCell(hl(String(r.fin||'')),      {w:3200, center:true}),
+  ]));
+  const matTot = _wxRow([
+    _wxCell(t(''), {w:3800}),
+    _wxCell(t('TOTAL',{bold:true}), {w:3800, center:true}),
+    _wxCell(hl(String(d.totalFin||''),{bold:true}), {w:3200, center:true}),
+  ]);
+  const tablaMat = _wxTable([matHead, ...matBody, matTot]);
+
+  // Anexos
+  const anexo = (n) => _wxRow([ _wxCell(t(n), {w:7000}), _wxCell(t('Digital'), {w:3800, center:true}) ]);
+  const tablaAnexos = _wxTable([
+    _wxRow([ _wxCell(t('Nombre',{bold:true}), {w:7000, header:true}), _wxCell(t('Tipo',{bold:true}), {w:3800, header:true, center:true}) ]),
+    anexo('Informe Término CPE'), anexo('Informes Fitosanitarios'), anexo('Recuento'),
+  ]);
+
+  const VISTOS = 'Lo dispuesto en la Ley N° 18.755 Orgánica del Servicio Agrícola y Ganadero, la Ley N° 19.880 que establece bases generales de los procedimientos administrativos que rigen los actos de los órganos de la administración del Estado, la Ley 19.342 de 1994 que regula derecho de obtentores de nuevas variedades vegetales, el Decreto Ley N° 3.557 de 1980 sobre Protección Agrícola, el Decreto N° 510 de 2016 que habilita puertos para la importación de mercancías sujetas a revisión del Servicio Agrícola y Ganadero, todos del Ministerio de Agricultura. Las Resoluciones N°s 733 de 1998, 3.080 de 2003, 3.815 de 2003, 3.589 de 2012, 6.383 de 2013, 7.316 de 2013, 373 de 2019, 1.284 de 2021 y sus modificaciones, y las Resoluciones N° 7.243 de 2012, 5.410 de 2015, 7.501 de 2020, ';
+
+  const bodyContent = [
+    pc([hl('BORRADOR',{bold:true})], {after:120}),
+    pc([t('RESOLUCIÓN EXENTA N°: ',{bold:true}), hl('________/______',{bold:true})], {after:60}),
+    pc([t('TERMINO CUARENTENA POSTENTRADA ABSOLUTA',{bold:true})], {after:0}),
+    pc([t('RESOLUCIÓN N° ',{bold:true}), hl(d.resAutorizaTitle,{bold:true})], {after:240}),
+    pc([t('Santiago, '), hl('______')], {after:220}),
+    pc([t('VISTOS:',{bold:true})], {after:120}),
+    p([t(VISTOS), hl(d.resAutorizaVistos), t(' y sus modificaciones, todas del Servicio Agrícola y Ganadero.')], {after:200}),
+    pc([t('CONSIDERANDO:',{bold:true})], {after:120}),
+    p([t('1. Informe Término Cuarentena Postentrada Absoluta emitido por la Estación de Cuarentena Agrícola del Servicio')], {after:200}),
+    pc([t('RESUELVO:',{bold:true})], {after:120}),
+    p([t('1. Póngase término a las restricciones cuarentenarias establecidas a la Cuarentena Postentrada Absoluta, de acuerdo al siguiente detalle:')], {after:160}),
+    tablaDatos,
+    p([t('')], {after:60}),
+    p([t('MATERIAL RESULTANTE:',{bold:true})], {after:80}),
+    tablaMat,
+    p([t('')], {after:120}),
+    pc([t('ANÓTESE, COMUNÍQUESE Y NOTIFÍQUESE',{bold:true})], {after:600}),
+    pc([hl('NOMBRE FIRMANTE',{bold:true})], {after:0}),
+    pc([hl('JEFE(A) DEPARTAMENTO RED SAG DE LABORATORIOS',{bold:true})], {after:360}),
+    pc([t('Anexos',{bold:true})], {after:100}),
+    tablaAnexos,
+    p([t('')], {after:120}),
+    pc([t(`Borrador generado automáticamente — Res. N° ${d.nres} — ${d.imp}`, {color:'888888', size:16})]),
+  ].join('');
+
+  const docXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+  xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+  xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml"
+  mc:Ignorable="w14">
+<w:body>
+<w:sectPr>
+  <w:pgSz w:w="12240" w:h="15840"/>
+  <w:pgMar w:top="1417" w:right="1134" w:bottom="1417" w:left="1701" w:header="709" w:footer="709" w:gutter="0"/>
+</w:sectPr>
+${bodyContent}
+</w:body></w:document>`;
+
+  const relsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`;
+
+  const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:docDefaults>
+    <w:rPrDefault><w:rPr>
+      <w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/>
+      <w:sz w:val="22"/><w:szCs w:val="22"/>
+    </w:rPr></w:rPrDefault>
+    <w:pPrDefault><w:pPr>
+      <w:jc w:val="both"/>
+      <w:spacing w:after="120" w:line="276" w:lineRule="auto"/>
+    </w:pPr></w:pPrDefault>
+  </w:docDefaults>
+</w:styles>`;
+
+  const contentTypesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+</Types>`;
+
+  const rootRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`;
+
+  const zip = _zipCreate();
+  zip.add('[Content_Types].xml', contentTypesXml);
+  zip.add('_rels/.rels', rootRelsXml);
+  zip.add('word/document.xml', docXml);
+  zip.add('word/styles.xml', stylesXml);
+  zip.add('word/_rels/document.xml.rels', relsXml);
+
+  const bytes = zip.toUint8Array();
+  const blob = new Blob([bytes], {type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Borrador_Res_Termino_${d.nres}_${(d.imp||'').replace(/[^a-zA-Z0-9]/g,'_').substring(0,30)}.docx`;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+  setS('Borrador Word de Término descargado correctamente.', 'ok');
+}
+
 
 // ── ZIP mínimo (solo lo necesario para .docx: store sin compresión) ──────────
 function _zipCreate() {
