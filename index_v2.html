@@ -8866,7 +8866,7 @@ const CANONICAL_HEADERS = [
   'Fecha Estimada Muestreo','TDM','Muestreada?','Mes Muestreo','Año',
   'Fecha estimada de CCAA','Fecha Real de CCAA','Fecha muestreo/Indexaje',
   'Fecha de envío','Folio','Corr. Desde','Corr. Hasta','N° Muestras',
-  'SPS análisis','CORE/Factura','Fecha Aviso SPS','SPS estadía','CORE/Factura3','Fecha Aviso SPS Estadía',
+  'SPS análisis','CORE/Factura','SPS estadía','CORE/Factura3',
   'Patógenos','Estado Análisis','Resultado','Técnica',
   'Fecha Informe Fitosanitario','Terminada','Res. Término','Fecha Res.4',
   'Liberada','Entregada','Obs.','Status','Proveedor','Representante',
@@ -8879,7 +8879,8 @@ const CANONICAL_HEADERS = [
   'Res. Modificacion','Fec. Mod.','Vigencia Final Desde','Vigencia Final Hasta',
   'Estado Res.','Recibida','A Firma Res. Termino','N° Plantas Finales',
   'Meses ECA','Cantidad','Portainjerto',
-  'N° CDA','N° Cert. Fitosanitario','Link Solicitud PDF','Link Resolucion PDF'
+  'N° CDA','N° Cert. Fitosanitario','Link Solicitud PDF','Link Resolucion PDF',
+  'Fecha Aviso SPS','Fecha Aviso SPS Estadía'
 ];
 
 async function doSave(rows,isUpdate,res,nsol) {
@@ -8952,7 +8953,10 @@ async function doSave(rows,isUpdate,res,nsol) {
        headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
        body:JSON.stringify({values:[CANONICAL_HEADERS]})});
   }
-  const headers = CANONICAL_HEADERS;
+  // Use sheetHeaders to write values in the actual Sheet column order (prevents misalignment
+  // when Sheet has columns in a different order than CANONICAL_HEADERS, e.g. legacy extra cols).
+  // Fall back to CANONICAL_HEADERS order only if sheetHeaders is empty.
+  const headers = sheetHeaders.length ? sheetHeaders : CANONICAL_HEADERS;
   // If new rows have no analysis data but anRows has data, use anRows directly
   const newHasAnalysis = rows.some(r => r['Análisis']||r['Patógenos']);
   if(!newHasAnalysis) {
