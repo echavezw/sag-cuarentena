@@ -6649,7 +6649,13 @@ function syncAnFromDOM(key) {
       folio:     document.getElementById(`ae-folio-${key}-${i}`)?.value||'',
       corr_desde:document.getElementById(`ae-cd-${key}-${i}`)?.value||'',
       corr_hasta:document.getElementById(`ae-ch-${key}-${i}`)?.value||'',
-      n_muestras:document.getElementById(`ae-nm-${key}-${i}`)?.value||'',
+      n_muestras:(()=>{
+        const cd=parseInt(document.getElementById(`ae-cd-${key}-${i}`)?.value)||0;
+        const ch=parseInt(document.getElementById(`ae-ch-${key}-${i}`)?.value)||0;
+        if(cd>0 && ch>=cd) return String(ch-cd+1);
+        // fallback: valor que tenga el input (puede venir cargado del Sheet)
+        return document.getElementById(`ae-nm-${key}-${i}`)?.value||'';
+      })(),
       fecha_inf: document.getElementById(`ae-finf-${key}-${i}`)?.value||'',
       estado:    document.getElementById(`ae-est-${key}-${i}`)?.value||'',
       resultado: document.getElementById(`ae-res-${key}-${i}`)?.value||'',
@@ -8935,7 +8941,10 @@ function buildRows(nsol,imp) {
       'Patógenos':a.patogeno||'','Estado Análisis':a.estado||'',
       'Resultado':a.resultado||'','Técnica':a.tecnica||'',
       'Folio':a.folio||'','Corr. Desde':a.corr_desde||'','Corr. Hasta':a.corr_hasta||'',
-      'N° Muestras':a.n_muestras||'',
+      'N° Muestras':(()=>{
+        const cd=parseInt(a.corr_desde)||0, ch=parseInt(a.corr_hasta)||0;
+        return (cd>0 && ch>=cd) ? String(ch-cd+1) : (a.n_muestras||'');
+      })(),
       'Fecha estimada de CCAA':a.ccaa_est||'','Fecha Real de CCAA':a.ccaa_real||'',
       'Fecha muestreo/Indexaje':a.tdm||'','Fecha Estimada Muestreo':a.tdm_est||'',
       'Fecha Informe Fitosanitario':a.fecha_inf||'',
