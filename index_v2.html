@@ -1522,6 +1522,7 @@ input.field-blocked, select.field-blocked {
         <th style="text-align:center">N° Plantas Estab.</th>
         <th style="text-align:center">N° Plantas Finales</th>
         <th style="text-align:center">N° SPS Estadía</th>
+        <th style="width:80px;text-align:center">Aviso</th>
         <th style="text-align:center">N° CORE Estadía</th>
         <th style="text-align:center">Observaciones</th>
       </tr></thead>
@@ -7470,6 +7471,56 @@ function marcarAvisoSPS(key, i) {
   setS('Aviso de SPS marcado como enviado.','ok');
 }
 
+function enviarCorreoSPSEstadia() {
+  const sps = (document.getElementById('est-sps-0')?.value||'').trim();
+  if(!sps){ setS('Ingrese el N° de SPS de estadía antes de redactar el aviso.','warn'); return; }
+  const {refCPE, anio, primerNombre, correo} = _contextoCorreoSPS();
+  if(!correo){ setS('No hay correo de Contraparte Importacion registrado en Etapa I.','warn'); return; }
+  const asunto = `SPS N°${sps} cobro por ESTADÍA EN ECA de CPE ${refCPE} del año ${anio}`;
+  const cuerpo =
+`Estimado/a ${primerNombre},\n\n`+
+`Junto con saludar, envío correo correspondiente a cobro por ESTADÍA EN ECA de CPE ${refCPE} del año ${anio}:\n\n`+
+`Se le informa que se ha emitido el cupón adjunto por la SPS N°${sps}.\n\n`+
+`- El pago se debe efectuar solamente a través de la página web del portal pagos (https://portalpagos.sag.gob.cl/Account/Login.aspx)\n`+
+`- Consultas con respecto a problemas con el uso del portal deberán ser dirigidas al correo de Portal Pagos SAG portalpagos@sag.gob.cl\n\n`+
+`Si se tienen consultas respecto a facturas u otro documento, favor dirigirlas al correo de Tesorería Lo Aguirre tesoreria.loaguirre@sag.gob.cl.\n\n`+
+`Recuerde siempre revisar la vigencia del valor al momento de efectuar el pago del cupón, ya que los valores pueden variar dependiendo de los servicios y la fecha de emisión de su SPS.\n\n`+
+`Nota: adjunte manualmente el cupón de pago y el detalle de la solicitud de prestación de servicios (SPS) correspondientes antes de enviar.\n\n`+
+`Saludos cordiales,\n\n`+
+`Eduardo Chávez Weisser\n`+
+`Ingeniero Agrónomo | Fitopatólogo | MSc\n`+
+`Estación de Cuarentena Agrícola (ECA)\n`+
+`+56223451861\n\n`+
+`Departamento RED SAG de Laboratorios\n`+
+`Servicio Agrícola y Ganadero | Ministerio de Agricultura\n`+
+`Gobierno de Chile`;
+  window.location.href = `mailto:${correo}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
+}
+
+function marcarAvisoSPSEstadia() {
+  const sps = (document.getElementById('est-sps-0')?.value||'').trim();
+  const hid  = document.getElementById('est-aviso-0');
+  const icon = document.getElementById('est-aviso-icon-0');
+  if(!hid||!icon) return;
+  if(hid.value) {
+    showModal('Desmarcar aviso', '¿Confirma que desea quitar el registro de aviso de SPS estadía enviado?', ()=>{
+      closeModal();
+      hid.value='';
+      icon.style.color='transparent'; icon.style.borderColor='var(--g300,#b0b8c4)'; icon.style.background='#fff';
+      icon.title='Marcar aviso de SPS estadía como enviado';
+      markDirty(6);
+    }, 'Desmarcar','btn-err');
+    return;
+  }
+  if(!sps){ setS('Ingrese el N° de SPS de estadía antes de marcar el aviso como enviado.','warn'); return; }
+  const ahora = new Date().toISOString();
+  hid.value = ahora;
+  icon.style.color='var(--ok)'; icon.style.borderColor='var(--ok)'; icon.style.background='var(--ok-bg)';
+  icon.title = 'Aviso enviado el ' + new Date(ahora).toLocaleString('es-CL');
+  markDirty(6);
+  setS('Aviso de SPS estadía marcado como enviado.','ok');
+}
+
 function updateCobroTotal(key) {
   // Sum all N° Análisis inputs for this analysis type
   let total=0;
@@ -7700,7 +7751,7 @@ function renderCierreTabs() {
   // Guard: if _loadedEspKey is still "__loading__...", data is not ready — show loading state and retry
   const _espKey = window._loadedEspKey||'';
   if(_espKey.startsWith('__loading__')) {
-    tbody.innerHTML='<tr><td colspan="7" style="color:var(--g400);padding:16px;font-size:12px;text-align:center">Cargando datos...</td></tr>';
+    tbody.innerHTML='<tr><td colspan="8" style="color:var(--g400);padding:16px;font-size:12px;text-align:center">Cargando datos...</td></tr>';
     setTimeout(()=>renderCierreTabs(), 150);
     return;
   }
@@ -7747,13 +7798,14 @@ function renderCierreTabs() {
   }
 
   if(!rows.length) {
-    tbody.innerHTML='<tr><td colspan="7" style="color:var(--g400);padding:16px;font-size:12px;text-align:center">Complete la tabla de material en la Etapa I.</td></tr>';
+    tbody.innerHTML='<tr><td colspan="8" style="color:var(--g400);padding:16px;font-size:12px;text-align:center">Complete la tabla de material en la Etapa I.</td></tr>';
     return;
   }
 
   // Load saved SPS/CORE Estadía values
   const loadedSpsEst  = _lastLoadedRow['SPS estadía']||_lastLoadedRow['SPS estadia']||'';
   const loadedCoreEst = _lastLoadedRow['CORE/Factura3']||'';
+  const loadedAvisoEst = _lastLoadedRow['Fecha Aviso SPS Estadía']||'';
 
   rows.forEach((e,i) => {
     const nEstab = e.nplanEstab||0;
@@ -7776,6 +7828,17 @@ function renderCierreTabs() {
           style="font-family:var(--mono);text-align:center;width:100%"
           oninput="markDirty(6);${i===0?'replicarSPSEst(this.value)':''}">
       </td>
+      <td style="padding:5px 6px;text-align:center">${i===0?`
+        <input type="hidden" id="est-aviso-0" value="${esc(loadedAvisoEst)}">
+        <div style="display:flex;align-items:center;justify-content:center;gap:6px">
+          <button type="button" title="Redactar aviso por correo (Outlook)" onclick="enviarCorreoSPSEstadia()"
+            style="border:none;background:transparent;cursor:pointer;font-size:15px;line-height:1;padding:2px;color:var(--g500,#6b7688)">✉</button>
+          <span class="est-aviso-icon" id="est-aviso-icon-0" onclick="marcarAvisoSPSEstadia()"
+            title="${loadedAvisoEst?('Aviso enviado el '+new Date(loadedAvisoEst).toLocaleString('es-CL')):'Marcar aviso de SPS estadía como enviado'}"
+            style="cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
+            width:15px;height:15px;border:1.5px solid;border-radius:3px;font-size:11px;font-family:var(--serif);font-weight:600;transition:all .15s;${loadedAvisoEst?'color:var(--ok);border-color:var(--ok);background:var(--ok-bg)':'color:transparent;border-color:var(--g300,#b0b8c4);background:#fff'}">✓</span>
+        </div>`:''}
+      </td>
       <td style="padding:5px 8px;text-align:center">
         <input id="est-core-${i}" value="${esc(loadedCoreEst)}" placeholder="N° CORE"
           style="font-family:var(--mono);text-align:center;width:100%"
@@ -7792,7 +7855,7 @@ function renderCierreTabs() {
     <td colspan="2" style="padding:7px 8px;font-size:11px;letter-spacing:.4px;text-transform:uppercase">Total</td>
     <td style="font-family:var(--mono);text-align:center;padding:7px 8px">—</td>
     <td id="pf-total" style="font-family:var(--mono);text-align:center;padding:7px 8px;font-size:14px">—</td>
-    <td colspan="3"></td>`;
+    <td colspan="4"></td>`;
   tbody.appendChild(totalTr);
   calcPlantasTotal();
 }
@@ -8671,6 +8734,7 @@ function buildRows(nsol,imp) {
     'Muestreada?':     _lastLoadedRow['Muestreada?']||'',
     'SPS estadía':     (()=>{ const el=document.getElementById('est-sps-0'); return el ? (el.value||'') : (_lastLoadedRow['SPS estadía']||_lastLoadedRow['SPS estadia']||''); })(),
     'CORE/Factura3':   (()=>{ const el=document.getElementById('est-core-0'); return el ? (el.value||'') : (_lastLoadedRow['CORE/Factura3']||''); })(),
+    'Fecha Aviso SPS Estadía': (()=>{ const el=document.getElementById('est-aviso-0'); return el ? (el.value||'') : (_lastLoadedRow['Fecha Aviso SPS Estadía']||''); })(),
     'Terminada':       getCached('f6-term',v('f6-term'))||_lastLoadedRow['Terminada']||'',
     'Res. Término':    getCached('f6-nrest',v('f6-nrest'))||_lastLoadedRow['Res. Término']||'',
     'Fecha Res.4':     fmtDisplay(getCached('f6-frterm',v('f6-frterm')))||_lastLoadedRow['Fecha Res.4']||'',
@@ -8802,7 +8866,7 @@ const CANONICAL_HEADERS = [
   'Fecha Estimada Muestreo','TDM','Muestreada?','Mes Muestreo','Año',
   'Fecha estimada de CCAA','Fecha Real de CCAA','Fecha muestreo/Indexaje',
   'Fecha de envío','Folio','Corr. Desde','Corr. Hasta','N° Muestras',
-  'SPS análisis','CORE/Factura','Fecha Aviso SPS','SPS estadía','CORE/Factura3',
+  'SPS análisis','CORE/Factura','Fecha Aviso SPS','SPS estadía','CORE/Factura3','Fecha Aviso SPS Estadía',
   'Patógenos','Estado Análisis','Resultado','Técnica',
   'Fecha Informe Fitosanitario','Terminada','Res. Término','Fecha Res.4',
   'Liberada','Entregada','Obs.','Status','Proveedor','Representante',
@@ -8931,6 +8995,8 @@ async function doSave(rows,isUpdate,res,nsol) {
         const coreEl=document.getElementById('est-core-'+i);
         if(coreEl) { _lastLoadedRow['CORE/Factura3']=coreEl.value||''; }
       });
+      const avEl=document.getElementById('est-aviso-0');
+      if(avEl) { _lastLoadedRow['Fecha Aviso SPS Estadía']=avEl.value||''; }
     }
   } catch(e){ console.warn('saveMaterial error:',e); }
   window._recargarTimer = setTimeout(()=>{ window._recargarTimer=null; recargar(); },1200);
