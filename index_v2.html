@@ -6477,6 +6477,23 @@ function delAnRow(key,i) {
 // Returns [{plaga, tipo, via}, ...] deduped across ALL zones, filtered to the analysis type key
 function getPlagasForEspecie(espNombre, anKey) {
   if(typeof PLAGAS_LOOKUP==='undefined' || !espNombre) return [];
+
+  // Detectar híbrido "Género especie x Género especie" — expandir en progenitores
+  const mHib = espNombre.trim().match(/^(.+?)\s+[xX]\s+(.+)$/);
+  if(mHib) {
+    const p1 = mHib[1].trim();
+    let   p2 = mHib[2].trim();
+    if(!p2.includes(' ')) p2 = p1.split(' ')[0] + ' ' + p2;
+    const seen = new Set();
+    const result = [];
+    [p1, p2].forEach(prog => {
+      getPlagasForEspecie(prog, anKey).forEach(p => {
+        if(!seen.has(p.plaga)) { seen.add(p.plaga); result.push(p); }
+      });
+    });
+    return result.sort((a,b) => a.plaga.localeCompare(b.plaga, 'es'));
+  }
+
   espNombre = resolveEspecieCanonica(espNombre.trim());
 
   const genus = espNombre.split(' ')[0] + ' spp.';
@@ -6805,14 +6822,32 @@ function autoCargarAnalisis() {
   // Deduplicate: one plaga per unique (especie, patogeno) pair
   const plagasVistas = new Set();
 
-  // Get unique species (deduplicated)
+  // Get unique species (deduplicated), expandiendo híbridos (e.g. "Prunus salicina x Prunus armeniaca")
+  // en sus progenitores para que el lookup de plagas cubra ambas especies parentales.
   const uniqueEsp = [];
   const espVistas = new Set();
+
+  function expandirHibrido(espNombre) {
+    // Detecta patrón "Género especie x Género especie" o "Género especie x especie"
+    const m = espNombre.match(/^(.+?)\s+[xX]\s+(.+)$/);
+    if(!m) return [espNombre];
+    const p1 = m[1].trim(); // "Prunus salicina"
+    let   p2 = m[2].trim(); // "Prunus armeniaca" o solo "armeniaca"
+    // Si p2 no tiene espacio (solo epíteto), prefijarlo con el género de p1
+    if(!p2.includes(' ')) p2 = p1.split(' ')[0] + ' ' + p2;
+    return [p1, p2];
+  }
+
   esp.forEach(e => {
-    if(e.especie && !espVistas.has(e.especie)) {
-      espVistas.add(e.especie);
-      uniqueEsp.push(e);
-    }
+    if(!e.especie) return;
+    const progenitores = expandirHibrido(e.especie);
+    progenitores.forEach(esp => {
+      if(!espVistas.has(esp)) {
+        espVistas.add(esp);
+        // Conservar el resto de propiedades del registro (tipo, etc.) pero con el nombre expandido
+        uniqueEsp.push({...e, especie: esp, _hibridoOrigen: e.especie});
+      }
+    });
   });
 
   // ── Entomológico: UNA sola fila "Insectos/Ácaros" por género ──
