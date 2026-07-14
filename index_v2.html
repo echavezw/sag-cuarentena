@@ -1463,6 +1463,7 @@ input.field-blocked, select.field-blocked {
         <th style="text-align:center">Patogeno / Plaga</th>
         <th style="width:80px;text-align:center">N° Análisis</th>
         <th style="width:130px;text-align:center">N° SPS</th>
+        <th style="width:80px;text-align:center">Aviso</th>
         <th style="width:130px;text-align:center">N° CORE</th>
         <th style="width:90px;text-align:center">Estado</th>
       </tr></thead>
@@ -5143,7 +5144,8 @@ async function cargarFilaMulti(rows) {
       resultado:_rfix,tecnica:x['Técnica']||x['Tecnica']||'',
       fecha_inf:fmtD(x['Fecha Informe Fitosanitario']||''),obs:x['Obs.']||'',
       via:x['Via']||'',
-      sps:x['SPS análisis']||x['SPS analisis']||'',core:x['CORE/Factura']||''};
+      sps:x['SPS análisis']||x['SPS analisis']||'',core:x['CORE/Factura']||'',
+      aviso:x['Fecha Aviso SPS']||''};
     const k=tipo.includes('VIROL')?'V':tipo.includes('MICOL')?'H':tipo.includes('BACTERIOL')?'B':
             tipo.includes('FITOPLASMA')?'F':tipo.includes('ENTOMOL')?'E':tipo.includes('NEMATOL')?'N':'V';
     anByType[k].push(row);
@@ -7233,7 +7235,7 @@ function renderCobroTabs() {
 
     // Group header
     const htr=document.createElement('tr');
-    htr.innerHTML=`<td colspan="6" style="background:var(--nv);color:rgba(255,255,255,.8);
+    htr.innerHTML=`<td colspan="7" style="background:var(--nv);color:rgba(255,255,255,.8);
       font-size:10px;font-weight:700;letter-spacing:.5px;padding:6px 10px;text-transform:uppercase">
       ${label}
       <button class="btn btn-gh btn-sm" style="float:right;margin-top:-2px;font-size:10px"
@@ -7256,19 +7258,20 @@ function renderCobroTabs() {
         rowIdx++; totalRows++;
       });
     } else {
-      const grouped = new Map(); // gk -> {r, totalNan, sps, core}
+      const grouped = new Map(); // gk -> {r, totalNan, sps, core, aviso}
       rows.forEach(r => {
         const gk = `${r.especie}||${r.patogeno}`;
         if(!grouped.has(gk)) {
-          grouped.set(gk, {r:{...r}, totalNan:0, sps:r.sps||'', core:r.core||''});
+          grouped.set(gk, {r:{...r}, totalNan:0, sps:r.sps||'', core:r.core||'', aviso:r.aviso||''});
         }
         const g = grouped.get(gk);
         g.totalNan += (parseInt(r.n_muestras)||0);
-        if(r.sps)  g.sps  = r.sps;
-        if(r.core) g.core = r.core;
+        if(r.sps)   g.sps   = r.sps;
+        if(r.core)  g.core  = r.core;
+        if(r.aviso) g.aviso = r.aviso;
       });
-      grouped.forEach(({r, totalNan, sps, core}) => {
-        r.sps=sps; r.core=core;
+      grouped.forEach(({r, totalNan, sps, core, aviso}) => {
+        r.sps=sps; r.core=core; r.aviso=aviso;
         const nAn = totalNan||r.n_muestras||'';
         tbody.appendChild(makeCobroRow(key, rowIdx, r, nAn));
         rowIdx++; totalRows++;
@@ -7286,12 +7289,12 @@ function renderCobroTabs() {
         TOTAL ${label}
       </td>
       <td style="text-align:center;font-family:var(--mono);font-weight:700;font-size:11px" id="cobro-total-nan-${key}">—</td>
-      <td colspan="2"></td>
+      <td colspan="3"></td>
       <td></td>`;
     tbody.appendChild(ttr);
   });
 
-  if(!totalRows) tbody.innerHTML='<tr><td colspan="6" style="color:var(--g400);padding:16px;font-size:12px;text-align:center">Complete analisis en la Etapa IV.</td></tr>';
+  if(!totalRows) tbody.innerHTML='<tr><td colspan="7" style="color:var(--g400);padding:16px;font-size:12px;text-align:center">Complete analisis en la Etapa IV.</td></tr>';
 
 
   // Check core blocks after cobro renders
@@ -7303,6 +7306,13 @@ function makeCobroRow(key, i, r, nAn) {
   const hasSps    = !!(r.sps);
   const hasCoreOk = coreEsValido(r.core);
   const hasCoreSC = coreEsSinCore(r.core);
+  const avisoSent = !!(r.aviso);
+  const avisoStyle = avisoSent
+    ? 'color:var(--ok);border-color:var(--ok);background:var(--ok-bg)'
+    : 'color:transparent;border-color:var(--g300,#b0b8c4);background:#fff';
+  const avisoTitle = avisoSent
+    ? 'Aviso enviado el ' + new Date(r.aviso).toLocaleString('es-CL')
+    : 'Marcar aviso de SPS como enviado';
   let badgeClass, badgeText;
   if(hasSps && hasCoreOk)      { badgeClass='badge-ok';   badgeText='Pagado'; }
   else if(hasSps && hasCoreSC) { badgeClass='badge-ok';   badgeText='Pagado/Sin CORE'; }
@@ -7331,6 +7341,18 @@ function makeCobroRow(key, i, r, nAn) {
       <input id="cobro-sps-${key}-${i}" value="${esc(r.sps||'')}" placeholder="N° SPS"
         style="font-family:var(--mono);text-align:center;width:100%"
         oninput="updateCobroTotal('${key}');updateCobroStatus(this.closest('tr'));autoFitInput(this)">
+    </td>
+    <td style="text-align:center;padding:4px 6px">
+      <input type="hidden" id="cobro-aviso-${key}-${i}" value="${esc(r.aviso||'')}">
+      <div style="display:flex;align-items:center;justify-content:center;gap:6px">
+        <button type="button" title="Redactar aviso por correo (Outlook)" onclick="enviarCorreoSPS('${key}',${i})"
+          style="border:none;background:transparent;cursor:pointer;font-size:15px;line-height:1;padding:2px;color:var(--g500,#6b7688)">✉</button>
+        <span class="cobro-aviso-icon" id="cobro-aviso-icon-${key}-${i}" onclick="marcarAvisoSPS('${key}',${i})"
+          title="${esc(avisoTitle)}"
+          style="cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
+          width:15px;height:15px;border:1.5px solid;border-radius:3px;${avisoStyle}
+          font-size:11px;font-family:var(--serif);font-weight:600;transition:all .15s">✓</span>
+      </div>
     </td>
     <td style="text-align:center;padding:4px 6px">
       <input id="cobro-core-${key}-${i}" value="${esc(r.core||'')}" placeholder="N° CORE"
@@ -7373,6 +7395,79 @@ function toggleCobroChk(span) {
   } else {
     span.style.color='transparent';span.style.borderColor='var(--g300,#b0b8c4)';span.style.background='#fff';
   }
+}
+
+// ── Aviso de SPS por correo (Etapa V — Cobro Analisis) ──
+function _tipoAnalisisLabelSPS(key) {
+  const found = Object.values(AN_TYPES).find(t=>t.key===key);
+  return found ? found.label.toUpperCase() : '';
+}
+
+function _contextoCorreoSPS() {
+  const res = (v('f2-nres')||_lastLoadedRow['Res.']||'').trim();
+  const sol = (v('f1-nsol')||_lastLoadedRow['Solicitud']||'').trim();
+  const refCPE = res ? `Res. ${res}` : `Solicitud ${sol}`;
+  const anio = res
+    ? (fmtD(v('f2-fres')||_lastLoadedRow['Fecha Res.']||'').substring(0,4))
+    : (fmtD(_lastLoadedRow['Fecha Solicitud']||'').substring(0,4));
+  const contraparte = (v('f1-cp1-nombre')||_lastLoadedRow['Contraparte Importacion']||'').trim();
+  const primerNombre = contraparte.split(' ')[0]||'Importador';
+  const correo = (v('f1-cp1-email')||_lastLoadedRow['Email Importacion']||'').trim();
+  return {refCPE, anio: anio||new Date().getFullYear(), contraparte, primerNombre, correo};
+}
+
+function enviarCorreoSPS(key, i) {
+  const spsInp = document.getElementById(`cobro-sps-${key}-${i}`);
+  const sps = (spsInp?.value||'').trim();
+  if(!sps){ setS('Ingrese el N° de SPS antes de redactar el aviso.','warn'); return; }
+  const {refCPE, anio, primerNombre, correo} = _contextoCorreoSPS();
+  if(!correo){ setS('No hay correo de Contraparte Importacion registrado en Etapa I.','warn'); return; }
+  const tipoLabel = _tipoAnalisisLabelSPS(key);
+  const asunto = `SPS N°${sps} cobro por ANÁLISIS ${tipoLabel} de CPE ${refCPE} del año ${anio}`;
+  const cuerpo =
+`Estimado/a ${primerNombre},\n\n`+
+`Junto con saludar, envío correo correspondiente a cobro por ANÁLISIS ${tipoLabel} de CPE ${refCPE} del año ${anio}:\n\n`+
+`Se le informa que se ha emitido el cupón adjunto por la SPS N°${sps}.\n\n`+
+`- El pago se debe efectuar solamente a través de la página web del portal pagos (https://portalpagos.sag.gob.cl/Account/Login.aspx)\n`+
+`- Consultas con respecto a problemas con el uso del portal deberán ser dirigidas al correo de Portal Pagos SAG portalpagos@sag.gob.cl\n\n`+
+`Si se tienen consultas respecto a facturas u otro documento, favor dirigirlas al correo de Tesorería Lo Aguirre tesoreria.loaguirre@sag.gob.cl.\n\n`+
+`Recuerde siempre revisar la vigencia del valor al momento de efectuar el pago del cupón, ya que los valores pueden variar dependiendo de los servicios y la fecha de emisión de su SPS.\n\n`+
+`Nota: adjunte manualmente el cupón de pago y el detalle de la solicitud de prestación de servicios (SPS) correspondientes antes de enviar.\n\n`+
+`Saludos cordiales,\n\n`+
+`Eduardo Chávez Weisser\n`+
+`Ingeniero Agrónomo | Fitopatólogo | MSc\n`+
+`Estación de Cuarentena Agrícola (ECA)\n`+
+`+56223451861\n\n`+
+`Departamento RED SAG de Laboratorios\n`+
+`Servicio Agrícola y Ganadero | Ministerio de Agricultura\n`+
+`Gobierno de Chile`;
+  const mailto = `mailto:${correo}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
+  window.location.href = mailto;
+}
+
+function marcarAvisoSPS(key, i) {
+  const spsInp = document.getElementById(`cobro-sps-${key}-${i}`);
+  const sps = (spsInp?.value||'').trim();
+  const hid  = document.getElementById(`cobro-aviso-${key}-${i}`);
+  const icon = document.getElementById(`cobro-aviso-icon-${key}-${i}`);
+  if(!hid||!icon) return;
+  if(hid.value) {
+    showModal('Desmarcar aviso', '¿Confirma que desea quitar el registro de aviso de SPS enviado para esta fila?', ()=>{
+      closeModal();
+      hid.value='';
+      icon.style.color='transparent'; icon.style.borderColor='var(--g300,#b0b8c4)'; icon.style.background='#fff';
+      icon.title='Marcar aviso de SPS como enviado';
+      markDirty(5);
+    }, 'Desmarcar','btn-err');
+    return;
+  }
+  if(!sps){ setS('Ingrese el N° de SPS antes de marcar el aviso como enviado.','warn'); return; }
+  const ahora = new Date().toISOString();
+  hid.value = ahora;
+  icon.style.color='var(--ok)'; icon.style.borderColor='var(--ok)'; icon.style.background='var(--ok-bg)';
+  icon.title = 'Aviso enviado el ' + new Date(ahora).toLocaleString('es-CL');
+  markDirty(5);
+  setS('Aviso de SPS marcado como enviado.','ok');
 }
 
 function updateCobroTotal(key) {
@@ -7528,17 +7623,18 @@ function syncCobroFromDOM() {
       const sps  = spsInp.value||'';
       const core = document.getElementById(`cobro-core-${key}-${i}`)?.value||'';
       const nAn  = document.getElementById(`cobro-nan-${key}-${i}`)?.value||'';
+      const aviso = document.getElementById(`cobro-aviso-${key}-${i}`)?.value||'';
       // Get the especie from cobro row to match back to anRows
       // For ento: map by index directly (rows shown in same order as anRows['E'])
       if(key==='E') {
-        if(rows[i]) { rows[i].sps=sps; rows[i].core=core; if(nAn) rows[i].n_muestras=nAn; }
+        if(rows[i]) { rows[i].sps=sps; rows[i].core=core; rows[i].aviso=aviso; if(nAn) rows[i].n_muestras=nAn; }
       } else {
         // Build same grouped order as render
         const seen=new Set(); let di=0;
         for(const row of rows) {
           const gk=`${row.especie}||${row.patogeno}`;
           if(seen.has(gk)){continue;} seen.add(gk);
-          if(di===i){ row.sps=sps; row.core=core; if(nAn) row.n_muestras=nAn; break; }
+          if(di===i){ row.sps=sps; row.core=core; row.aviso=aviso; if(nAn) row.n_muestras=nAn; break; }
           di++;
         }
       }
@@ -8664,6 +8760,7 @@ function buildRows(nsol,imp) {
           tecnica:x['Técnica']||x['Tecnica']||'',folio:_f,corr_desde:_cd,corr_hasta:_ch,
           n_muestras:x['N° Muestras']||'',obs:x['Obs.']||'',
           sps:x['SPS análisis']||'',core:x['CORE/Factura']||'',
+          aviso:x['Fecha Aviso SPS']||'',
           ccaa_est:x['Fecha estimada de CCAA']||'',ccaa_real:x['Fecha Real de CCAA']||'',
           tdm:x['Fecha muestreo/Indexaje']||'',tdm_est:x['Fecha Estimada Muestreo']||'',
           fecha_inf:x['Fecha Informe Fitosanitario']||'',
@@ -8688,7 +8785,7 @@ function buildRows(nsol,imp) {
       'Fecha muestreo/Indexaje':a.tdm||'','Fecha Estimada Muestreo':a.tdm_est||'',
       'Fecha Informe Fitosanitario':a.fecha_inf||'',
       'Obs.':a.obs||_lastLoadedRow['Obs.']||'',
-      'SPS análisis':a.sps||'','CORE/Factura':a.core||'',
+      'SPS análisis':a.sps||'','CORE/Factura':a.core||'','Fecha Aviso SPS':a.aviso||'',
     }));
   } else {
     esp.forEach(e=>rows.push({...base,'Especie':cleanEspecie(e.especie),'Variedades':e.variedad,'Tipo Material':e.tipo,'Cantidad':e.cant||'','Portainjerto':e.portainjerto||''}));
@@ -8705,7 +8802,7 @@ const CANONICAL_HEADERS = [
   'Fecha Estimada Muestreo','TDM','Muestreada?','Mes Muestreo','Año',
   'Fecha estimada de CCAA','Fecha Real de CCAA','Fecha muestreo/Indexaje',
   'Fecha de envío','Folio','Corr. Desde','Corr. Hasta','N° Muestras',
-  'SPS análisis','CORE/Factura','SPS estadía','CORE/Factura3',
+  'SPS análisis','CORE/Factura','Fecha Aviso SPS','SPS estadía','CORE/Factura3',
   'Patógenos','Estado Análisis','Resultado','Técnica',
   'Fecha Informe Fitosanitario','Terminada','Res. Término','Fecha Res.4',
   'Liberada','Entregada','Obs.','Status','Proveedor','Representante',
