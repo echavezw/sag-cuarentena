@@ -9104,10 +9104,18 @@ function generarReportePMG() {
     (groups[key]=groups[key]||[]).push(r);
   });
   const out = Object.values(groups).map(rows=>{
-    const best = rows.reduce((a,b)=>Object.values(b).filter(x=>x).length>Object.values(a).filter(x=>x).length?b:a, rows[0]);
+    // Coalescer campo por campo: cada columna toma el primer valor no vacío
+    // entre TODAS las filas del grupo (una fila puede tener Origen lleno y
+    // otra Res. Término lleno — elegir "la mejor fila completa" perdía datos).
+    const merged = {};
+    CANONICAL_HEADERS.forEach(k=>{
+      if(k==='Especie') return;
+      let v='';
+      for(const r of rows){ const rv=r[k]; if(rv!==undefined && String(rv).trim()!==''){ v=rv; break; } }
+      merged[k]=v;
+    });
     const especies=[...new Set(rows.map(r=>String(r['Especie']||'').trim()).filter(Boolean))];
-    const merged = Object.assign({}, best);
-    if(especies.length) merged['Especie']=especies.join('; ');
+    merged['Especie']=especies.join('; ');
     return merged;
   });
   out.sort((a,b)=>String(fmtD(a['Fecha Solicitud'])||'').localeCompare(String(fmtD(b['Fecha Solicitud'])||'')));
