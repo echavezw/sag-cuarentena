@@ -9149,8 +9149,11 @@ function descargarExcelReportePMG() {
     if(RPT_DATE_COLS.has(c)) v=fmtDisplay(v);
     return v;
   };
-  const esc2=v=>{ const s=String(v||''); return s.includes(',')||s.includes('"')||s.includes('\n')?'"'+s.replace(/"/g,'""')+'"':s; };
-  const csv='\uFEFF'+cols.map(c=>RPT_LABELS[c]||c).join(',')+'\n'+_rptRows.map(r=>cols.map(c=>esc2(cellVal(r,c))).join(',')).join('\n');
+  // Delimitador ";" — con "," Excel en configuración regional Chile/Español no
+  // reconoce el separador (usa ";" como separador de listas por defecto) y
+  // vuelca todo en una sola columna, desalineando filas.
+  const esc2=v=>{ const s=String(v||''); return s.includes(';')||s.includes(',')||s.includes('"')||s.includes('\n')?'"'+s.replace(/"/g,'""')+'"':s; };
+  const csv='\uFEFF'+cols.map(c=>RPT_LABELS[c]||c).join(';')+'\n'+_rptRows.map(r=>cols.map(c=>esc2(cellVal(r,c))).join(';')).join('\n');
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
   a.download='ECA_Reporte_PMG_'+new Date().toISOString().slice(0,10)+'.csv';
