@@ -9117,7 +9117,12 @@ function generarReportePMG() {
       for(const r of rows){ const rv=r[k]; if(rv!==undefined && String(rv).trim()!==''){ v=rv; break; } }
       merged[k]=v;
     });
-    const especies=[...new Set(rows.map(r=>String(r['Especie']||'').trim()).filter(Boolean))];
+    let especies=[...new Set(rows.map(r=>String(r['Especie']||'').trim()).filter(Boolean))];
+    // El análisis Entomológico se registra a nivel de género (ej. "Prunus spp."),
+    // no de especie real. Si la solicitud ya tiene especies específicas en otros
+    // análisis, se descarta el genérico "spp." para no duplicar/confundir.
+    const especiesReales = especies.filter(e => !/\bspp\.?\s*$/i.test(e));
+    if(especiesReales.length) especies = especiesReales;
     merged['Especie']=especies.join('; ');
     return merged;
   });
