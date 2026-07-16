@@ -1688,6 +1688,7 @@ input.field-blocked, select.field-blocked {
   <div class="tabs">
     <button class="tab active" id="panel-tab-0" onclick="showPanelTab(0)">Todos los Registros</button>
     <button class="tab" id="panel-tab-1" onclick="showPanelTab(1)">Búsqueda Rápida</button>
+    <button class="tab" id="panel-tab-2" onclick="showPanelTab(2)">Reportes PMG</button>
   </div>
   <div id="panel-content-0" class="tab-panel active">
   <div class="tab-body" style="border-radius:0 0 var(--r) var(--r);padding:14px">
@@ -1740,6 +1741,32 @@ input.field-blocked, select.field-blocked {
     </div>
   </div>
   </div><!-- /panel-content-1 -->
+
+  <!-- Tab: Reportes PMG -->
+  <div id="panel-content-2" class="tab-panel">
+  <div class="tab-body" style="border-radius:0 0 var(--r) var(--r);padding:18px">
+    <div class="info-box" style="margin-bottom:14px">Medios de verificación PMG Calidad de Servicio: solicitudes recibidas, resoluciones de importación y resoluciones de término emitidas dentro del período. Un registro único por Solicitud (no se repite por plaga/análisis).</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px">
+      <div class="ff c1"><label class="lbl">Desde</label><input type="date" id="rpt-desde" onchange="generarReportePMG()"></div>
+      <div class="ff c1"><label class="lbl">Hasta</label><input type="date" id="rpt-hasta" onchange="generarReportePMG()"></div>
+      <button class="btn btn-nv btn-sm" onclick="generarReportePMG()">Generar</button>
+      <button class="btn btn-gh btn-sm" onclick="limpiarReportePMG()">Limpiar</button>
+      <button class="btn btn-gh btn-sm" onclick="descargarExcelReportePMG()">⬇ Excel</button>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+      <div id="rpt-info" style="font-size:11px;color:var(--g400);font-family:var(--mono)"></div>
+      <details style="font-size:11px">
+        <summary style="cursor:pointer;color:var(--g400);font-size:11px;font-weight:600;padding:3px 8px;border:1px solid var(--g200);border-radius:4px">Columnas</summary>
+        <div id="rpt-col-toggle-wrap" style="position:absolute;z-index:20;background:var(--wh);border:1px solid var(--g200);border-radius:var(--r);padding:10px;margin-top:4px;box-shadow:var(--sh2);display:flex;flex-wrap:wrap;gap:5px;max-width:460px;max-height:320px;overflow:auto"></div>
+      </details>
+    </div>
+    <div id="rpt-table-wrap" style="overflow:auto;height:600px;min-height:220px;max-height:85vh;resize:vertical;border:1px solid var(--g200);border-radius:var(--rs)">
+      <table class="tbl" id="rpt-table"><thead id="rpt-thead"></thead><tbody id="rpt-tbody">
+        <tr><td style="text-align:center;padding:30px;color:var(--g400)">Presione "Generar" para construir el reporte.</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+  </div><!-- /panel-content-2 -->
 </div>
 
 
@@ -3825,7 +3852,7 @@ async function init() {
 
 // ── NAVIGATION ──
 function showPanelTab(idx) {
-  [0,1].forEach(i => {
+  [0,1,2].forEach(i => {
     const tab = document.getElementById('panel-tab-'+i);
     const pnl = document.getElementById('panel-content-'+i);
     if(tab) tab.classList.toggle('active', i===idx);
@@ -3833,6 +3860,7 @@ function showPanelTab(idx) {
   });
   if(idx===0) { filterHist(); renderRecientes(); }
   if(idx===1) { buscarPanelDefault(); }
+  if(idx===2) { initReportePMG(); }
 }
 
 function buscarPanelDefault() {
@@ -4636,6 +4664,7 @@ async function recargar() {
     }).catch(()=>{});
     setTimeout(()=>loadRefData(), 500); // delay to avoid 429
     filterHist();
+    if(document.getElementById('panel-tab-2')?.classList.contains('active') && typeof generarReportePMG==='function') generarReportePMG();
     renderStats();
     renderRecientes();
     initTimeline();
@@ -8982,6 +9011,141 @@ const CANONICAL_HEADERS = [
   'N° CDA','N° Cert. Fitosanitario','Link Solicitud PDF','Link Resolucion PDF',
   'Fecha Aviso SPS','Fecha Aviso SPS Estadía'
 ];
+
+// ══════════════════════════════════════════════
+// ── REPORTES PMG (Medios de Verificación Calidad de Servicio) ──
+// Un registro único por Solicitud (agrupa filas de Detalle que se repiten
+// por plaga/análisis). Columnas obligatorias exigidas por PMG + columnas
+// opcionales seleccionables desde CANONICAL_HEADERS.
+// ══════════════════════════════════════════════
+const RPT_REQUIRED = [
+  {key:'Fecha Solicitud', label:'Fecha Solicitud'},
+  {key:'Solicitud',       label:'N° Solicitud'},
+  {key:'Res.',             label:'N° Res. Autorización'},
+  {key:'Fecha Res.',       label:'Fecha Res. Autorización'},
+  {key:'Importador',       label:'Importador'},
+  {key:'Rut',               label:'Rut Importador'},
+  {key:'Especie',           label:'Especies a Importar'},
+  {key:'Origen',            label:'País de Origen'},
+  {key:'Res. Término',      label:'N° Res. Término'},
+  {key:'Fecha Res.4',       label:'Fecha Res. Término'},
+];
+const RPT_REQ_KEYS = RPT_REQUIRED.map(c=>c.key);
+const RPT_LABELS   = Object.fromEntries(RPT_REQUIRED.map(c=>[c.key,c.label]));
+const RPT_OPTIONAL = CANONICAL_HEADERS.filter(h=>!RPT_REQ_KEYS.includes(h));
+const RPT_DATE_COLS = new Set(['Fecha Solicitud','Fecha Res.','Fecha Res.4']);
+
+let _rptSelectedCols = new Set(); // columnas opcionales activas (las obligatorias siempre van)
+let _rptRows = []; // último resultado generado (deduplicado por Solicitud)
+
+function _rptOrderedCols() {
+  const opt = CANONICAL_HEADERS.filter(h=>!RPT_REQ_KEYS.includes(h) && _rptSelectedCols.has(h));
+  return [...RPT_REQ_KEYS, ...opt];
+}
+
+function initReportePMG() {
+  if($('rpt-desde') && !$('rpt-desde').value) $('rpt-desde').value='2025-07-01';
+  if($('rpt-hasta') && !$('rpt-hasta').value) $('rpt-hasta').value='2026-06-30';
+  _buildRptColToggle();
+  generarReportePMG();
+}
+
+function _buildRptColToggle() {
+  const wrap=$('rpt-col-toggle-wrap'); if(!wrap) return;
+  wrap.innerHTML='';
+  RPT_REQUIRED.forEach(c=>{
+    const b=document.createElement('span');
+    b.textContent=c.label;
+    b.title='Columna obligatoria (PMG)';
+    b.style.cssText='font-size:10px;padding:3px 7px;border-radius:4px;background:var(--gold-bg,#f5ecd8);color:var(--inkv,#333);border:1px solid var(--g200);opacity:.85';
+    wrap.appendChild(b);
+  });
+  RPT_OPTIONAL.forEach(key=>{
+    const active=_rptSelectedCols.has(key);
+    const b=document.createElement('button');
+    b.type='button';
+    b.textContent=key;
+    b.style.cssText='font-size:10px;padding:3px 7px;border-radius:4px;cursor:pointer;border:1px solid var(--g200);'
+      +(active?'background:var(--nv,#0A1628);color:#fff':'background:var(--wh);color:var(--g400)');
+    b.onclick=()=>{
+      if(_rptSelectedCols.has(key)) _rptSelectedCols.delete(key); else _rptSelectedCols.add(key);
+      _buildRptColToggle();
+      _renderReportePMG(_rptRows);
+    };
+    wrap.appendChild(b);
+  });
+}
+
+function limpiarReportePMG() {
+  if($('rpt-desde')) $('rpt-desde').value='2025-07-01';
+  if($('rpt-hasta')) $('rpt-hasta').value='2026-06-30';
+  _rptSelectedCols = new Set();
+  _buildRptColToggle();
+  generarReportePMG();
+}
+
+function generarReportePMG() {
+  if(!gsData.length) { setS('Sin datos cargados.','warn'); return; }
+  const desde=$('rpt-desde')?$('rpt-desde').value:'';
+  const hasta=$('rpt-hasta')?$('rpt-hasta').value:'';
+  const inRange = v => { const d=fmtD(v||''); return !!d && (!desde||d>=desde) && (!hasta||d<=hasta); };
+  // Filas cuya Fecha Solicitud, Fecha Res. (autorización) o Fecha Res.4 (término) caen en el período
+  const matchRows = gsData.filter(r =>
+    inRange(r['Fecha Solicitud']) || inRange(r['Fecha Res.']) || inRange(r['Fecha Res.4'])
+  );
+  // Agrupar por N° de Solicitud (fallback Res. si no hay Solicitud) para evitar
+  // filas repetidas por plaga/análisis — un registro por solicitud.
+  const groups = {};
+  matchRows.forEach(r=>{
+    const sol=String(r['Solicitud']||'').trim();
+    const res=String(r['Res.']||'').trim();
+    const key = sol || (res?('__res__'+res):'');
+    if(!key) return;
+    (groups[key]=groups[key]||[]).push(r);
+  });
+  const out = Object.values(groups).map(rows=>{
+    const best = rows.reduce((a,b)=>Object.values(b).filter(x=>x).length>Object.values(a).filter(x=>x).length?b:a, rows[0]);
+    const especies=[...new Set(rows.map(r=>String(r['Especie']||'').trim()).filter(Boolean))];
+    const merged = Object.assign({}, best);
+    if(especies.length) merged['Especie']=especies.join('; ');
+    return merged;
+  });
+  out.sort((a,b)=>String(fmtD(a['Fecha Solicitud'])||'').localeCompare(String(fmtD(b['Fecha Solicitud'])||'')));
+  _rptRows = out;
+  _renderReportePMG(out);
+  setS(`${out.length} solicitudes únicas en el período (${desde||'—'} a ${hasta||'—'}).`,'ok');
+}
+
+function _renderReportePMG(rows) {
+  const thead=$('rpt-thead'), tbody=$('rpt-tbody'), info=$('rpt-info');
+  if(!thead||!tbody) return;
+  const cols=_rptOrderedCols();
+  if(info) info.textContent=`${rows.length} registros · ${cols.length} columnas`;
+  thead.innerHTML='<tr>'+cols.map(c=>`<th>${RPT_LABELS[c]||c}</th>`).join('')+'</tr>';
+  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="${cols.length||1}" style="text-align:center;padding:20px;color:var(--g400)">Sin resultados en el período seleccionado.</td></tr>`; return; }
+  tbody.innerHTML = rows.map(r=>'<tr>'+cols.map(c=>{
+    let v=r[c]||'';
+    if(RPT_DATE_COLS.has(c)) v=fmtDisplay(v);
+    return `<td>${v}</td>`;
+  }).join('')+'</tr>').join('');
+}
+
+function descargarExcelReportePMG() {
+  if(!_rptRows.length){ setS('Genere el reporte primero.','warn'); return; }
+  const cols=_rptOrderedCols();
+  const cellVal=(r,c)=>{
+    let v=r[c]||'';
+    if(RPT_DATE_COLS.has(c)) v=fmtDisplay(v);
+    return v;
+  };
+  const esc2=v=>{ const s=String(v||''); return s.includes(',')||s.includes('"')||s.includes('\n')?'"'+s.replace(/"/g,'""')+'"':s; };
+  const csv='\uFEFF'+cols.map(c=>RPT_LABELS[c]||c).join(',')+'\n'+_rptRows.map(r=>cols.map(c=>esc2(cellVal(r,c))).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download='ECA_Reporte_PMG_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+  setS('Reporte PMG descargado.','ok');
+}
 
 async function doSave(rows,isUpdate,res,nsol) {
   // Cancel any pending recargar to avoid race conditions during delete/append
