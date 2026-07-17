@@ -1074,12 +1074,72 @@ function addMaterialRow(){
     '<td><input type="number" class="m-cantidad" min="1"></td>' +
     '<td><input type="number" class="m-nplantas" min="0"></td>' +
     '<td><input type="text" class="m-portainjerto" list="listaPortainjertos"></td>' +
-    '<td><input type="text" class="m-regviveroport"></td>' +
+    '<td class="m-vivero-cell">' +
+      '<div style="display:flex;align-items:center;gap:0;">' +
+        '<span style="font-size:1em;padding-right:1px;white-space:nowrap;">V/</span>' +
+        '<input type="number" class="m-vivero-region" min="1" max="16" step="1" ' +
+          'style="width:3em;text-align:center;border:none;border-bottom:1.5px solid #aaa;border-radius:0;padding:2px 2px;font-size:1em;-moz-appearance:textfield;" ' +
+          'placeholder="01">' +
+        '<span style="padding:0 1px;white-space:nowrap;">-</span>' +
+        '<input type="text" class="m-vivero-sufijo" ' +
+          'style="width:6em;border:none;border-bottom:1.5px solid #aaa;border-radius:0;padding:2px 2px;font-size:1em;" ' +
+          'placeholder="12345">' +
+      '</div>' +
+      '<input type="hidden" class="m-regviveroport" value="">' +
+      '<div class="m-vivero-aviso" style="display:none;font-size:8pt;margin-top:3px;padding:2px 5px;border-radius:3px;"></div>' +
+    '</td>' +
     '<td><select class="m-certfrutal"><option value="NO">No</option><option value="SI">Sí</option></select></td>' +
     '<td><select class="m-varprotegida"><option value="NO">No</option><option value="SI">Sí</option></select></td>' +
     '<td><button type="button" class="btn btn-danger remove-row">Quitar</button></td>';
   tbody.appendChild(tr);
   tr.querySelector('.remove-row').addEventListener('click', function(){ tr.remove(); });
+  attachViveroRow(tr);
+}
+
+/* ── Registro Vivero por fila de Material: mismo formato/lógica que el campo de Uso/Registro/Logística ── */
+function attachViveroRow(tr){
+  var elR = tr.querySelector('.m-vivero-region');
+  var elS = tr.querySelector('.m-vivero-sufijo');
+  var hidden = tr.querySelector('.m-regviveroport');
+  var aviso = tr.querySelector('.m-vivero-aviso');
+
+  function actualizar(){
+    var vr = parseInt(elR.value, 10);
+    if (isNaN(vr) || elR.value === "") { hidden.value = ""; return; }
+    if (vr < 1) { elR.value = 1; vr = 1; }
+    if (vr > 16) { elR.value = 16; vr = 16; }
+    var num = vr < 10 ? ("0" + vr) : String(vr);
+    var suf = (elS.value || "").trim();
+    hidden.value = "V/" + num + "-" + suf;
+  }
+
+  function validar(){
+    var vr = parseInt(elR.value, 10);
+    var suf = (elS.value || "").trim();
+    if(isNaN(vr) || !suf){ aviso.style.display="none"; return; }
+    var num = vr < 10 ? ("0"+vr) : String(vr);
+    var sufNorm = suf.replace(/^0+/, "") || "0";
+    var clave = "V/" + num + "-" + sufNorm;
+    var nombre = VIVEROS_FT[clave];
+    if(nombre){
+      aviso.style.display = "block";
+      aviso.style.background = "#e8f5e9";
+      aviso.style.color = "#1b5e20";
+      aviso.style.border = "1px solid #a5d6a7";
+      aviso.textContent = "✓ " + nombre;
+    } else {
+      aviso.style.display = "block";
+      aviso.style.background = "#fff8e1";
+      aviso.style.color = "#7d5f00";
+      aviso.style.border = "1px solid #ffe082";
+      aviso.textContent = "⚠ Código no encontrado en la nómina SAG de viveros frutales.";
+    }
+  }
+
+  elR.addEventListener('input', actualizar);
+  elR.addEventListener('blur', actualizar);
+  elS.addEventListener('input', actualizar);
+  elS.addEventListener('blur', function(){ actualizar(); validar(); });
 }
 
 function getMaterialData(){
