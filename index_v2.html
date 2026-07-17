@@ -1155,6 +1155,7 @@ input.field-blocked, select.field-blocked {
   </div>
   <div style="margin-top:10px;padding:0 2px">
     <button type="button" class="btn btn-gh btn-sm" onclick="generarBorradorResolucion()" title="Genera borrador Word de Resolución de Internación">📄 Generar Borrador Res.</button>
+    <button type="button" class="btn btn-gh btn-sm" onclick="generarTimbreRecepcion()" title="Genera un PDF de timbre de recepción con la fecha de recepción, anexo a la solicitud">🏷️ Generar Timbre Recepción</button>
   </div>
   <div class="stage-nav">
     <span></span>
@@ -11190,6 +11191,42 @@ function _today() {
 // ── DOC 1: ACTA RECEPCIÓN (F-IIT-IMP-PA-007) — Etapa III ──
 // ══════════════════════════════════════════════════════
 // BORRADOR RESOLUCIÓN DE INTERNACIÓN
+// ══════════════════════════════════════════════════════
+// Genera el PDF de timbre de recepción (solicitudes en papel o regeneración).
+// Usa la Fecha Recepcion ingresada en Etapa I; el backend crea el PDF en Drive
+// y guarda el enlace en 'Link Timbre Recepcion'.
+// ══════════════════════════════════════════════════════
+async function generarTimbreRecepcion() {
+  const nSol = (document.getElementById('f1-nsol')?.value||'').trim();
+  if(!nSol){ setS('No hay solicitud cargada.','warn'); return; }
+  const fechaRec = (document.getElementById('f1-fech-rec')?.value||'').trim();
+  if(!fechaRec){ setS('Ingrese la fecha de recepción antes de generar el timbre.','warn'); return; }
+  // Formatea a DD-MM-YYYY (el input date entrega YYYY-MM-DD).
+  const fechaFmt = (typeof fmtDisplay==='function') ? fmtDisplay(fechaRec) : fechaRec;
+
+  showModal('Generar Timbre de Recepción',
+    `¿Generar el comprobante de recepción de la Solicitud N° ${nSol} con fecha ${fechaFmt}? Se guardará como PDF anexo en Drive.`,
+    async ()=>{
+      closeModal();
+      setS('Generando timbre de recepción…','warn');
+      try{
+        const resp = await fetch(_PORTAL_ENDPOINT,{method:'POST',
+          body:JSON.stringify({action:'generarTimbreManual',adminToken:_ADMIN_TOKEN,
+            folio:nSol, fechaRecepcion:fechaFmt})});
+        const data = await resp.json();
+        if(data && data.ok){
+          setS(`Timbre generado para la Solicitud N° ${nSol}.`,'ok');
+          if(_lastLoadedRow) _lastLoadedRow['Link Timbre Recepcion']=data.url;
+          window.open(data.url,'_blank');
+        } else {
+          setS('No se pudo generar el timbre: '+((data&&data.error)||'error desconocido'),'err');
+        }
+      }catch(e){
+        setS('Error al generar el timbre: '+e.message,'err');
+      }
+    },'Generar','btn-ok');
+}
+
 // ══════════════════════════════════════════════════════
 function generarBorradorResolucion() {
   const imp      = _v('f1-imp');
