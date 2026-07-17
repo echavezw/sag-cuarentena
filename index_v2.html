@@ -1040,6 +1040,7 @@ input.field-blocked, select.field-blocked {
           <input type="file" id="f1-doc-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png" style="display:none">
           <button class="btn btn-gh btn-sm" id="f1-doc-btn" onclick="adjuntarSolicitudPDF()" style="font-size:10px">📎 Adjuntar Solicitud</button>
           <button class="btn btn-gh btn-sm" id="f1-doc-view" onclick="" style="font-size:10px;display:none">👁 Ver Solicitud</button>
+          <button class="btn btn-gh btn-sm" id="f1-timbre-view" onclick="" style="font-size:10px;display:none" title="Abrir el comprobante de recepción (PDF anexo generado por el sistema)">🏷️ Ver Timbre</button>
           <input type="hidden" id="f1-doc-link-hidden">
         </div>
         <div style="margin-top:6px">
@@ -2508,12 +2509,23 @@ function _renderDocLinkUI(prefix, link) {
 function _restoreDocLinks(r) {
   const linkSol = r['Link Solicitud PDF'] || '';
   const linkRes = r['Link Resolucion PDF'] || '';
+  const linkTimbre = r['Link Timbre Recepcion'] || '';
   window._f1DocLink = linkSol;
   window._f2DocLink = linkRes;
   sv('f1-doc-link-hidden', linkSol);
   sv('f2-doc-link-hidden', linkRes);
   _renderDocLinkUI('f1', linkSol);
   _renderDocLinkUI('f2', linkRes);
+  // Botón Ver Timbre: aparece solo si la solicitud ya tiene comprobante generado.
+  const timbreBtn = document.getElementById('f1-timbre-view');
+  if(timbreBtn) {
+    if(linkTimbre) {
+      timbreBtn.style.display = 'inline-flex';
+      timbreBtn.onclick = () => window.open(linkTimbre, '_blank');
+    } else {
+      timbreBtn.style.display = 'none';
+    }
+  }
 }
 
 
@@ -5245,7 +5257,7 @@ function limpiarFormSilent() {
   clearFieldCache();
   if(typeof actualizarTimbreAprob==='function') actualizarTimbreAprob('');
   window._f1DocLink = ''; window._f2DocLink = ''; window._extractedData = null;
-  ['f1-doc-view','f2-doc-view'].forEach(id => { const el=document.getElementById(id); if(el) el.style.display='none'; });
+  ['f1-doc-view','f2-doc-view','f1-timbre-view'].forEach(id => { const el=document.getElementById(id); if(el) el.style.display='none'; });
   ['f1-extract-result','f2-extract-result'].forEach(id => { const el=document.getElementById(id); if(el) el.innerHTML=''; });
   _lastLoadedRow = {};
   ['f1-fech-rec','f1-rut','f1-rep','f1-tel','f1-dir','f1-ciudad','f1-comuna','f1-reg-imp',
@@ -11217,6 +11229,8 @@ async function generarTimbreRecepcion() {
         if(data && data.ok){
           setS(`Timbre generado para la Solicitud N° ${nSol}.`,'ok');
           if(_lastLoadedRow) _lastLoadedRow['Link Timbre Recepcion']=data.url;
+          const tvb=document.getElementById('f1-timbre-view');
+          if(tvb){ tvb.style.display='inline-flex'; tvb.onclick=()=>window.open(data.url,'_blank'); }
           window.open(data.url,'_blank');
         } else {
           setS('No se pudo generar el timbre: '+((data&&data.error)||'error desconocido'),'err');
