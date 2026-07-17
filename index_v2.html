@@ -3939,6 +3939,7 @@ function _colRawValue(key, r) {
     case 'imp': return (r['Importador']||'').trim() || '(sin importador)';
     case 'esp': return _especiesConsolidadas(r) || '(sin especie)';
     case 'stat': return (calcBadgePriority(_filasDelRegistro(r))||{}).label || calcStatusAuto(_filasDelRegistro(r));
+    case 'ultEvento': return (_ultimoEvento(r).tipo) || '(sin evento)';
     default: return '';
   }
 }
@@ -4040,6 +4041,14 @@ var _PANEL_COLS = [
   {key:"imp",  label:"Importador",fn:function(r){return (r["Importador"]||"").toLowerCase()}},
   {key:"esp",  label:"Especie",   fn:function(r){return (r["Especie"]||"").toLowerCase()}},
   {key:"stat", label:"Status",    fn:function(r){return (r["Status"]||"").toLowerCase()}},
+  {key:"ultEvento", label:"Últ. Evento", fn:function(r){
+    // Ordena por el timestamp del último evento. Convierte 'DD-MM-YYYY HH:MM'
+    // a numérico YYYYMMDDHHMM para comparación cronológica correcta.
+    const ev = _ultimoEvento(r);
+    const m = String(ev.texto||'').match(/(\d{2})-(\d{2})-(\d{4})(?:\s+(\d{2}):(\d{2}))?/);
+    if(!m) return 0;
+    return Number(m[3]+m[2]+m[1]+(m[4]||'00')+(m[5]||'00'));
+  }},
 ];
 
 // ── ORDEN MANUAL DE COLUMNAS (Búsqueda Rápida) ──
@@ -4262,10 +4271,39 @@ function _buildPanelCell(key, r, ctx) {
       td.appendChild(badge);
       break;
     }
+    case 'ultEvento': {
+      const ev = _ultimoEvento(r);
+      td.style.fontFamily = 'var(--mono)'; td.style.fontSize = '11px';
+      td.style.whiteSpace = 'nowrap';
+      td.textContent = ev.texto || '\u2014';
+      if(ev.tipo) { td.title = ev.tipo + (ev.valor ? (': ' + ev.valor) : ''); }
+      if(ev.color) td.style.color = ev.color;
+      break;
+    }
     default:
       td.textContent = '\u2014';
   }
   return td;
+}
+
+// Últ. Evento (Búsqueda Rápida): según el Status del registro, devuelve el
+// momento más relevante de su ciclo — envío firmado, cancelación o reserva —
+// leyendo las columnas de traza del portal (Fecha Hora Envío / Cancelación /
+// Reserva). Formato de esas columnas: 'DD-MM-YYYY HH:MM'.
+function _ultimoEvento(r) {
+  const st = String(r['Status']||'').trim();
+  const envio  = String(r['Fecha Hora Envío']||'').trim();
+  const cancel = String(r['Fecha Hora Cancelación']||'').trim();
+  const reserva= String(r['Fecha Reserva']||'').trim();
+  // Cancelada → prioriza fecha/hora de cancelación.
+  if(/cancelad/i.test(st) && cancel) return { texto:cancel, tipo:'Cancelada', valor:cancel, color:'var(--g400)' };
+  // Enviada / recibida / en trámite posterior → fecha/hora de envío firmado.
+  if(envio) return { texto:envio, tipo:'Envío firmado', valor:envio };
+  // Borrador sin enviar → fecha/hora de reserva.
+  if(reserva) return { texto:reserva, tipo:'Reserva (borrador)', valor:reserva, color:'var(--g400)' };
+  // Sin traza (registros históricos previos a estas columnas).
+  if(cancel) return { texto:cancel, tipo:'Cancelada', valor:cancel, color:'var(--g400)' };
+  return { texto:'', tipo:'', valor:'' };
 }
 
 function _panelRowsBuild(found, tbodyEl) {
@@ -8839,7 +8877,7 @@ async function guardarTodo() {
 function buildRows(nsol,imp) {
   const esp=getEspecies(); const base={
     'Solicitud':       String(nsol),
-    'Fecha Solicitud': fmtDisplay(v('f1-fech-rec')),
+    'Fecha Solicitud': _lastLoadedRow['Fecha Solicitud']||'',
     'Res.':            v('f2-nres')||_lastLoadedRow['Res.']||'',
     'Fecha Res.':      fmtDisplay(v('f2-fres'))||_lastLoadedRow['Fecha Res.']||'',
     'Importador':      imp,
@@ -9012,7 +9050,8 @@ const CANONICAL_HEADERS = [
   'Estado Res.','Recibida','A Firma Res. Termino','N° Plantas Finales',
   'Meses ECA','Cantidad','Portainjerto',
   'N° CDA','N° Cert. Fitosanitario','Link Solicitud PDF','Link Resolucion PDF',
-  'Fecha Aviso SPS','Fecha Aviso SPS Estadía'
+  'Link Timbre Recepcion','Fecha Aviso SPS','Fecha Aviso SPS Estadía',
+  'Fecha Reserva','Fecha Hora Envío','Fecha Hora Cancelación'
 ];
 
 // ══════════════════════════════════════════════
