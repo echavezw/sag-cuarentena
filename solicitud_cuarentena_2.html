@@ -42,7 +42,7 @@
   .radio-group{display:flex;gap:16px;align-items:center;}
   .radio-group label{display:flex;align-items:center;gap:6px;font-size:14px;margin:0;}
   #materialTable{width:100%;border-collapse:collapse;margin-bottom:10px;font-size:12px;table-layout:fixed;}
-  #materialTable th{background:var(--navy);color:#fff;font-weight:400;padding:6px 4px;text-align:left;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #materialTable th{background:var(--navy);color:#fff;font-weight:400;padding:6px 4px;text-align:center;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   #materialTable td{padding:5px 3px;border-bottom:1px solid var(--border);}
   #materialTable input,#materialTable select{padding:5px 4px;font-size:12px;width:100%;box-sizing:border-box;}
   .btn{display:inline-block;padding:10px 20px;border-radius:4px;border:none;cursor:pointer;font-size:14px;font-family:inherit;}
@@ -387,10 +387,10 @@
       <!-- MATERIAL -->
       <div class="card">
         <h2>Identificación del Material a Ingresar</h2>
-        <div style="overflow-x:auto;">
+        <div>
           <table id="materialTable">
             <colgroup>
-              <col style="width:24%"><!-- Especie -->
+              <col style="width:21%"><!-- Especie -->
               <col style="width:13%"><!-- Variedad -->
               <col style="width:10%"><!-- Clon -->
               <col style="width:10%"><!-- Tipo Material -->
