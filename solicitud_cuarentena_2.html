@@ -169,10 +169,7 @@
     <div id="bannerSuccess" class="banner success"></div>
     <div id="bannerError" class="banner error"></div>
 
-    <div id="bannerBorradorActivo" class="banner" style="display:none;background:#fdf6e3;border:1px solid #d8cbb0;color:#6b5a2e;padding:14px 18px;border-radius:8px;margin-bottom:14px">
-      <div id="bannerBorradorTexto" style="margin-bottom:10px"></div>
-      <button type="button" class="btn btn-secondary" style="font-size:13px;padding:8px 16px" onclick="descartarBorradorPendiente()">Descartar solicitud pendiente</button>
-    </div>
+
 
     <form id="solicitudForm" novalidate>
 
@@ -409,33 +406,35 @@
           </div>
           <div class="step-item">
             <span class="step-num">3</span>
-            <span>Adjunte el PDF firmado en la sección "Paso 2" y haga clic en <strong>"Enviar Solicitud"</strong>.</span>
+            <span>Complete el formulario, acepte la declaración en el Paso 2 y haga clic en <strong>"Enviar Solicitud"</strong>. Recibirá una copia del formulario por correo.</span>
           </div>
         </div>
-        <button type="button" class="btn btn-secondary" id="btnGenerarPDF" onclick="generarPDFFormulario()">
-          ⬇ Generar Formulario PDF para Firma
-        </button>
         <p class="helptext" style="margin-top:10px;">El PDF se genera con los datos ingresados. Si modifica algún campo después de generar el PDF, genérelo nuevamente antes de subir.</p>
       </div>
 
-      <!-- PASO 2: AUTORIZACIÓN Y PDF FIRMADO -->
+      <!-- PASO 2: DECLARACIÓN Y ENVÍO -->
       <div class="card">
-        <h2>Paso 2 — Adjuntar Formulario Firmado y Enviar</h2>
+        <h2>Paso 2 — Declaración y Envío</h2>
         <div class="field">
-          <label>Autorizo que la información y documentos de esta solicitud me sean enviados a los correos indicados. <span class="req">*</span></label>
-          <div class="radio-group">
-            <label><input type="radio" name="autorizaEnvio" value="SI"> Sí</label>
-            <label><input type="radio" name="autorizaEnvio" value="NO"> No</label>
-          </div>
-          <div class="msg" id="autorizaMsg" style="display:none;">Debe indicar su autorización.</div>
+          <label>Nombre del representante que declara <span class="req">*</span></label>
+          <input type="text" id="repNombre" placeholder="Nombre completo del representante">
+          <div class="msg" id="repNombreMsg" style="display:none;">Ingrese el nombre del representante.</div>
         </div>
-        <div class="field" id="f-pdf">
-          <label>Adjuntar formulario F-IIT-IMP-PA-002 firmado (PDF) <span class="req">*</span></label>
-          <label id="fileLabel" for="pdfInput">Haga clic para adjuntar el PDF generado y firmado (máx. 8MB)</label>
-          <input type="file" id="pdfInput" accept="application/pdf">
-          <div class="msg">Debe adjuntar el PDF firmado.</div>
+        <div class="field">
+          <label>RUT del representante <span class="req">*</span></label>
+          <input type="text" id="repRut" placeholder="Ej: 12.345.678-9">
+          <div class="msg" id="repRutMsg" style="display:none;">Ingrese un RUT válido.</div>
         </div>
-        <div id="recaptchaBox" class="g-recaptcha" data-sitekey="6Ld_Jz0tAAAAAGqK5ApLE3b7DmbSMCmccMR8zru1"></div>
+        <div class="field">
+          <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
+            <input type="checkbox" id="chkDeclaracion" style="margin-top:3px;width:18px;height:18px;flex-shrink:0">
+            <span>Declaro que los antecedentes proporcionados en esta solicitud son fidedignos y que actúo
+            en representación de la empresa importadora indicada, asumiendo responsabilidad por la
+            veracidad de la información. Autorizo que la información y documentos de esta solicitud me
+            sean enviados a los correos indicados. <span class="req">*</span></span>
+          </label>
+          <div class="msg" id="chkDeclaracionMsg" style="display:none;">Debe aceptar la declaración para continuar.</div>
+        </div>
       </div>
 
       <div class="actions">
@@ -629,6 +628,11 @@ function iniciarFormulario(importadorData) {
     document.getElementById('ciudad').value        = importadorData.ciudad     || '';
     document.getElementById('region').value        = importadorData.region     || '';
     document.getElementById('representante').value = importadorData.representante || '';
+    // Precarga representante declarante con contraparte de importación si existe
+    if(!document.getElementById('repNombre').value){
+      document.getElementById('repNombre').value = importadorData.contraparteImportacion
+        ? (importadorData.contraparteImportacion.nombre || '') : '';
+    }
 
     if(importadorData.contraparteImportacion){
       document.getElementById('cpImpNombre').value    = importadorData.contraparteImportacion.nombre   || '';
@@ -648,7 +652,6 @@ function iniciarFormulario(importadorData) {
   cargarListasAutocomplete();
   // Nivel 2-A: con el RUT ya cargado, consultar si hay un pendiente
   // (envío incompleto o borrador) y mostrar el banner de recuperación.
-  consultarPendienteAlIniciar();
 }
 
 function cerrarSesion(){
@@ -659,76 +662,15 @@ function cerrarSesion(){
   document.getElementById('bannerError').style.display = 'none';
   document.getElementById('solicitudForm').reset();
   document.getElementById('solicitudForm').style.display = 'block';
-  pdfBase64 = null; pdfNombreArchivo = null; solicitudReservada = null;
-  document.getElementById('fileLabel').classList.remove('has-file');
-  document.getElementById('fileLabel').textContent = 'Haga clic para seleccionar el PDF firmado (máx. 8MB)';
+  pdfBase64 = null; pdfNombreArchivo = null;
   showScreen('screen-login');
 }
 
 // ============================================================
 // GENERAR PDF FORMULARIO F-IIT-IMP-PA-002
 // ============================================================
-function consultarPendienteAlIniciar(){
-  var rut = document.getElementById('rut') ? document.getElementById('rut').value.trim() : (sesion.rut||'');
-  if(!rut) rut = sesion.rut || '';
-  if(!rut) return;
-  fetch(ENDPOINT_URL, {
-    method: 'POST',
-    body: JSON.stringify({ action: 'consultarPendiente', rut: rut })
-  })
-  .then(function(r){ return r.json(); })
-  .then(function(data){
-    if(data.ok && data.tienePendiente){
-      // Si es un envío incompleto, ya hay un folio reservado en curso: lo
-      // reflejamos en solicitudReservada para coherencia, pero el importador
-      // deberá descartarlo (Nivel 2-A). Si es borrador normal, igual lo avisa.
-      mostrarBannerBorrador(data.folioDisplay || data.folio, data.incompleto);
-    }
-  })
-  .catch(function(){ /* silencioso — si falla la consulta, el flujo sigue normal */ });
-}
 
-function mostrarBannerBorrador(folioDisplay, incompleto){
-  var b = document.getElementById('bannerBorradorActivo');
-  var t = document.getElementById('bannerBorradorTexto');
-  if(t){
-    if(incompleto){
-      t.innerHTML = 'Su solicitud N° <strong>' + folioDisplay + '</strong> quedó con un <strong>envío incompleto</strong> ' +
-        '(el proceso se interrumpió y no se completó correctamente). Por seguridad, descártela y genere una nueva solicitud.';
-    } else {
-      t.innerHTML = 'Tiene la solicitud N° <strong>' + folioDisplay + '</strong> generada y pendiente de envío. ' +
-        'Debe enviarla (adjuntando el PDF firmado) o descartarla antes de crear una nueva.';
-    }
-  }
-  if(b){ b.style.display = 'block'; b.scrollIntoView({behavior:'smooth', block:'center'}); }
-}
 
-function ocultarBannerBorrador(){
-  var b = document.getElementById('bannerBorradorActivo');
-  if(b) b.style.display = 'none';
-}
-
-function descartarBorradorPendiente(){
-  var rut = document.getElementById('rut').value.trim();
-  if(!rut){ alert('No se identificó el RUT del importador.'); return; }
-  if(!confirm('¿Confirma que desea descartar la solicitud pendiente? Esta acción no se puede deshacer y el número de solicitud quedará anulado.')) return;
-
-  fetch(ENDPOINT_URL, {
-    method: 'POST',
-    body: JSON.stringify({ action: 'descartarBorrador', rut: rut })
-  })
-  .then(function(r){ return r.json(); })
-  .then(function(data){
-    if(data.ok){
-      ocultarBannerBorrador();
-      solicitudReservada = null;
-      alert('Solicitud N° ' + (data.folio||'') + ' descartada. Ya puede generar una nueva.');
-    } else {
-      alert('No se pudo descartar la solicitud (' + (data.error||'error') + ').');
-    }
-  })
-  .catch(function(){ alert('Error de conexión al descartar la solicitud. Intente nuevamente.'); });
-}
 
 var _overlayEnvioTimer = null;
 function mostrarOverlayEnvio(){
@@ -747,70 +689,126 @@ function ocultarOverlayEnvio(){
   if(_overlayEnvioTimer){ clearTimeout(_overlayEnvioTimer); _overlayEnvioTimer = null; }
 }
 
-function generarPDFFormulario(){
-  const nombre    = document.getElementById('nombre').value.trim();
-  const rut       = document.getElementById('rut').value.trim();
 
-  if(!nombre || !rut){
-    alert('Complete al menos los datos de identificación del importador antes de generar el PDF.');
-    return;
-  }
-
-  const viveroRegion = parseInt(document.getElementById('viveroRegion').value, 10);
-  const viveroSufijo = document.getElementById('viveroSufijo').value.trim();
-  if(isNaN(viveroRegion) || viveroRegion < 1 || viveroRegion > 16){
-    setError('f-vivero', true);
-    document.getElementById('viveroRegion').focus();
-    alert('Ingrese el número de región del Registro de Vivero (01 al 16) antes de generar el PDF.');
-    return;
-  }
-  if(!viveroSufijo){
-    setError('f-vivero', true);
-    document.getElementById('viveroSufijo').focus();
-    alert('Ingrese el código del Registro de Vivero completo (ej: V/05-12345) antes de generar el PDF.');
-    return;
-  }
-  setError('f-vivero', false);
-
-  const btn = document.getElementById('btnGenerarPDF');
-  if(btn) btn.disabled = true;
-
-  const continuar = function(){
-    if(btn) btn.disabled = false;
-    construirYAbrirPDF();
-  };
-
-  if(solicitudReservada){
-    continuar();
-    return;
-  }
-
-  fetch(ENDPOINT_URL, {
-    method: 'POST',
-    body: JSON.stringify({ action: 'reservarSolicitud', rut: rut, nombreImportador: nombre })
-  })
-  .then(function(r){ return r.json(); })
-  .then(function(data){
-    if(data.ok){
-      solicitudReservada = { folio: data.folio, folioDisplay: data.folioDisplay, fecha: data.fecha };
-      ocultarBannerBorrador();
-      continuar();
-    } else if(data.yaExiste){
-      // 1H-a: ya existe un borrador activo. Bloquear y mostrar banner con opción de descartar.
-      if(btn) btn.disabled = false;
-      mostrarBannerBorrador(data.folioDisplay || data.folio, data.incompleto);
-    } else {
-      alert('No se pudo generar el número de solicitud (' + (data.error||'error desconocido') + '). Intente nuevamente.');
-      continuar();
-    }
-  })
-  .catch(function(){
-    alert('Error de conexión al generar el número de solicitud. Intente nuevamente.');
-    if(btn) btn.disabled = false;
-  });
+// ── buildPdfHtml: construye el HTML del formulario F-IIT-IMP-PA-002 ──
+// Sin escapes anidados — usa variables locales y helpers limpios.
+function buildPdfHtml(nombre,rut,correo,telefono,direccion,comunaImp,regionImp,
+  repImp,repNombre,repRut,cpImpN,cpImpC,cpImpT,cpTerrN,cpTerrC,cpTerrT,
+  provVal,ciudProv,origenVal,usoFinalPdf,viveroVal,ptoIng,mesDisplay,
+  sustVal,comparte,compResN,requiereFrio,horasFVal,filasHTML,tsDisplay,fechaHoy){
+  var e=esc;
+  var comparteStr = comparte ? ('SÍ — Res. N° ' + e(compResN)) : 'NO';
+  var frioStr = requiereFrio ? ('SÍ — ' + e(horasFVal) + ' horas') : 'NO';
+  var viveroStr = e(_fmtVivero(viveroVal));
+  var LOGO='iVBORw0KGgoAAAANSUhEUgAAAHgAAABtCAYAAABqxVKLAAAACXBIWXMAAAsSAAALEgHS3X78AAATb0lEQVR42u2de3hV1Z3Gf2ufk3NyTkLCJSGBEBJCSIAQbglyCQioXAQEAbkovUBHqxVrqx17GWutttrO1M70M9W2I9a2OlqttaN2prbWS6tW7bS2tq1W22qrrVrba+I5e6+3P3ZOTEi45LAT+P2e5/s4ORtYa6/3Xe96r3sVYzCKNMpN3eRU0e/UNEoAUEzEEAMiEjDABIJAhDlQDBxCBGMwggcwxhYBBwwBg5RCIQQIAYRwhAAIIAMDAiDIAEZA4BBgAHMBhIEzAEEGDAMARgMEAA==';
+  function r2(a,b){ return '<div class="row-2">'+a+b+'</div>'; }
+  function r3(a,b,c){ return '<div class="row-3">'+a+b+c+'</div>'; }
+  function fi(lbl,val){ return '<div class="field-inline"><span class="lbl">'+lbl+':</span><span class="val">'+val+'</span></div>'; }
+  var css=[
+    '*{box-sizing:border-box;margin:0;padding:0;}',
+    'body{font-family:Arial,sans-serif;font-size:10.5pt;color:#000;padding:14mm 16mm;line-height:1.4;}',
+    'h1{font-size:13pt;font-weight:bold;margin:0;}',
+    'h2{font-size:10.5pt;font-weight:bold;background:#006cb8;color:#fff;padding:5px 8px;margin:10px 0 6px;}',
+    '.doc-frame{border:2px solid #000;margin-bottom:8px;}',
+    '.doc-frame table{width:100%;border-collapse:collapse;}',
+    '.doc-frame td{vertical-align:middle;padding:8px 10px;}',
+    '.logo-cell{width:100px;text-align:center;border-right:1px solid #000;}',
+    '.logo-cell img{width:82px;display:block;margin:0 auto;}',
+    '.title-cell{text-align:center;}',
+    '.code-cell{width:150px;border-left:1px solid #000;font-size:7.8pt;padding-left:10px;line-height:1.5;color:#333;}',
+    '.header-table{width:100%;border-collapse:collapse;margin-bottom:10px;table-layout:fixed;}',
+    '.header-table col.lbl-col{width:22%;}',
+    '.header-table col.val-col{width:28%;}',
+    '.header-table td{border:1px solid #000;padding:4px 7px;font-size:9pt;vertical-align:middle;word-wrap:break-word;}',
+    '.header-table .lbl{font-weight:bold;background:#f0f0f0;white-space:nowrap;}',
+    '.section-inner{border:1px solid #aaa;border-radius:2px;padding:8px 10px;margin-bottom:6px;}',
+    '.row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px;}',
+    '.row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:8px;}',
+    '.field-inline{margin-bottom:8px;}',
+    '.field-inline .lbl{font-weight:bold;font-size:9pt;}',
+    '.field-inline .val{border-bottom:1px solid #999;min-height:18px;padding-left:4px;font-size:10pt;display:block;}',
+    'table.mat{width:100%;border-collapse:collapse;font-size:8pt;margin-top:6px;}',
+    'table.mat th{background:#006cb8;color:#fff;border:1px solid #000;padding:4px 3px;text-align:center;font-size:7.6pt;}',
+    'table.mat td{border:1px solid #aaa;padding:4px 3px;vertical-align:middle;}',
+    '.firma-box{border:1px solid #000;margin-top:14px;padding:12px 16px;}',
+    '.footer-form{font-size:8pt;color:#666;text-align:center;margin-top:20px;border-top:1px solid #ddd;padding-top:6px;}',
+    '@page{size:A4;margin:14mm 16mm;}'
+  ].join('\n');
+  return '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">'+
+    '<title>F-IIT-IMP-PA-002</title><style>'+css+'</style></head><body>'+
+    '<div class="doc-frame"><table><tr>'+
+    '<td class="logo-cell"><img src="data:image/png;base64,'+LOGO+'" alt="SAG"></td>'+
+    '<td class="title-cell"><h1>SOLICITUD AUTORIZACIÓN CUARENTENA POSENTRADA</h1>'+
+    '<div style="font-size:9.5pt;margin-top:3px">Cuarentena Posentrada Absoluta (EC1)</div></td>'+
+    '<td class="code-cell">Código: F-IIT-IMP-PA-002<br>Versión: 03<br>Fecha Vigencia: 17.06.2019<br>Página: 1 de 1</td>'+
+    '</tr></table></div>'+
+    '<table class="header-table">'+
+    '<colgroup><col class="lbl-col"><col class="val-col"><col class="lbl-col"><col class="val-col"></colgroup>'+
+    '<tr><td class="lbl">N° Solicitud / Año</td><td class="val">&nbsp;</td>'+
+    '<td class="lbl">Fecha Recepción SAG-ECA</td><td class="val">'+e(tsDisplay)+'</td></tr>'+
+    '<tr><td class="lbl">Región</td><td class="val">Región Metropolitana</td>'+
+    '<td class="lbl">Oficina Sectorial</td><td class="val">Red de Laboratorios SAG-ECA</td></tr>'+
+    '<tr><td class="lbl">Fecha de emisión</td><td class="val">'+e(fechaHoy)+'</td>'+
+    '<td class="lbl">Tipo de cuarentena</td><td class="val">Cuarentena Posentrada Absoluta (EC1)</td></tr>'+
+    '</table>'+
+    '<h2>1. Identificación del Importador</h2><div class="section-inner">'+
+    r2(fi('Nombre o Razón Social',e(nombre)),fi('RUT',e(rut)))+
+    r3(fi('Celular / Teléfono',e(telefono)),fi('Correo Electrónico',e(correo)),fi('Representante',e(repImp)))+
+    r3(fi('Dirección',e(direccion)),fi('Comuna',e(comunaImp)),fi('Región',e(regionImp)))+
+    '</div>'+
+    '<h2>2. Contrapartes Técnicas</h2><div class="section-inner">'+
+    r3(fi('Contraparte Proceso Importación',e(cpImpN)),fi('Correo',e(cpImpC)),fi('Teléfono',e(cpImpT)))+
+    r3(fi('Contraparte Proceso Territorial',e(cpTerrN)),fi('Correo',e(cpTerrC)),fi('Teléfono',e(cpTerrT)))+
+    '</div>'+
+    '<h2>3. Información Origen del Material</h2><div class="section-inner">'+
+    '<div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin-bottom:8px">'+
+    fi('Proveedor',e(provVal))+fi('Ciudad',e(ciudProv))+fi('País',e(origenVal))+
+    '</div></div>'+
+    '<h2>4. Uso, Registro y Logística</h2><div class="section-inner">'+
+    r3(fi('Uso Propuesto',e(usoFinalPdf)),fi('N° Registro Vivero',viveroStr),fi('Punto de Ingreso',e(ptoIng)))+
+    r3(fi('Fecha de Ingreso Aproximada',e(mesDisplay)),fi('Sustrato del Portainjerto',e(sustVal)),fi('Comparte Cubículo',comparteStr))+
+    r2(fi('Requiere Frío',frioStr),'')+
+    '</div>'+
+    '<h2>5. Identificación del Material a Ingresar</h2>'+
+    '<table class="mat"><thead><tr>'+
+    '<th>#</th><th>Especie (nombre científico)</th><th>Variedad</th><th>Clon</th>'+
+    '<th>Tipo Material</th><th>Cantidad</th><th>N° Plantas</th>'+
+    '<th>Portainjerto</th><th>Reg. Vivero Portainjerto</th><th>Cert. Frutal</th><th>Var. Protegida</th>'+
+    '</tr></thead><tbody>'+filasHTML+'</tbody></table>'+
+    '<h2>6. Declaración Electrónica del Representante</h2>'+
+    '<div class="firma-box"><div style="font-size:9.5pt;line-height:1.6">'+
+    '<div style="background:#f0f7ff;border:1px solid #006cb8;border-radius:4px;padding:10px 14px;margin-bottom:10px">'+
+    'El/La suscrito/a declara que los antecedentes proporcionados en esta solicitud son fidedignos y que '+
+    'actúa en representación de <strong>'+e(nombre)+'</strong>, RUT <strong>'+e(rut)+'</strong>, '+
+    'asumiendo responsabilidad por la veracidad de la información. '+
+    'Autoriza el envío de información y documentos por correo electrónico.'+
+    '</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:10px">'+
+    '<div><strong>Nombre del representante:</strong><br>'+e(repNombre)+'</div>'+
+    '<div><strong>RUT del representante:</strong><br>'+e(repRut)+'</div>'+
+    '</div>'+
+    '<div style="background:#f5f5f5;border:1px solid #ccc;border-radius:4px;padding:8px 12px;font-size:8.5pt">'+
+    '<strong>Fecha y hora de recepción SAG-ECA:</strong> '+e(tsDisplay)+
+    '<span style="margin-left:16px;color:#666">USO SAG — Conclusión: ☐ Cumple &nbsp;&nbsp; ☐ No Cumple</span>'+
+    '</div></div></div>'+
+    '<div class="footer-form">F-IIT-IMP-PA-002 · Red de Laboratorios SAG-ECA · Región Metropolitana<br>'+
+    'Servicio Agrícola y Ganadero | Departamento RED de Laboratorios SAG | Estación de Cuarentena Agrícola (ECA)<br>'+
+    'Documento presentado electrónicamente. La declaración del representante tiene valor de acuse formal.<br>'+
+    'Desarrollado por Ing. Agr. Eduardo Chávez Weisser</div>'+
+    '</body></html>';
 }
 
-function construirYAbrirPDF(){
+
+// Helper para formatear el código de Registro de Vivero
+function _fmtVivero(raw) {
+  var m = raw.match(/V\/?(\d+)[-]?(.*)/i);
+  if(!m) return raw;
+  var num = String(parseInt(m[1],10));
+  if(parseInt(m[1],10) < 10) num = '0' + parseInt(m[1],10);
+  var suf = m[2] || '';
+  return 'V/' + num + '-' + (suf||'');
+}
+function construirYAbrirPDF(timestampServidor){
   const mat = getMaterialData();
   const nombre    = document.getElementById('nombre').value.trim();
   const rut       = document.getElementById('rut').value.trim();
@@ -819,14 +817,29 @@ function construirYAbrirPDF(){
   const direccion = document.getElementById('direccion').value.trim();
   const comunaImp = document.getElementById('comuna').value.trim();
   const regionImp = document.getElementById('region').value.trim();
+  const repNombre = document.getElementById('repNombre').value.trim();
+  const repRut    = document.getElementById('repRut').value.trim();
+  const repImp    = document.getElementById('representante').value.trim();
+  const cpImpN    = document.getElementById('cpImpNombre').value.trim();
+  const cpImpC    = document.getElementById('cpImpCorreo').value.trim();
+  const cpImpT    = document.getElementById('cpImpTelefono').value.trim();
+  const cpTerrN   = document.getElementById('cpTerrNombre').value.trim();
+  const cpTerrC   = document.getElementById('cpTerrCorreo').value.trim();
+  const cpTerrT   = document.getElementById('cpTerrTelefono').value.trim();
+  const provVal   = document.getElementById('proveedor').value.trim();
+  const ciudProv  = document.getElementById('ciudadProveedor').value.trim();
+  const origenVal = document.getElementById('origen').value.trim();
+  const ptoIng    = document.getElementById('ptoIngreso').value.trim();
+  const sustVal   = document.getElementById('sustratos').value.trim();
+  const compResN  = comparte ? document.getElementById('comparteResNum').value.trim() : '';
+  const horasFVal = document.getElementById('horasFrio').value;
+  const viveroVal = document.getElementById('codRegistroVivero').value.trim();
 
-  if(!nombre || !rut){
-    alert('Complete al menos los datos de identificación del importador antes de generar el PDF.');
-    return;
-  }
+  if(!nombre || !rut){ alert('Complete al menos los datos de identificación del importador.'); return null; }
 
   const hoy = new Date();
   const fechaHoy = ('0'+hoy.getDate()).slice(-2)+'-'+('0'+(hoy.getMonth()+1)).slice(-2)+'-'+hoy.getFullYear();
+  const tsDisplay = timestampServidor || fechaHoy;
 
   const mesIngreso = document.getElementById('mesIngreso').value;
   const mesDisplay = mesIngreso
@@ -834,10 +847,8 @@ function construirYAbrirPDF(){
     : '';
   const usoSelPdf = document.getElementById('uso').value.trim();
   const usoFinalPdf = usoSelPdf === 'Otro' ? ('Otro - ' + document.getElementById('usoOtro').value.trim()) : usoSelPdf;
-
   const requiereFrio = document.querySelector('input[name=requiereFrio]:checked').value === 'SI';
   const comparte     = document.querySelector('input[name=comparteCubiculo]:checked').value === 'SI';
-  const autoriz      = document.querySelector('input[name=autorizaEnvio]:checked');
 
   const filasHTML = mat.length > 0 ? mat.map(function(m, i){
     return '<tr>' +
@@ -855,192 +866,19 @@ function construirYAbrirPDF(){
     '</tr>';
   }).join('') : '<tr><td colspan="11" style="text-align:center;color:#999;">Sin material ingresado</td></tr>';
 
-  const avisoInstrucciones = '<div class="no-print aviso"><strong>Instrucciones:</strong> Imprima este documento o guárdelo como PDF (Archivo → Imprimir → Guardar como PDF). Fírmelo (o firme digitalmente) y luego adjúntelo en el formulario web para completar el envío de su solicitud.</div>';
-  const marcaRespaldo = '';
-
-  const html = '<!DOCTYPE html>' +
-'<html lang="es">' +
-'<head>' +
-'<meta charset="UTF-8">' +
-'<title>F-IIT-IMP-PA-002 — Solicitud Cuarentena Posentrada</title>' +
-'<style>' +
-  '*{box-sizing:border-box; margin:0; padding:0;}' +
-  'body{font-family:Arial,sans-serif; font-size:10.5pt; color:#000; padding:14mm 16mm; line-height:1.4;}' +
-  'h1{font-size:13pt; font-weight:bold; margin:0;}' +
-  'h2{font-size:10.5pt; font-weight:bold; background:#006cb8; color:#fff; padding:5px 8px; margin:10px 0 6px;}' +
-  '.doc-frame{border:2px solid #000; margin-bottom:8px;}' +
-  '.doc-frame table{width:100%; border-collapse:collapse;}' +
-  '.doc-frame td{vertical-align:middle; padding:8px 10px;}' +
-  '.logo-cell{width:100px; text-align:center; border-right:1px solid #000;}' +
-  '.logo-cell img{width:82px; display:block; margin:0 auto;}' +
-  '.title-cell{text-align:center;}' +
-  '.title-cell .sub{font-size:9.5pt; margin-top:3px;}' +
-  '.code-cell{width:150px; border-left:1px solid #000; font-size:7.8pt; padding-left:10px; line-height:1.5; color:#333;}' +
-  '.header-table{width:100%; border-collapse:collapse; margin-bottom:10px; table-layout:fixed;}' +
-  '.header-table col.lbl-col{width:22%;}' +
-  '.header-table col.val-col{width:28%;}' +
-  '.header-table col.lbl-col2{width:22%;}' +
-  '.header-table col.val-col2{width:28%;}' +
-  '.header-table td{border:1px solid #000; padding:4px 7px; font-size:9pt; vertical-align:middle; word-wrap:break-word; overflow-wrap:break-word;}' +
-  '.header-table .lbl{font-weight:bold; background:#f0f0f0; white-space:nowrap;}' +
-  '.header-table .val{word-break:break-word;}' +
-  '.section-inner{border:1px solid #aaa; border-radius:2px; padding:8px 10px; margin-bottom:6px;}' +
-  '.row-2{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:8px;}' +
-  '.row-3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:8px;}' +
-  '.field-inline{margin-bottom:8px;}' +
-  '.field-inline .lbl{font-weight:bold; font-size:9pt;}' +
-  '.field-inline .val{border-bottom:1px solid #999; min-height:18px; padding-left:4px; font-size:10pt; display:block;}' +
-  'table.mat{width:100%; border-collapse:collapse; font-size:8pt; margin-top:6px;}' +
-  'table.mat th{background:#006cb8; color:#fff; border:1px solid #000; padding:4px 3px; text-align:center; font-size:7.6pt;}' +
-  'table.mat td{border:1px solid #aaa; padding:4px 3px; vertical-align:middle;}' +
-  '.firma-box{border:1px solid #000; margin-top:14px; padding:12px 16px;}' +
-  '.firma-line{border-top:1px solid #000; margin-bottom:4px;}' +
-  '.footer-form{font-size:8pt; color:#666; text-align:center; margin-top:20px; border-top:1px solid #ddd; padding-top:6px;}' +
-  '.aviso{background:#FFF8E7; border:1px solid #E0A800; padding:8px 12px; font-size:9pt; margin-bottom:10px; border-radius:2px;}' +
-  '.marca-respaldo{text-align:center; font-weight:bold; color:#b00020; border:1px dashed #b00020; padding:5px; margin-bottom:8px; font-size:9.5pt;}' +
-  '@page{size:A4; margin:14mm 16mm;}' +
-  '@media print{.no-print{display:none!important;} body{padding:0;}}' +
-'</style>' +
-'</head>' +
-'<body>' +
-
-avisoInstrucciones +
-marcaRespaldo +
-
-'<div class="doc-frame"><table><tr>' +
-'<td class="logo-cell"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHgAAABtCAIAAADlHTKtAAAACXBIWXMAAAsSAAALEgHS3X78AAAYRUlEQVR42u2daXhcxZX3z6m6S99eJHVrt3ZLsuRdeGMcG+MFE2MDIdiEPS8JTEgmBBwYHAjDJJNkkskDCS9JIPgdSMLMS3BIWEIWbDAGL2DjRZb3RbZlLZa1S93q5W5VZz60kB1jHDMTwGbu/0M/0u3qrr6/e27VOafquQfhjpVwbgnfavzV5GR7gmkMCD4pYuDpPAKNAOix/PBAMwSFIUMkAiJg6NF+Xyn/fStGkK6UlgCF6YZCBLblgso/HHtgkL6KRCDlUPeMAQBICUQnfhN713SGW56/oDlDRHBtWRwxFk/M7004fz+zuCjT9y9/PvTMpmNc544ghijpbzSVIdLgIDguIICioN8PjIHrUiIJAOjTQddBSuAcbJuSKSAJgKBr6POd36CF6YIrNUNdt3RaRY6/qTdVkW0AwL2XVKzYdtwZtHlAFY4A5W8xARCB62rz5yl1dWTbYucup74eTAtzcvRrrgZEd/sOsf8AGAYlkqwwX794FisaIXv73K3bxKHD5xnoYfNEAiS6cnJhUVDNCGoVOX5XUEW2QQQEFPIpv7p5/MHORFNvqqXfXNfYRwzTsyQiSkn/jRGD4gnjrjt8N14nu7pRU2Hhgtjnvyh7erWrrzLuvAMAnDVvxJc9gIwpY2qDjzyEmZny2DGWny8XLoh9/ovnDWhEIALpCFQZQxQJ5xuXV98+q+T5+s6yiM8RpHIURAxQEmQYyg1TRwDAs1uPpxzRNmAe6U5KAJBEgkDjiB/EMUYEITDg15d81t26LXbdzZibywrzKZEAxrTZs+w/ryTT1ObPw1CAkqZ/2T2garEb/49oPMTy8jAjBEKAogCdE874X7m7ySWGMLEkgyyBCMjxuikFnGFRWBeSXCltITkiIigM+xJONOU6ghaMybl+yojKPL/sTc2oDK+4tW7+uFwfR5L0QRwTAsbINMW+/cqUyf77l7HCAnm0GaTEcJiPG+vWN7g7dmEoxAoLWTiL19bYq14VO3ejYYjmFnfXHkCEcybkYWdyjYmCOr9mQv7LX570D3PL3ahFtnh1f29Jlm9Ehr5wfJ4jqKXPPNiVaGiLbTjUn2koCVuoHMN+dd/x+NZD/Ytnlz1147hpFVk/WlLr13hI4yTpbE2MAACQseS//puzdr3v1lsyX/iN8dWvUDSqjK5FTXPWb3A3bwEplYkT0pZLvX0AxMeOCT7yUOC732LFxWQ5cG44ncr737hIQhZl6g8vrlU5zq/JzvYrv6vvePDFA2395sSi0M/fbL68Lv/quvxH32g+2JGYWByaWRW+anl9ediXF9J/+NoRhbO7Lx0Z0HlTT/JQd8qvsu9eXbOxKfqLt1rFWY4hRKDr4sjR+N3LeHmpsfRO36232K+s5LU1AGAs/RpwBowpUyfbq14DRJafR44LponBoHbJXGftOtF4CHz6uTB6sPe3JwJEy6WHX2s61J2szg9cVBVxJDkEP3n54K0/3bJizdGlv92XtOVN00ZEguoltTkbDvc39aRqC4KjCgKZAa0vas5/dPOg6V5UFTnam3Qk1OQHL63NrivNJEfwszE0RHAcdfqFrGiEs227s/4tAMCMDOWCOtndg1mZmJEhu7qVCePBtNzde9S5c5Tx45x1G1IPPwJCgJTnTsCqnMGYgOHRgdSjLx3ICqjfXlT15oHeioj/UHN0ycVlRVl6Y3dyT0vsW39o/Ol1Y26+sGjAdJ5+u23N0qnZAa0v4XT2p8rzgk/cMLY/6bYNmOlpNaDzSaUZ4wuDW1ui8q/aNCJIAZrq/9YDmJEhjzbzmlHOO5tlb586Y7q5/N+TD/9fQPAvu8d32xf52NHJ7/0g9OTyjOeeEY2HWNEIYJxMC/BcSeZwmHbTGf0rVAPaxsa+C0eGxxQEi7L0/Ihxy/Tiva2xm6YV3TKzpHPQau41u2N2Y3dyVnV2UZavsTtpu/LF+s6LRkWWzi0vixhBnfcknJDGp5VlFWTqr+3taR6wkpbA0xs13trXMMIZdJAjAkjprH+L+gfAsqw//Mn82c/RMKivz3ljHTDEYEj29MiOTtneLvbsc9atl719YNvO25vMx54QjYdQVc8RrwPPnCZFRAYgBsx/vWHsNxdUAsCg6S5f3yqIEDFD54Ig6QjXkZaQAY2HA1p3wp5YFMo0lJHZ/iy/6lMYAe3vTFTnBlSOXYP2L95q/c+tx/e2DTKNny56fE+a1HEolQJJoHAMBoGIBgcxEABFAQBwXUok0GeA4QPTpFQKpARk4NNR10+4qO/nup4LfjRjKB0ppHzklglL55Y7ghChpd98ZU/3l2eVHo9ZgkACBH2KP8RNV6RsaQlpO9K0xfSKrLBfffdi4piCIAC4kvJCWlGWj3+gdJaiYDg8lNaQElwXw+GhPIbrAgBGIiAECAE+34mwezjXYdmgqe/10IHoo/Sy2ZkoWyLs43+8Y8rSueVEQ7m6qrzA5/+uyJUU0DnjqCmsviVKREJSQOeuJJ/KZlVHwn61c9AeGusBCEAScETTkfWtsfwMHc4yUEREn29oZlNV0FRWUjz0rxCYmcHy88Gy06ApHk9fifQFGDqRshLg/ESCCRGkRJ8PMzOHrtxH4v+x9zs7abolYd+b9/zdonF5jiBBJAlW7u256//vqm+NLRqXSwTtA2Z+SIv41eIs38SiUNx0O6JWhq7Ut8Z+vOpIfUs0HRUCgJTEEBBBU/Cbl1VmB9Szir9tmxUWZKz4Tz6mVrt8YcbTT7JwWJk0CUwTfD6yLFZQwEfXUjKBGSHMzdEuW0CmCYoCikLJFEiJgYAydSq4LqYTT1ICEEVj6oJLfdcuob4+DAbJND8C1sppQxUQsiBTf3XptNr8gJCkcgSAlCPvfWH/7gO9ENBumFKYG9QSlnhua/sFJZkx012xuSs3QyvJ9jOilXu6H3m58YEltfNH5zAEADjQlSiLGI6gLENR09m/szk3IdEwQNPVujosyAcCXlvDImH9us/xcWOpq0u0tgHn/vuXyf4BiMf1m66neFy9aAb6fPbq1/UrL3e3bcdIWJk4QV/8WdnZlfr5cuDM/0/38YoKt2GHfvON6qem26+ssl9bjcHgh5pWZe+dIUDSDVMKv//Zmtr8gCPIFrIjZm1qGvj0T7fsbo0pYV9Zrn/toT7LlTlB7WtzyhOWuO/FA8s+PXJGVSTbr/bE7fm1OfddXXvbjJKULdJZpeyA9s2XDnbELABwhVTOJjZGACkwnOVub1CmTkZNE80t4Di8rFQZO8ZZu54VFGBGBi8vk61tLDNDtLY5b65DxnhFuTzWrl44TQ5ErRde4iNH6tdfa738B5Yd4SMreFUVBgPmr1ew0hJt7mzR1MTKSkDSRz10ICC5srYwOLk0EwAUjv1J93jMuuFXO9bv7tb8qpty51RHRmT6uuJ2whaHuhKt/amLqyO/2XZ80HT7kg7jGLPE3JpIyKeEfAoiCEn5IW1vR/zZLe0AYAs6W8shQk139+zBQEB2dMiuLmBM9vbJgQFIJmUsBskkxePi2DFl4gRwXWV0LWZHKGWSZYn9BykWAykpFnM3btIuX0iI8vhx2d6OPkO77FLR1CQOHcFgUOzYharyYYM+nXtHoKuM2+KpL0y8bkrhttaYijjvp1tiSYcpzIxaX7us8rophRsO9+eHdNMRKmdpv21Epp6wxbF+81OV4Qd+f/BHi2vKs/1JW1Tl+hHhpR1d3/5j49v3To9b4vZf7365oYNpyl9x70iCroNpAhH4fKiqIAUwnvYoSAhwHDQMVlxEsZhobVNGVaf9aFZRIZuagHMyTfT7KRbjNaNkby/19gEAy82BQEC2tgFjvKpSth+naBQ4/1A9EHZa+LYrk7ZgCILo9qd3HuxKLK7Lt3tSpumCzv+0sys3oFXn+ZOOAARbyLgpVM7itrCFvKQ2myNsaey9/+XGoiy9Os8PgAxx0bjcLEPpiFmMwaDlAp3FKM0YDQ7y6mpt/iVgWdQ/ILu6ZXe3jEbFsXaWn69MnCC7upxNm0XTUVRVd/ceMlPKhVPdLVsolZJ9feA41N8PRO62etncSrZNKVN2dIrGQ+klBbdhBw0MAGcftp93mshQYSjjzrIrR82uiix+fNuWo9Gdx+K3zSyZXB2O26Iz6fQOWG8d6a/I9qsMIwE1oCuxlFMaMZDIduT+zsQ9z++3BLUMmAgY1JXisK8jZmUZqiCIm+7IHP/j61q7YhZyRmeODBmC4xi3fVFbcpWzfgOoqjp3DguHUVWVuomsqBCSSSCpL7oMJKGuoeFXaqr1K6+geML3ldvl4SMYDILuY9kRXlrKa2t4bq4yZrTs7hmejVHTPhr3TnnPYgooDAWA5YifvNm8aXsn5AcOdMav+fftd80p+9LMklH5gZqC4J72wW0t0Z+tPipdWjylsDzb+NPOrue3tE+riiy5IH/1XdOKwr5fvd22Zn9PYYaOAIse31qbH0RH3jijWFNYe8xSVP5X0h2I4DisoICkcN5Yq4wfx4qKeE01xQbBdWV3DzgOlJdrVyxyt9UrY2p5eZk42qxcUCePNrPsCMvN4eXl6vQLna3b1JkzMBJxVr5KrqNfew1Gwtazz2E4ayhs+egDFkSUjjSjFjHcdDSaaShXzSl7/Y4po4pC4EpAvGZSwYTi0Bv7elbv67lhyoinbp7wk+vHvtjQ+dDKw8dj1m++Munx68eMLgw+X398e0t06bzyp78wUeV44b+9XVeSedecsuNxuyduv9M00NufcuO2FHSm7BpDMk2ltkYZO4bl5ymTJwEQanrq58vRMOyVq0RzMysagRkhe/Xrsq8fIxGMRIBzzMmWnV3U3SNaWtMHMeCngQFn82Z11kzZdowV5IMQH1tSiSGS5Y4tyVh2WeXWtsGeuL24rqAwy9fQEr3mgoLbLy6dWp41aIkfvda0rTlWlOW7dEzOLze2vXWo/7Hrx9w5t6I6L/DDlUdGFQQnFIVW7u7ecHigtd8siRiqwq++IL807NvVHi8I+55+55iqsGjKvXdR9TvNUdsSyPH0QwdT0LH5yApn7Xr7939guTm8sJCSCaWqyt2xU3Z2IqBoa5PNrb7Fn3V372G5uSwYcFavwUhYHG3mFRUUjYKULD/f2biJevvkkSZeXESW5W6tl52dH3G+STnZlwr5lL+fXpxpqIbGeqJWQOeVuYG46QoiZNjSl7KEvGtueXfc2dEW294WK8s2Nh7oa+pJZRlqQ2tMBQpofF9Hojov8KXR2T1xZ+/xOAD4FJZyRCSgji8KmbZ47PWj0yrDI7ONW6aNeGJNswQUpx1DpMRAwF67HhFBVc2nfun70m0sL1e0tlnPv4iZWfLYcZICiJxXVwOC27ADiIAxZ/NWVJVEfQNqqv3m2hMXUNNSy58cGpoN4yPe9TFk0QxR2uLBRdWL6wq+t+pIU0c8L8v36dE5OUF1cmmmkHCwI7GrfTBlyTUHe2Mpd0JRqG3AigTUhRPzoil3IOXWFgQvm5DXl3Q4Q7/OV+/r3dYa64s7jZ3JoM7Lc/wzK8OukH6FrTrQG0s4QUO9a05Za9Ta2xLlGj/Jtk6aDIFQUYBzQEDD726rd3fudht2YGYmAIHCUVVRVYFz4Bw1DTVt6AhjqGvA2PARVNU0a1RV/DhWbE/40QigI1bl+h9YUFkc1l1Baw/2vXqgd2Nj377vXGw6YtXenillmS80dD72+lFU2XWTCx1H9sStMUUZd8wpW/rcXoMzYsARX9zQWlAU+vJFpXNHRVYf6L3nkooXGzpv+X/1i6cXTy3NnDMqErfF7vb49185PGC51qlR2fvvJkUc2ihzLm1B+sBDBwGYknYfG7z+8a3lJRlL6vIf/vNhUBhIemZz+1cvLr2gJKM82/jBZ0aNKQhEAprtynm12b/b3tEZs0fnBxjAPy2qkkTNveZnJuQpnF07pfBAZ2JWVcQV9OzW46Dw599pX7mvJ5pyH1lz1EzYoCvw7saPs91Mk2Z9HurUyJAhIoJwJABxlQOAFMQ5VuX4bVd2DVpzqiKLJxXUt8b+Y2NbVkgTjiwI+/7lsqqb/mNnfobeEbMyVfYPs8tVjs/Xd2xrG6zIMUxHHulJIkPGEACEJUBBzpkkOt0d/MncH336FZbhDYUn5EhAAI5gCpAECOBThnIx6aUKhiAIOIIksEQ68gGNpf1CVNnJOxGBzoDwkwlaed+V2VP2eGicgICAvZtKlpKQ4zA9IEDOCAg4Mo2faKNxgL/IjtEnh97faCnr5OF7+CYXJzE7BdmJNkT/y7F+gKUsTx5oD7QnD7QH2gPtyQPtgfbkgfZAe6A9eaA90J480B5oD7QnD7QH2pMH2gPtgfbkgfZAe/JAe6A90J480B5oTx5oD7QH2pMH2gPtyQPtgfZAe/JAe6A9eaA90B5oTx5oD7QnD7QH2gPtyQPtgfbkgfZAe6A9eaA90J480B5oD7QnD7QH2pMH2gPtgf6YhQicAyIwdmrNlFOKm/3PK6q83zdwduIHvPc3nEXXynlA2XUpmQRNA9tBvwGKcuL51o4DiKBpQ+U+HAc4H8JBNPQE9eFKnOlPpR+oztiJv4dQcnBdchxU1Xc/daJQDEVjoKgg3HQBAeAcFOXdQpYCGJIQ6TICwNhQ1+eTRSOC62IoFPjOt0JPPhF85CGWmwuOS4ODlErRYNx30w365xbLtrZ0c/8D97HyUkqlaHCQTAsQwbIpkSDTBNumwTjF42mINDg49Pe7lGX7caVugv/er5NlkW1TNAry3SpTrmt8+Uuhp5aHHnuUj671L7uHV1XKrm4yTT6q2vj61/jomsAD96WrVVI0dtoCico5DppSqcAPvoeZGamHH2HlZWSZIKU2by4lk/arq1lpCcvKFJfOdxsbUdPF0WbqG0DDUGfPEkeaZONhVl7KImFKpiieYEWFIMndVg8A2uyLybadzVvQ50sX9dRmz1JnXcSrqymRUKdOYcXFzoa30lU/9c8t0T+3OHH/g5iXR8kkH12rdnVjIODu2ImBgLtnH8sKK+PHgeOAYWhXLJRHm90DB9Hwnfx8cuUcN2cWDvMxoxP/+A13/wEWi1H/gHHv3by4CMNhDAVlZxevGaUvuVpXlNTjy/Vrl7gbN/m+fifZtu+m65M//JFx5x0ghf3Sy75bv+DWb1fnXJz45+8oo2uUaVNBUfioKvPpZwDAuOurysQJlExSb586dYr/m98Qhw5r8+bE738QpNRmzbR+/0d79euYnY1CAhGvqtQWXGqvepWiMe3yhanlT1LKJKLgtx+kWIzffGPyoR+7DTvQ7x8enc71yZCAEJGEYAUFoUd/rF+zWJ02NfHt75nPrNCuuBx13Xl74+Bdd/Px4yiZoGPtrHKkUjdBHD5CiSQfWQGIqceesN9ch7qe+O4P3Lc3KZPq1Dmzkz982Fz+pH75IgBCn65dMi/53e9bzzwLCOrMGeC64vBhVljIsjLBdQkQGAIBSElSgKalnvyF+esVfMxop347CIGcg5lieXnK5Eni8BGKx3ll5dD8cR6M0USgKNTX7+7Z67/3bkCU8TgYhoxG1Vkz1Ul1srMTOOc1o7T588CyIJnEnGyKDVIyBbpurfitW9/AssPo96NhoN/AjBCGQuC6NBBVZ0xXpk2RPb0giRyHYjF1xqeUiRMxEJDt7RgJi6Zm85dPk2mCqjrrN+ifuUL79CX6tdcoF9QBImZlod+PioJ+f7qCNissAIVTfBB9uvnc79xt9UOD0vBce+YC7B/LkHFSZSFAzt0tW5XaGv2KRbKlxfrtC2L3Hv2qK5Gz1GNPABDLylKmTbGe/KV7oFGpHOmsW+/u3qvNuogVFbrbd2DAL3buomiMFRQ4G95mOTmiucV+ZaX+mStZKJj62eOQSACAONKkLVyAAOLAQeuF37PcXHXyJLIssb0B/X6xdz8qinbVlSwScbdsRd3n7tqFksi2xb4DGM6yV73Gx4+VHZ326jXanNm8aITbsFNGo8j5ibM6cwH2jwX0X5QHOcW9M3yUro0nJWoaEJFtA+cAgIZByST6fGRZaZcOFYVcFzUNGKNUCg2DLAs5JylBSABCroCuAQCZJkgCksA46holkqhr5LpoGEN3VzwOigKOA5oORKip6RKhqKpk26hqZFundA1/WfTsnPejiUBRMCsTJIHfP8x32DtGXR+uOISBAEiJfv9wg6HGRENvGQYQIZxUaSb9JYYBQOkC0iAlZoSAaKjCdfrip4uID3+zlOnqXMPdoXpq16e40uc86DQOQQAwFJUMlXSnE+8Ov6a5pF9PaXbyW/CeqiVDx/+y8clt3tv1MMqTG7/3g16uw8t1fDL1Xwj1dtrUIkD/AAAAAElFTkSuQmCC" alt="SAG"></td>' +
-'<td class="title-cell"><h1>SOLICITUD AUTORIZACIÓN CUARENTENA POSENTRADA</h1><div class="sub">Cuarentena Posentrada Absoluta (EC1)</div></td>' +
-'<td class="code-cell">Código: F-IIT-IMP-PA-002<br>Versión: 03<br>Fecha Vigencia: 17.06.2019<br>Página: 1 de 1</td>' +
-'</tr></table></div>' +
-
-'<table class="header-table">'
-+'<colgroup><col class="lbl-col"><col class="val-col"><col class="lbl-col2"><col class="val-col2"></colgroup>' +
-'<tr><td class="lbl">N° Solicitud / Año</td><td class="val">'+(solicitudReservada ? esc(solicitudReservada.folioDisplay) : '&nbsp;')+'</td><td class="lbl">Fecha Recepción</td><td class="val">&nbsp;</td></tr>' +
-'<tr><td class="lbl">Región</td><td class="val">Región Metropolitana</td><td class="lbl">Oficina Sectorial</td><td class="val">Red de Laboratorios SAG-ECA</td></tr>' +
-'<tr><td class="lbl">Fecha de emisión</td><td class="val">'+fechaHoy+'</td><td class="lbl">Tipo de cuarentena</td><td class="val">Cuarentena Posentrada Absoluta (EC1)</td></tr>' +
-'</table>' +
-
-'<h2>1. Identificación del Importador</h2>' +
-'<div class="section-inner">' +
-  '<div class="row-2">' +
-    '<div class="field-inline"><span class="lbl">Nombre o Razón Social:</span><span class="val">'+esc(nombre)+'</span></div>' +
-    '<div class="field-inline"><span class="lbl">RUT:</span><span class="val">'+esc(rut)+'</span></div>' +
-  '</div>' +
-  '<div class="row-3">' +
-    '<div class="field-inline"><span class="lbl">Celular / Teléfono:</span><span class="val">'+esc(telefono)+'</span></div>' +
-    '<div class="field-inline"><span class="lbl">Correo Electrónico:</span><span class="val">'+esc(correo)+'</span></div>' +
-    '<div class="field-inline"><span class="lbl">Representante:</span><span class="val">'+esc(document.getElementById('representante').value)+'</span></div>' +
-  '</div>' +
-  '<div class="row-3">' +
-    '<div class="field-inline"><span class="lbl">Dirección:</span><span class="val">'+esc(direccion)+'</span></div>' +
-    '<div class="field-inline"><span class="lbl">Comuna:</span><span class="val">'+esc(comunaImp)+'</span></div>' +
-    '<div class="field-inline"><span class="lbl">Región:</span><span class="val">'+esc(regionImp)+'</span></div>' +
-  '</div>' +
-'</div>' +
-
-'<h2>2. Contrapartes Técnicas</h2>' +
-'<div class="section-inner">' +
-  '<div class="row-3">' +
-    '<div class="field-inline"><span class="lbl">Contraparte Proceso Importación:</span><span class="val">'+esc(document.getElementById('cpImpNombre').value)+'</span></div>' +
-    '<div class="field-inline"><span class="lbl">Correo:</span><span class="val">'+esc(document.getElementById('cpImpCorreo').value)+'</span></div>' +
-    '<div class="field-inline"><span class="lbl">Teléfono:</span><span class="val">'+esc(document.getElementById('cpImpTelefono').value)+'</span></div>' +
-  '</div>' +
-  '<div class="row-3">' +
-    '<div class="field-inline"><span class="lbl">Contraparte Proceso Territorial:</span><span class="val">'+esc(document.getElementById('cpTerrNombre').value)+'</span></div>' +
-    '<div class="field-inline"><span class="lbl">Correo:</span><span class="val">'+esc(document.getElementById('cpTerrCorreo').value)+'</span></div>' +
-    '<div class="field-inline"><span class="lbl">Teléfono:</span><span class="val">'+esc(document.getElementById('cpTerrTelefono').value)+'</span></div>' +
-  '</div>' +
-'</div>' +
-
-'<h2>3. Información Origen del Material</h2>' +
-'<div class="section-inner">' +
-  '<div style="display:grid; grid-template-columns:2fr 1fr 1fr; gap:10px; margin-bottom:8px;">' +
-    '<div class="field-inline"><span class="lbl">Proveedor:</span><span class="val">'+esc(document.getElementById('proveedor').value)+'</span></div>' +
-    '<div class="field-inline"><span class="lbl">Ciudad:</span><span class="val">'+esc(document.getElementById('ciudadProveedor').value)+'</span></div>' +
-    '<div class="field-inline"><span class="lbl">País:</span><span class="val">'+esc(document.getElementById('origen').value)+'</span></div>' +
-  '</div>' +
-'</div>' +
-
-'<h2>4. Uso, Registro y Logística</h2>' +
-'<div class="section-inner">' +
-  '<div class="row-3">' +
-    '<div class="field-inline"><span class="lbl">Uso Propuesto:</span><span class="val">'+esc(usoFinalPdf)+'</span></div>' +
-    '<div class="field-inline"><span class="lbl">N° Registro Vivero:</span><span class="val">'+(function(){var raw=document.getElementById('codRegistroVivero').value.trim();var m=raw.match(/V\/?(\d+)[-]?(.*)/i);var num=m?String(parseInt(m[1],10)):'';if(m&&parseInt(m[1],10)<10)num='0'+parseInt(m[1],10);var suf=m&&m[2]?m[2]:'';if(!num)return esc(raw);return 'V/'+esc(num)+'-'+(suf?esc(suf):'');})()+'</span></div>' +
-    '<div class="field-inline"><span class="lbl">Punto de Ingreso:</span><span class="val">'+esc(document.getElementById('ptoIngreso').value)+'</span></div>' +
-  '</div>' +
-  '<div class="row-3">' +
-    '<div class="field-inline"><span class="lbl">Fecha de Ingreso Aproximada:</span><span class="val">'+esc(mesDisplay)+'</span></div>' +
-    '<div class="field-inline"><span class="lbl">Sustrato del Portainjerto:</span><span class="val">'+esc(document.getElementById('sustratos').value)+'</span></div>' +
-    '<div class="field-inline"><span class="lbl">Comparte Cubículo:</span><span class="val">'+(comparte ? 'SÍ — Res. N° '+esc(document.getElementById('comparteResNum').value) : 'NO')+'</span></div>' +
-  '</div>' +
-  '<div class="row-2">' +
-    '<div class="field-inline"><span class="lbl">Requiere Frío:</span><span class="val">'+(requiereFrio ? 'SÍ — '+esc(document.getElementById('horasFrio').value)+' horas' : 'NO')+'</span></div>' +
-  '</div>' +
-'</div>' +
-
-'<h2>5. Identificación del Material a Ingresar</h2>' +
-'<table class="mat"><thead><tr>' +
-  '<th>#</th><th>Especie (nombre científico)</th><th>Variedad</th><th>Clon</th>' +
-  '<th>Tipo Material</th><th>Cantidad</th><th>N° Plantas</th>' +
-  '<th>Portainjerto</th><th>Reg. Vivero Portainjerto</th><th>Cert. Frutal</th><th>Var. Protegida</th>' +
-'</tr></thead><tbody>'+filasHTML+'</tbody></table>' +
-
-'<h2>6. Declaración y Autorización</h2>' +
-'<div class="section-inner" style="font-size:9.5pt; line-height:1.6;">' +
-  'El importador declara que los antecedentes entregados son fidedignos y se compromete a dar cumplimiento ' +
-  'a las disposiciones que el Servicio Agrícola y Ganadero fije para la cuarentena del material vegetal indicado.' +
-  '<br><br>' +
-  'Autorización de envío de información por correo electrónico: <strong>'+(autoriz ? autoriz.value : '___')+'</strong>' +
-'</div>' +
-
-'<div class="firma-box">' +
-  '<div style="display:grid; grid-template-columns:1fr 1fr; gap:40px; font-size:9.5pt;">' +
-    '<div style="display:flex; flex-direction:column; justify-content:space-between; min-height:110px;">' +
-      '<div>' +
-        '<div>Nombre: ________________________________</div>' +
-        '<div style="margin-top:6px;">RUT: ___________________________________</div>' +
-      '</div>' +
-      '<div>' +
-        '<div class="firma-line"></div>' +
-        '<div>Firma Importador o Representante Legal</div>' +
-      '</div>' +
-    '</div>' +
-    '<div style="border-left:1px solid #ccc; padding-left:20px; display:flex; flex-direction:column; justify-content:space-between; min-height:110px;">' +
-      '<div>' +
-        '<div style="font-weight:bold; margin-bottom:8px;">USO SAG — No completar</div>' +
-        '<div>Conclusión: ☐ Cumple &nbsp;&nbsp; ☐ No Cumple</div>' +
-      '</div>' +
-      '<div>' +
-        '<div class="firma-line"></div>' +
-        '<div>Firma Inspector SAG</div>' +
-      '</div>' +
-    '</div>' +
-  '</div>' +
-'</div>' +
-
-'<div style="background:#fff8e1;border:0.5px solid #e0a800;border-radius:2px;padding:5px 10px;margin-top:8px;font-size:8pt;display:flex;align-items:center;gap:12px">' +
-  '<span style="font-weight:bold;color:#7a5c00">Fecha de Envío al SAG:</span>&nbsp;' +
-  '<span style="font-weight:bold;color:#4a3500">'+(function(){ const n=new Date(); return ('0'+n.getDate()).slice(-2)+'-'+('0'+(n.getMonth()+1)).slice(-2)+'-'+n.getFullYear()+' '+('0'+n.getHours()).slice(-2)+':'+('0'+n.getMinutes()).slice(-2)+':'+('0'+n.getSeconds()).slice(-2); })()+'</span>' +
-  '<span style="font-size:7pt;color:#7a5c00;margin-left:auto">Registrado automáticamente por el sistema al momento del envío</span>' +
-'</div>' +
-'<div class="footer-form">' +
-  'F-IIT-IMP-PA-002 · Red de Laboratorios SAG-ECA · Región Metropolitana<br>' +
-  'Servicio Agrícola y Ganadero | Departamento RED de Laboratorios SAG | Estación de Cuarentena Agrícola (ECA)<br>' +
-  'Documento generado electrónicamente el '+fechaHoy+' — Requiere firma manuscrita o digital para ser válido<br>' +
-  'Desarrollado por Ing. Agr. Eduardo Chávez Weisser' +
-'</div>' +
-
-'<script>window.onload=function(){ window.print(); }<\/script>' +
-'</body>' +
-'</html>';
-
-  const ventana = window.open('', '_blank', 'width=900,height=700');
-  if(!ventana){
-    alert('El navegador bloqueó la ventana emergente. Permita ventanas emergentes para este sitio e intente nuevamente.');
-    return;
-  }
-  ventana.document.write(html);
-  ventana.document.close();
+  const html = buildPdfHtml(
+    nombre, rut, correo, telefono, direccion, comunaImp, regionImp,
+    repImp, repNombre, repRut, cpImpN, cpImpC, cpImpT, cpTerrN, cpTerrC, cpTerrT,
+    provVal, ciudProv, origenVal, usoFinalPdf, viveroVal, ptoIng, mesDisplay,
+    sustVal, comparte, compResN, requiereFrio, horasFVal, filasHTML, tsDisplay, fechaHoy
+  );
+    // Convertir a base64 usando Blob para manejar caracteres Unicode correctamente
+  return new Promise(function(resolve){
+    const blob = new Blob([html], {type:'text/html'});
+    const reader = new FileReader();
+    reader.onload = function(){ resolve(reader.result.split(',')[1]); };
+    reader.readAsDataURL(blob);
+  });
 }
 
 function esc(str){
@@ -1057,7 +895,6 @@ function esc(str){
 // ============================================================
 let materialRowCount = 0;
 let pdfBase64 = null;
-let solicitudReservada = null; // {folio, folioDisplay, fecha} — asignado al generar el primer PDF
 let pdfNombreArchivo = null;
 
 function addMaterialRow(){
@@ -1357,27 +1194,6 @@ document.getElementById('uso').addEventListener('change', function(){
 // ============================================================
 // PDF ADJUNTO
 // ============================================================
-document.getElementById('pdfInput').addEventListener('change', function(e){
-  const file = e.target.files[0];
-  const label = document.getElementById('fileLabel');
-  if(!file){ pdfBase64=null; return; }
-  if(file.size > 8*1024*1024){
-    alert('El archivo supera los 8MB permitidos.');
-    this.value=''; pdfBase64=null;
-    label.classList.remove('has-file');
-    label.textContent='Haga clic para seleccionar el PDF firmado (máx. 8MB)';
-    return;
-  }
-  pdfNombreArchivo = file.name;
-  const reader = new FileReader();
-  reader.onload = function(){
-    pdfBase64 = reader.result.split(',')[1];
-    label.classList.add('has-file');
-    label.textContent = '✓ ' + file.name;
-    setError('f-pdf', false);
-  };
-  reader.readAsDataURL(file);
-});
 
 // ============================================================
 // VALIDACIÓN FORMULARIO
@@ -1412,11 +1228,19 @@ function validarFormulario(){
     matMsg.style.display='block'; ok=false;
   } else matMsg.style.display='none';
 
-  const autoRad = document.querySelector('input[name=autorizaEnvio]:checked');
-  document.getElementById('autorizaMsg').style.display = autoRad ? 'none' : 'block';
-  if(!autoRad) ok=false;
+  // Representante declarante
+  const repN = document.getElementById('repNombre').value.trim();
+  const repR = document.getElementById('repRut').value.trim();
+  const repNMsg = document.getElementById('repNombreMsg');
+  const repRMsg = document.getElementById('repRutMsg');
+  if(!repN){ if(repNMsg) repNMsg.style.display='block'; ok=false; } else { if(repNMsg) repNMsg.style.display='none'; }
+  if(!repR||!validarRut(repR)){ if(repRMsg) repRMsg.style.display='block'; ok=false; } else { if(repRMsg) repRMsg.style.display='none'; }
 
-  if(!pdfBase64){ setError('f-pdf',true); ok=false; } else setError('f-pdf',false);
+  // Checkbox declaración
+  const chk = document.getElementById('chkDeclaracion');
+  const chkMsg = document.getElementById('chkDeclaracionMsg');
+  if(!chk||!chk.checked){ if(chkMsg) chkMsg.style.display='block'; ok=false; } else { if(chkMsg) chkMsg.style.display='none'; }
+
   return ok;
 }
 
@@ -1435,70 +1259,90 @@ document.getElementById('solicitudForm').addEventListener('submit', function(e){
     window.scrollTo({top:0,behavior:'smooth'}); return;
   }
 
-  const token = 'DESHABILITADO_TEMPORAL';
-  
   const btn = document.getElementById('submitBtn');
   btn.disabled=true;
-  document.getElementById('statusText').textContent='Enviando solicitud, no cierre esta ventana...';
+  document.getElementById('statusText').textContent='Preparando solicitud...';
+  mostrarOverlayEnvio();
 
   const comparte = document.querySelector('input[name=comparteCubiculo]:checked').value==='SI';
   const usoSel = document.getElementById('uso').value.trim();
   const usoFinal = usoSel === 'Otro' ? ('Otro - ' + document.getElementById('usoOtro').value.trim()) : usoSel;
 
-  const payload = {
-    recaptchaToken: token,
-    importador:{
-      rut:           document.getElementById('rut').value.trim(),
-      nombre:        document.getElementById('nombre').value.trim(),
-      telefono:      document.getElementById('telefono').value.trim(),
-      correo:        document.getElementById('correo').value.trim(),
-      direccion:     document.getElementById('direccion').value.trim(),
-      comuna:        document.getElementById('comuna').value.trim(),
-      ciudad:        document.getElementById('ciudad').value.trim(),
-      region:        document.getElementById('region').value.trim(),
-      representante: document.getElementById('representante').value.trim()
-    },
-    contraparteImportacion:{
-      nombre:   document.getElementById('cpImpNombre').value.trim(),
-      correo:   document.getElementById('cpImpCorreo').value.trim(),
-      telefono: document.getElementById('cpImpTelefono').value.trim()
-    },
-    contraparteTerritorial:{
-      nombre:   document.getElementById('cpTerrNombre').value.trim(),
-      correo:   document.getElementById('cpTerrCorreo').value.trim(),
-      telefono: document.getElementById('cpTerrTelefono').value.trim()
-    },
-    proveedor:          document.getElementById('proveedor').value.trim(),
-    ciudadProveedor:    document.getElementById('ciudadProveedor').value.trim(),
-    origen:             document.getElementById('origen').value.trim(),
-    uso:                usoFinal,
-    codRegistroVivero:  document.getElementById('codRegistroVivero').value.trim(),
-    ptoIngreso:         document.getElementById('ptoIngreso').value.trim(),
-    mesIngreso:         document.getElementById('mesIngreso').value,
-    sustratos:          document.getElementById('sustratos').value.trim(),
-    comparteCubiculo:   comparte,
-    comparteResNum:     comparte ? document.getElementById('comparteResNum').value.trim() : 'No Aplica',
-    requiereFrio:       document.querySelector('input[name=requiereFrio]:checked').value==='SI',
-    horasFrio:          document.getElementById('horasFrio').value,
-    material:           getMaterialData(),
-    autorizaEnvioCorreo: document.querySelector('input[name=autorizaEnvio]:checked').value==='SI',
-    pdfBase64:          pdfBase64,
-    pdfNombreArchivo:   pdfNombreArchivo,
-    folioReservado:     solicitudReservada ? solicitudReservada.folio : null,
-    fechaEnvio:         (function(){ const n=new Date(); return ('0'+n.getDate()).slice(-2)+'-'+('0'+(n.getMonth()+1)).slice(-2)+'-'+n.getFullYear()+' '+('0'+n.getHours()).slice(-2)+':'+('0'+n.getMinutes()).slice(-2)+':'+('0'+n.getSeconds()).slice(-2); })()
-  };
-
-  mostrarOverlayEnvio();
-  fetch(ENDPOINT_URL,{ method:'POST', body:JSON.stringify(payload) })
+  // PASO 1: Obtener timestamp del servidor, luego generar PDF con esa fecha, luego enviar
+  fetch(ENDPOINT_URL,{ method:'POST', body:JSON.stringify({ action:'obtenerTimestamp' }) })
   .then(function(r){ return r.json(); })
+  .then(async function(tsData){
+    const tsServidor = tsData.timestamp || '';
+    document.getElementById('statusText').textContent='Generando PDF...';
+    // PASO 2: Generar PDF con timestamp del servidor
+    const b64 = await construirYAbrirPDF(tsServidor);
+    if(!b64){ ocultarOverlayEnvio(); btn.disabled=false; return; }
+    document.getElementById('statusText').textContent='Enviando solicitud, no cierre esta ventana...';
+
+    const limpiar = function(s){ return (s||'').replace(/[^a-zA-Z0-9]/g,'_').substring(0,30); };
+    const nombreImp = document.getElementById('nombre').value.trim();
+    const prov = document.getElementById('proveedor').value.trim();
+    const orig = document.getElementById('origen').value.trim();
+    const pdfNombre = 'Solicitud_'+limpiar(nombreImp)+'_'+limpiar(prov)+'_'+limpiar(orig)+'.pdf';
+
+    // PASO 3: Enviar al servidor
+    const payload = {
+      recaptchaToken: 'DESHABILITADO_TEMPORAL',
+      importador:{
+        rut:           document.getElementById('rut').value.trim(),
+        nombre:        nombreImp,
+        telefono:      document.getElementById('telefono').value.trim(),
+        correo:        document.getElementById('correo').value.trim(),
+        direccion:     document.getElementById('direccion').value.trim(),
+        comuna:        document.getElementById('comuna').value.trim(),
+        ciudad:        document.getElementById('ciudad').value.trim(),
+        region:        document.getElementById('region').value.trim(),
+        representante: document.getElementById('representante').value.trim()
+      },
+      contraparteImportacion:{
+        nombre:   document.getElementById('cpImpNombre').value.trim(),
+        correo:   document.getElementById('cpImpCorreo').value.trim(),
+        telefono: document.getElementById('cpImpTelefono').value.trim()
+      },
+      contraparteTerritorial:{
+        nombre:   document.getElementById('cpTerrNombre').value.trim(),
+        correo:   document.getElementById('cpTerrCorreo').value.trim(),
+        telefono: document.getElementById('cpTerrTelefono').value.trim()
+      },
+      representanteNombre: document.getElementById('repNombre').value.trim(),
+      representanteRut:    document.getElementById('repRut').value.trim(),
+      declaracionAceptada: document.getElementById('chkDeclaracion').checked,
+      proveedor:          prov,
+      ciudadProveedor:    document.getElementById('ciudadProveedor').value.trim(),
+      origen:             orig,
+      uso:                usoFinal,
+      codRegistroVivero:  document.getElementById('codRegistroVivero').value.trim(),
+      ptoIngreso:         document.getElementById('ptoIngreso').value.trim(),
+      mesIngreso:         document.getElementById('mesIngreso').value,
+      sustratos:          document.getElementById('sustratos').value.trim(),
+      comparteCubiculo:   comparte,
+      comparteResNum:     comparte ? document.getElementById('comparteResNum').value.trim() : 'No Aplica',
+      requiereFrio:       document.querySelector('input[name=requiereFrio]:checked').value==='SI',
+      horasFrio:          document.getElementById('horasFrio').value,
+      material:           getMaterialData(),
+      autorizaEnvioCorreo: true,
+      pdfBase64:          b64,
+      pdfNombreArchivo:   pdfNombre,
+      timestampServidor:  tsServidor
+    };
+
+    return fetch(ENDPOINT_URL,{ method:'POST', body:JSON.stringify(payload) });
+  })
+  .then(function(r){ return r && r.json ? r.json() : null; })
   .then(function(data){
+    if(!data) return;
     ocultarOverlayEnvio();
     document.getElementById('statusText').textContent='';
     if(data.ok){
       document.getElementById('bannerSuccess').innerHTML=
         '<strong>Solicitud enviada correctamente.</strong><br>' +
         'Su número de folio es <strong>'+data.folioDisplay+'</strong>. ' +
-        'Recibirá un correo de confirmación. Conserve este número.<br><br>' +
+        'Recibirá una copia del formulario por correo. Conserve este número.<br><br>' +
         '<strong>¿Desea realizar una nueva solicitud?</strong><br>' +
         '<button type="button" class="btn btn-primary" style="margin-top:10px;margin-right:10px;" onclick="nuevaSolicitud()">Sí, nueva solicitud</button>' +
         '<button type="button" class="btn btn-secondary" style="margin-top:10px;" onclick="cerrarSesion()">No, cerrar sesión</button>';
@@ -1508,7 +1352,6 @@ document.getElementById('solicitudForm').addEventListener('submit', function(e){
       document.getElementById('bannerError').textContent=data.error||'Error al enviar la solicitud.';
       document.getElementById('bannerError').style.display='block';
       btn.disabled=false;
-      if(typeof grecaptcha!=='undefined') grecaptcha.reset();
     }
     window.scrollTo({top:0,behavior:'smooth'});
   })
@@ -1518,12 +1361,10 @@ document.getElementById('solicitudForm').addEventListener('submit', function(e){
     document.getElementById('bannerError').style.display='block';
     document.getElementById('statusText').textContent='';
     btn.disabled=false;
-    if(typeof grecaptcha!=='undefined') grecaptcha.reset();
   });
 });
 
 function nuevaSolicitud(){
-  solicitudReservada = null;
   pdfBase64 = null;
   pdfNombreArchivo = null;
   const datosActuales = {
