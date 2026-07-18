@@ -444,8 +444,8 @@
         </div>
         <div class="field">
           <label>RUT del representante <span class="req">*</span></label>
-          <input type="text" id="repRut" placeholder="Ej: 12.345.678-9">
-          <div class="msg" id="repRutMsg" style="display:none;">Ingrese un RUT válido.</div>
+          <input type="text" id="repRut" placeholder="Ej: 12.345.678-9" maxlength="12">
+          <div class="msg" id="repRutMsg" style="display:none;">RUT no válido. Verifique el dígito verificador.</div>
         </div>
         <div class="field">
           <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
@@ -1074,16 +1074,16 @@ function attachViveroRow(tr){
     var nombre = VIVEROS_FT[clave];
     if(nombre){
       aviso.style.display = "block";
-      aviso.style.background = "#e8f5e9";
+      aviso.style.background = "transparent";
       aviso.style.color = "#1b5e20";
-      aviso.style.border = "1px solid #a5d6a7";
-      aviso.textContent = "✓ " + nombre;
+      aviso.style.border = "none";
+      aviso.textContent = "✓";
     } else {
       aviso.style.display = "block";
       aviso.style.background = "#fff8e1";
       aviso.style.color = "#7d5f00";
       aviso.style.border = "1px solid #ffe082";
-      aviso.textContent = "⚠ Código no encontrado en la nómina SAG de viveros frutales.";
+      aviso.textContent = "⚠ Código no encontrado en la nómina SAG.";
     }
   }
 
@@ -1112,6 +1112,44 @@ function getMaterialData(){
 
 document.getElementById('addMaterialRow').addEventListener('click', addMaterialRow);
 addMaterialRow();
+
+// ── RUT representante: formato automático DD.DDD.DDD-D + validación en tiempo real ──
+(function(){
+  var inp = document.getElementById('repRut');
+  var msg = document.getElementById('repRutMsg');
+  if(!inp) return;
+
+  function formatearRutCL(val) {
+    // Extrae solo dígitos y k/K
+    var limpio = val.replace(/[^0-9kK]/g,'').toUpperCase();
+    if(limpio.length === 0) return '';
+    var dv = limpio.slice(-1);
+    var cuerpo = limpio.slice(0,-1);
+    // Agregar puntos cada 3 dígitos desde la derecha
+    cuerpo = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return cuerpo + '-' + dv;
+  }
+
+  inp.addEventListener('input', function(){
+    var pos = inp.selectionStart;
+    var raw = inp.value;
+    var formatted = formatearRutCL(raw);
+    inp.value = formatted;
+    // Validación en tiempo real solo si hay algo ingresado
+    if(formatted.length > 0) {
+      var esValido = validarRut(formatted);
+      if(msg) msg.style.display = esValido ? 'none' : 'block';
+    } else {
+      if(msg) msg.style.display = 'none';
+    }
+  });
+
+  inp.addEventListener('blur', function(){
+    if(inp.value.length > 0 && !validarRut(inp.value)) {
+      if(msg) msg.style.display = 'block';
+    }
+  });
+})();
 // Mapa global proveedor → {ciudad, pais}
 let proveedorDetalleMap = {};
 // Mapa global comuna → {ciudad, region}
