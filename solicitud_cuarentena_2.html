@@ -823,22 +823,73 @@ function _fmtVivero(raw) {
   var suf = m[2] || '';
   return 'V/' + num + '-' + (suf||'');
 }
-// Vista previa del formulario — genera el PDF y lo abre en pestaña nueva sin enviar.
-// El importador puede revisar, cerrar la pestaña y luego hacer clic en Enviar.
+// Vista previa del formulario — genera el HTML y lo abre en ventana nueva sin enviar.
 async function verVistaPrevia() {
   const btn = document.getElementById('btnVistaPrevia');
   if(btn) btn.disabled = true;
   try {
-    const b64 = await construirYAbrirPDF('(vista previa — fecha real al enviar)');
-    if(!b64){ return; }
-    // Abrir el HTML directamente en una pestaña nueva usando un blob URL
-    const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-    const blob = new Blob([bytes], {type:'text/html'});
-    const url = URL.createObjectURL(blob);
-    const win = window.open(url, '_blank');
-    if(!win) alert('El navegador bloqueó la ventana emergente. Permita ventanas emergentes para este sitio.');
-    // Limpiar el blob URL después de un momento
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    const mat = getMaterialData();
+    const nombre    = document.getElementById('nombre').value.trim();
+    const rut       = document.getElementById('rut').value.trim();
+    const correo    = document.getElementById('correo').value.trim();
+    const telefono  = document.getElementById('telefono').value.trim();
+    const direccion = document.getElementById('direccion').value.trim();
+    const comunaImp = document.getElementById('comuna').value.trim();
+    const regionImp = document.getElementById('region').value.trim();
+    const repImp    = document.getElementById('representante').value.trim();
+    const repNombre = document.getElementById('repNombre').value.trim();
+    const repRut    = document.getElementById('repRut').value.trim();
+    const cpImpN    = document.getElementById('cpImpNombre').value.trim();
+    const cpImpC    = document.getElementById('cpImpCorreo').value.trim();
+    const cpImpT    = document.getElementById('cpImpTelefono').value.trim();
+    const cpTerrN   = document.getElementById('cpTerrNombre').value.trim();
+    const cpTerrC   = document.getElementById('cpTerrCorreo').value.trim();
+    const cpTerrT   = document.getElementById('cpTerrTelefono').value.trim();
+    const provVal   = document.getElementById('proveedor').value.trim();
+    const ciudProv  = document.getElementById('ciudadProveedor').value.trim();
+    const origenVal = document.getElementById('origen').value.trim();
+    const usoSelPdf = document.getElementById('uso').value.trim();
+    const usoFinalPdf = usoSelPdf === 'Otro' ? ('Otro - ' + document.getElementById('usoOtro').value.trim()) : usoSelPdf;
+    const viveroVal = document.getElementById('codRegistroVivero').value.trim();
+    const ptoIng    = document.getElementById('ptoIngreso').value.trim();
+    const sustVal   = document.getElementById('sustratos').value.trim();
+    const comparte  = document.querySelector('input[name=comparteCubiculo]:checked').value === 'SI';
+    const compResN  = comparte ? document.getElementById('comparteResNum').value.trim() : '';
+    const requiereFrio = document.querySelector('input[name=requiereFrio]:checked').value === 'SI';
+    const horasFVal = document.getElementById('horasFrio').value;
+    const mesIngreso = document.getElementById('mesIngreso').value;
+    const mesDisplay = mesIngreso
+      ? (function(){ const d=new Date(mesIngreso+'T00:00:00'); return d.toLocaleDateString('es-CL',{day:'numeric',month:'long',year:'numeric'}); })()
+      : '';
+    const hoy = new Date();
+    const fechaHoy = ('0'+hoy.getDate()).slice(-2)+'-'+('0'+(hoy.getMonth()+1)).slice(-2)+'-'+hoy.getFullYear();
+    const filasHTML = mat.length > 0 ? mat.map(function(m,i){
+      return '<tr>'+
+        '<td style="text-align:center;">'+(i+1)+'</td>'+
+        '<td>'+esc(m.especie)+'</td><td>'+esc(m.variedad)+'</td><td>'+esc(m.clon)+'</td>'+
+        '<td>'+esc(m.tipoMaterial)+'</td><td style="text-align:center;">'+esc(m.cantidad)+'</td>'+
+        '<td style="text-align:center;">'+esc(m.nPlantasAEstablecer)+'</td>'+
+        '<td>'+esc(m.portainjerto)+'</td><td>'+esc(m.regViveroPortainjerto)+'</td>'+
+        '<td style="text-align:center;">'+m.certificacionFrutal+'</td>'+
+        '<td style="text-align:center;">'+m.variedadProtegida+'</td>'+
+      '</tr>';
+    }).join('') : '<tr><td colspan="11" style="text-align:center;color:#999;">Sin material ingresado</td></tr>';
+
+    const htmlContent = buildPdfHtml(
+      nombre,rut,correo,telefono,direccion,comunaImp,regionImp,
+      repImp,repNombre,repRut,cpImpN,cpImpC,cpImpT,cpTerrN,cpTerrC,cpTerrT,
+      provVal,ciudProv,origenVal,usoFinalPdf,viveroVal,ptoIng,mesDisplay,
+      sustVal,comparte,compResN,requiereFrio,horasFVal,filasHTML,
+      '(vista previa — fecha real al enviar)', fechaHoy
+    );
+
+    const ventana = window.open('', '_blank', 'width=950,height=750');
+    if(!ventana){
+      alert('El navegador bloqueó la ventana emergente. Permita ventanas emergentes para este sitio e intente nuevamente.');
+      return;
+    }
+    ventana.document.write(htmlContent);
+    ventana.document.close();
   } finally {
     if(btn) btn.disabled = false;
   }
