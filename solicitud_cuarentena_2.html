@@ -404,12 +404,12 @@
             </colgroup>
             <thead>
               <tr>
-                <th>Especie (científico)*</th>
+                <th>Especie (científico)</th>
                 <th>Variedad</th>
                 <th>Clon</th>
-                <th>Tipo Material*</th>
-                <th>Cantidad*</th>
-                <th>N° Plantas a Establ.</th>
+                <th>Tipo Material</th>
+                <th>Cant.<br>Material</th>
+                <th>N° Plantas<br>a Establecer</th>
                 <th>Portainjerto</th>
                 <th>Reg. Vivero Portainj.</th>
                 <th>Cert. Frutal</th>
@@ -418,10 +418,20 @@
               </tr>
             </thead>
             <tbody id="materialBody"></tbody>
+            <tfoot>
+              <tr id="filaTotalPlantas" style="background:#f8f8f8;font-weight:bold;">
+                <td colspan="5" style="text-align:right;padding:6px 6px;font-size:12px;color:#444;">Total N° Plantas a Establecer:</td>
+                <td style="text-align:center;padding:6px 4px;font-size:13px;" id="totalPlantasCell">0</td>
+                <td colspan="5"></td>
+              </tr>
+            </tfoot>
           </table>
         </div>
         <button type="button" class="btn btn-secondary" id="addMaterialRow">+ Agregar especie / variedad</button>
         <div class="msg" id="materialMsg" style="display:none;margin-top:8px;">Debe agregar al menos una fila de material.</div>
+        <div id="avisoLimitePlantas" style="display:none;margin-top:8px;padding:8px 12px;background:#FBEAE9;border:1px solid #e53935;border-radius:4px;color:#b71c1c;font-size:13px;">
+          ⚠ Ha superado el máximo de <strong>70 plantas</strong> permitidas por cuarentena. Reduzca la cantidad antes de enviar.
+        </div>
       </div>
 
       <!-- PASO 2: DECLARACIÓN Y ENVÍO -->
@@ -984,6 +994,22 @@ let materialRowCount = 0;
 let pdfBase64 = null;
 let pdfNombreArchivo = null;
 
+function actualizarTotalPlantas() {
+  const inputs = document.querySelectorAll('#materialBody .m-nplantas');
+  let total = 0;
+  inputs.forEach(function(inp) {
+    const v = parseInt(inp.value, 10);
+    if(!isNaN(v) && v > 0) total += v;
+  });
+  const cell = document.getElementById('totalPlantasCell');
+  const aviso = document.getElementById('avisoLimitePlantas');
+  if(cell) {
+    cell.textContent = total;
+    cell.style.color = total > 70 ? '#b71c1c' : '#1b5e20';
+  }
+  if(aviso) aviso.style.display = total > 70 ? 'block' : 'none';
+}
+
 function addMaterialRow(){
   materialRowCount++;
   const tbody = document.getElementById('materialBody');
@@ -1016,7 +1042,8 @@ function addMaterialRow(){
     '<td><select class="m-varprotegida"><option value="NO">No</option><option value="SI">Sí</option></select></td>' +
     '<td><button type="button" class="btn btn-danger remove-row">Quitar</button></td>';
   tbody.appendChild(tr);
-  tr.querySelector('.remove-row').addEventListener('click', function(){ tr.remove(); });
+  tr.querySelector('.remove-row').addEventListener('click', function(){ tr.remove(); actualizarTotalPlantas(); });
+  tr.querySelector('.m-nplantas').addEventListener('input', actualizarTotalPlantas);
   attachViveroRow(tr);
 }
 
@@ -1314,6 +1341,11 @@ function validarFormulario(){
   if(mat.length===0||mat.some(function(m){ return !m.especie||!m.tipoMaterial||!m.cantidad; })){
     matMsg.style.display='block'; ok=false;
   } else matMsg.style.display='none';
+
+  // Límite de 70 plantas
+  actualizarTotalPlantas();
+  const totalPlantas = mat.reduce(function(s,m){ return s+(parseInt(m.nPlantasAEstablecer,10)||0); }, 0);
+  if(totalPlantas > 70){ ok=false; }
 
   // Representante declarante
   const repN = document.getElementById('repNombre').value.trim();
