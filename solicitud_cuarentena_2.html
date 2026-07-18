@@ -41,10 +41,10 @@
   .field.error .msg{display:block;}
   .radio-group{display:flex;gap:16px;align-items:center;}
   .radio-group label{display:flex;align-items:center;gap:6px;font-size:14px;margin:0;}
-  #materialTable{width:100%;border-collapse:collapse;margin-bottom:10px;font-size:13px;}
-  #materialTable th{background:var(--navy);color:#fff;font-weight:400;padding:8px 6px;text-align:left;font-size:12px;}
-  #materialTable td{padding:6px 4px;border-bottom:1px solid var(--border);}
-  #materialTable input,#materialTable select{padding:6px;font-size:13px;}
+  #materialTable{width:100%;border-collapse:collapse;margin-bottom:10px;font-size:12px;table-layout:fixed;}
+  #materialTable th{background:var(--navy);color:#fff;font-weight:400;padding:6px 4px;text-align:left;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #materialTable td{padding:5px 3px;border-bottom:1px solid var(--border);}
+  #materialTable input,#materialTable select{padding:5px 4px;font-size:12px;width:100%;box-sizing:border-box;}
   .btn{display:inline-block;padding:10px 20px;border-radius:4px;border:none;cursor:pointer;font-size:14px;font-family:inherit;}
   .btn-primary{background:var(--azul);color:#fff;}
   .btn-block{display:block;width:100%;text-align:center;}
@@ -389,6 +389,19 @@
         <h2>Identificación del Material a Ingresar</h2>
         <div style="overflow-x:auto;">
           <table id="materialTable">
+            <colgroup>
+              <col style="width:18%"><!-- Especie -->
+              <col style="width:13%"><!-- Variedad -->
+              <col style="width:6%"> <!-- Clon -->
+              <col style="width:10%"><!-- Tipo Material -->
+              <col style="width:6%"> <!-- Cantidad -->
+              <col style="width:7%"> <!-- N° Plantas -->
+              <col style="width:10%"><!-- Portainjerto -->
+              <col style="width:10%"><!-- Reg. Vivero -->
+              <col style="width:7%"> <!-- Cert. Frutal -->
+              <col style="width:8%"> <!-- Var. Protegida -->
+              <col style="width:5%"> <!-- Botón -->
+            </colgroup>
             <thead>
               <tr>
                 <th>Especie (científico)*</th>
