@@ -451,7 +451,10 @@
 
       <div class="actions">
         <span id="statusText" style="font-size:13px;color:#777;"></span>
-        <button type="submit" class="btn btn-primary" id="submitBtn">Enviar Solicitud</button>
+        <div style="display:flex;gap:10px;align-items:center">
+          <button type="button" class="btn btn-secondary" id="btnVistaPrevia" onclick="verVistaPrevia()">👁 Vista previa</button>
+          <button type="submit" class="btn btn-primary" id="submitBtn">Enviar Solicitud</button>
+        </div>
       </div>
 
     </form>
@@ -820,6 +823,27 @@ function _fmtVivero(raw) {
   var suf = m[2] || '';
   return 'V/' + num + '-' + (suf||'');
 }
+// Vista previa del formulario — genera el PDF y lo abre en pestaña nueva sin enviar.
+// El importador puede revisar, cerrar la pestaña y luego hacer clic en Enviar.
+async function verVistaPrevia() {
+  const btn = document.getElementById('btnVistaPrevia');
+  if(btn) btn.disabled = true;
+  try {
+    const b64 = await construirYAbrirPDF('(vista previa — fecha real al enviar)');
+    if(!b64){ return; }
+    // Abrir el HTML directamente en una pestaña nueva usando un blob URL
+    const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+    const blob = new Blob([bytes], {type:'text/html'});
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, '_blank');
+    if(!win) alert('El navegador bloqueó la ventana emergente. Permita ventanas emergentes para este sitio.');
+    // Limpiar el blob URL después de un momento
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  } finally {
+    if(btn) btn.disabled = false;
+  }
+}
+
 function construirYAbrirPDF(timestampServidor){
   const mat = getMaterialData();
   const nombre    = document.getElementById('nombre').value.trim();
