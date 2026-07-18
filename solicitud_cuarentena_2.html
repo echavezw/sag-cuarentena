@@ -390,17 +390,17 @@
         <div>
           <table id="materialTable">
             <colgroup>
-              <col style="width:21%"><!-- Especie -->
-              <col style="width:13%"><!-- Variedad -->
-              <col style="width:10%"><!-- Clon -->
-              <col style="width:10%"><!-- Tipo Material -->
-              <col style="width:4%"> <!-- Cantidad -->
-              <col style="width:5%"> <!-- N° Plantas -->
+              <col style="width:19%"><!-- Especie -->
+              <col style="width:12%"><!-- Variedad -->
+              <col style="width:9%"> <!-- Clon -->
+              <col style="width:9%"> <!-- Tipo Material -->
+              <col style="width:7%"> <!-- Cantidad -->
+              <col style="width:7%"> <!-- N° Plantas -->
               <col style="width:10%"><!-- Portainjerto -->
               <col style="width:10%"><!-- Reg. Vivero -->
               <col style="width:6%"> <!-- Cert. Frutal -->
               <col style="width:5%"> <!-- Var. Protegida -->
-              <col style="width:3%"> <!-- Botón -->
+              <col style="width:6%"> <!-- Botón -->
             </colgroup>
             <thead>
               <tr>
@@ -419,7 +419,7 @@
             </thead>
             <tbody id="materialBody"></tbody>
             <tfoot>
-              <tr id="filaTotalPlantas" style="background:#f8f8f8;font-weight:bold;">
+              <tr id="filaTotalPlantas" style="background:#f8f8f8;">
                 <td colspan="5" style="text-align:right;padding:6px 6px;font-size:12px;color:#444;">Total N° Plantas a Establecer:</td>
                 <td style="text-align:center;padding:6px 4px;font-size:13px;" id="totalPlantasCell">0</td>
                 <td colspan="5"></td>
@@ -1021,8 +1021,8 @@ function addMaterialRow(){
     '<td><select class="m-tipo"><option value="">--</option>' +
       TIPOS_MATERIAL.map(function(t){ return '<option value="'+t+'">'+t+'</option>'; }).join('') +
     '</select></td>' +
-    '<td><input type="number" class="m-cantidad" min="1"></td>' +
-    '<td><input type="number" class="m-nplantas" min="0"></td>' +
+    '<td><input type="number" class="m-cantidad" min="1" style="text-align:center;"></td>' +
+    '<td><input type="number" class="m-nplantas" min="0" style="text-align:center;"></td>' +
     '<td><input type="text" class="m-portainjerto" list="listaPortainjertos"></td>' +
     '<td class="m-vivero-cell">' +
       '<div style="display:flex;align-items:center;gap:0;">' +
