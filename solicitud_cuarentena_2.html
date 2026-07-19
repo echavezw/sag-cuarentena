@@ -1525,6 +1525,7 @@ document.getElementById('solicitudForm').addEventListener('submit', function(e){
 function nuevaSolicitud(){
   pdfBase64 = null;
   pdfNombreArchivo = null;
+  // Capturar datos ANTES del reset
   const datosActuales = {
     rut:          document.getElementById('rut').value,
     nombre:       document.getElementById('nombre').value,
@@ -1548,12 +1549,22 @@ function nuevaSolicitud(){
   };
   document.getElementById('bannerSuccess').style.display = 'none';
   document.getElementById('bannerError').style.display = 'none';
+  // Reset del formulario
   document.getElementById('solicitudForm').reset();
   document.getElementById('solicitudForm').style.display = 'block';
-  pdfBase64 = null; pdfNombreArchivo = null;
+  // Limpiar tabla de material
   document.getElementById('materialBody').innerHTML = '';
   addMaterialRow();
   actualizarTotalPlantas();
+  // Limpiar checkbox declaración y repNombre/repRut explícitamente
+  // (reset() no siempre los limpia en todos los navegadores)
+  const chk = document.getElementById('chkDeclaracion');
+  if(chk) chk.checked = false;
+  const repN = document.getElementById('repNombre');
+  const repR = document.getElementById('repRut');
+  if(repN) repN.value = '';
+  if(repR) repR.value = '';
+  // Reiniciar con datos precargados
   iniciarFormulario(datosActuales);
   window.scrollTo({top:0, behavior:'smooth'});
 }
