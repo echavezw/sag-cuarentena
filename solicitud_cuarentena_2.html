@@ -990,7 +990,6 @@ function esc(str){
 // ============================================================
 // TABLA DE MATERIAL
 // ============================================================
-let materialRowCount = 0;
 let pdfBase64 = null;
 let pdfNombreArchivo = null;
 
@@ -1011,7 +1010,6 @@ function actualizarTotalPlantas() {
 }
 
 function addMaterialRow(){
-  materialRowCount++;
   const tbody = document.getElementById('materialBody');
   const tr = document.createElement('tr');
   tr.innerHTML =
