@@ -769,7 +769,7 @@ function buildPdfHtml(nombre,rut,correo,telefono,direccion,comunaImp,regionImp,
     '</tr></table></div>'+
     '<table class="header-table">'+
     '<colgroup><col class="lbl-col"><col class="val-col"><col class="lbl-col"><col class="val-col"></colgroup>'+
-    '<tr><td class="lbl">N° Solicitud / Año</td><td class="val">&nbsp;</td>'+
+    '<tr><td class="lbl">N° Solicitud / Año</td><td class="val">'+e(folioDisplay||'')+'</td>'+
     '<td class="lbl">Fecha Recepción SAG-ECA</td><td class="val">'+e(tsDisplay)+'</td></tr>'+
     '<tr><td class="lbl">Región</td><td class="val">Región Metropolitana</td>'+
     '<td class="lbl">Oficina Sectorial</td><td class="val">Red de Laboratorios SAG-ECA</td></tr>'+
@@ -890,7 +890,7 @@ async function verVistaPrevia() {
       repImp,repNombre,repRut,cpImpN,cpImpC,cpImpT,cpTerrN,cpTerrC,cpTerrT,
       provVal,ciudProv,origenVal,usoFinalPdf,viveroVal,ptoIng,mesDisplay,
       sustVal,comparte,compResN,requiereFrio,horasFVal,filasHTML,
-      '(vista previa — fecha real al enviar)', fechaHoy
+      '(vista previa — fecha real al enviar)', fechaHoy, '(se asigna al enviar)'
     );
 
     const ventana = window.open('', '_blank', 'width=950,height=750');
@@ -905,7 +905,7 @@ async function verVistaPrevia() {
   }
 }
 
-function construirYAbrirPDF(timestampServidor){
+function construirYAbrirPDF(timestampServidor, folioDisplay){
   const mat = getMaterialData();
   const nombre    = document.getElementById('nombre').value.trim();
   const rut       = document.getElementById('rut').value.trim();
@@ -967,7 +967,7 @@ function construirYAbrirPDF(timestampServidor){
     nombre, rut, correo, telefono, direccion, comunaImp, regionImp,
     repImp, repNombre, repRut, cpImpN, cpImpC, cpImpT, cpTerrN, cpTerrC, cpTerrT,
     provVal, ciudProv, origenVal, usoFinalPdf, viveroVal, ptoIng, mesDisplay,
-    sustVal, comparte, compResN, requiereFrio, horasFVal, filasHTML, tsDisplay, fechaHoy
+    sustVal, comparte, compResN, requiereFrio, horasFVal, filasHTML, tsDisplay, fechaHoy, folioDisplay||''
   );
     // Convertir a base64 usando Blob para manejar caracteres Unicode correctamente
   return new Promise(function(resolve){
@@ -1423,14 +1423,17 @@ document.getElementById('solicitudForm').addEventListener('submit', function(e){
   const usoSel = document.getElementById('uso').value.trim();
   const usoFinal = usoSel === 'Otro' ? ('Otro - ' + document.getElementById('usoOtro').value.trim()) : usoSel;
 
-  // PASO 1: Obtener timestamp del servidor, luego generar PDF con esa fecha, luego enviar
-  fetch(ENDPOINT_URL,{ method:'POST', body:JSON.stringify({ action:'obtenerTimestamp' }) })
+  // PASO 1: Reservar folio + obtener timestamp del servidor
+  fetch(ENDPOINT_URL,{ method:'POST', body:JSON.stringify({ action:'reservarFolio', rut: document.getElementById('rut').value.trim() }) })
   .then(function(r){ return r.json(); })
-  .then(async function(tsData){
-    const tsServidor = tsData.timestamp || '';
+  .then(async function(folioData){
+    if(!folioData.ok) throw new Error(folioData.error || 'No se pudo reservar el folio.');
+    const tsServidor   = folioData.timestamp || '';
+    const folioDisplay = folioData.folioDisplay || '';
+    const folio        = folioData.folio || null;
     document.getElementById('statusText').textContent='Generando PDF...';
-    // PASO 2: Generar PDF con timestamp del servidor
-    const b64 = await construirYAbrirPDF(tsServidor);
+    // PASO 2: Generar PDF con folio + timestamp del servidor
+    const b64 = await construirYAbrirPDF(tsServidor, folioDisplay);
     if(!b64){ ocultarOverlayEnvio(); btn.disabled=false; return; }
     document.getElementById('statusText').textContent='Enviando solicitud, no cierre esta ventana...';
     console.log('PASO3 enviando payload...');
@@ -1484,7 +1487,8 @@ document.getElementById('solicitudForm').addEventListener('submit', function(e){
       autorizaEnvioCorreo: true,
       pdfBase64:          b64,
       pdfNombreArchivo:   pdfNombre,
-      timestampServidor:  tsServidor
+      timestampServidor:  tsServidor,
+      folioReservado:     folio
     };
 
     return fetch(ENDPOINT_URL,{ method:'POST', body:JSON.stringify(payload) });
