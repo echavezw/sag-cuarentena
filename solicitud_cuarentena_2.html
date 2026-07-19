@@ -928,6 +928,7 @@ function construirYAbrirPDF(timestampServidor){
   const origenVal = document.getElementById('origen').value.trim();
   const ptoIng    = document.getElementById('ptoIngreso').value.trim();
   const sustVal   = document.getElementById('sustratos').value.trim();
+  const comparte     = document.querySelector('input[name=comparteCubiculo]:checked').value === 'SI';
   const compResN  = comparte ? document.getElementById('comparteResNum').value.trim() : '';
   const horasFVal = document.getElementById('horasFrio').value;
   const viveroVal = document.getElementById('codRegistroVivero').value.trim();
@@ -944,8 +945,6 @@ function construirYAbrirPDF(timestampServidor){
     : '';
   const usoSelPdf = document.getElementById('uso').value.trim();
   const usoFinalPdf = usoSelPdf === 'Otro' ? ('Otro - ' + document.getElementById('usoOtro').value.trim()) : usoSelPdf;
-  const requiereFrio = document.querySelector('input[name=requiereFrio]:checked').value === 'SI';
-  const comparte     = document.querySelector('input[name=comparteCubiculo]:checked').value === 'SI';
 
   const filasHTML = mat.length > 0 ? mat.map(function(m, i){
     return '<tr>' +
