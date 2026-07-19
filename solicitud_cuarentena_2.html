@@ -927,11 +927,12 @@ function construirYAbrirPDF(timestampServidor){
   const ciudProv  = document.getElementById('ciudadProveedor').value.trim();
   const origenVal = document.getElementById('origen').value.trim();
   const ptoIng    = document.getElementById('ptoIngreso').value.trim();
-  const sustVal   = document.getElementById('sustratos').value.trim();
+  const sustVal      = document.getElementById('sustratos').value.trim();
   const comparte     = document.querySelector('input[name=comparteCubiculo]:checked').value === 'SI';
-  const compResN  = comparte ? document.getElementById('comparteResNum').value.trim() : '';
-  const horasFVal = document.getElementById('horasFrio').value;
-  const viveroVal = document.getElementById('codRegistroVivero').value.trim();
+  const compResN     = comparte ? document.getElementById('comparteResNum').value.trim() : '';
+  const requiereFrio = document.querySelector('input[name=requiereFrio]:checked').value === 'SI';
+  const horasFVal    = document.getElementById('horasFrio').value;
+  const viveroVal    = document.getElementById('codRegistroVivero').value.trim();
 
   if(!nombre || !rut){ alert('Complete al menos los datos de identificación del importador.'); return null; }
 
