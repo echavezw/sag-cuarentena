@@ -1427,15 +1427,12 @@ document.getElementById('solicitudForm').addEventListener('submit', function(e){
 
   // PASO 1: Obtener timestamp del servidor, luego generar PDF con esa fecha, luego enviar
   fetch(ENDPOINT_URL,{ method:'POST', body:JSON.stringify({ action:'obtenerTimestamp' }) })
-  .then(function(r){ console.log('PASO1 status:', r.status); return r.json(); })
+  .then(function(r){ return r.json(); })
   .then(async function(tsData){
-    console.log('PASO1 respuesta:', tsData);
     const tsServidor = tsData.timestamp || '';
     document.getElementById('statusText').textContent='Generando PDF...';
     // PASO 2: Generar PDF con timestamp del servidor
-    console.log('PASO2 generando PDF...');
     const b64 = await construirYAbrirPDF(tsServidor);
-    console.log('PASO2 PDF generado, b64 length:', b64 ? b64.length : 'null');
     if(!b64){ ocultarOverlayEnvio(); btn.disabled=false; return; }
     document.getElementById('statusText').textContent='Enviando solicitud, no cierre esta ventana...';
     console.log('PASO3 enviando payload...');
@@ -1556,11 +1553,9 @@ function nuevaSolicitud(){
   document.getElementById('solicitudForm').reset();
   document.getElementById('solicitudForm').style.display = 'block';
   pdfBase64 = null; pdfNombreArchivo = null;
-  document.getElementById('fileLabel').classList.remove('has-file');
-  document.getElementById('fileLabel').textContent = 'Haga clic para adjuntar el PDF generado y firmado (máx. 8MB)';
   document.getElementById('materialBody').innerHTML = '';
-  materialRowCount = 0;
   addMaterialRow();
+  actualizarTotalPlantas();
   iniciarFormulario(datosActuales);
   window.scrollTo({top:0, behavior:'smooth'});
 }
