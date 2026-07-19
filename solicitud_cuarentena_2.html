@@ -1514,10 +1514,12 @@ document.getElementById('solicitudForm').addEventListener('submit', function(e){
   })
   .catch(function(err){
     ocultarOverlayEnvio();
-    document.getElementById('bannerError').textContent='Error de conexión. Intente nuevamente.';
+    const msgErr = err && err.message ? err.message : String(err);
+    document.getElementById('bannerError').textContent='Error: ' + msgErr;
     document.getElementById('bannerError').style.display='block';
     document.getElementById('statusText').textContent='';
     btn.disabled=false;
+    console.error('Error envío:', err);
   });
 });
 
