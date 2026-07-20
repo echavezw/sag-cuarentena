@@ -709,12 +709,22 @@ function cerrarSesion(){
 
 
 var _overlayEnvioTimer = null;
+function setProgreso(pct, titulo, sub){
+  var b = document.getElementById('barraProgreso');
+  var p = document.getElementById('overlayEnvioPct');
+  var t = document.getElementById('overlayEnvioTitulo');
+  var s = document.getElementById('overlayEnvioSub');
+  if(b) b.style.width = Math.min(100,pct)+'%';
+  if(p) p.textContent = Math.min(100,pct)+'%';
+  if(titulo && t) t.textContent = titulo;
+  if(sub !== undefined && s) s.textContent = sub;
+}
 function mostrarOverlayEnvio(){
   var o = document.getElementById('overlayEnvio');
   if(o) o.style.display = 'flex';
   var lento = document.getElementById('overlayEnvioLento');
   if(lento) lento.style.display = 'none';
-  // Tras 15s sin respuesta, avisar que está tardando (sin desbloquear).
+  setProgreso(0, 'Preparando solicitud…', 'Por favor no cierre ni recargue esta página.');
   _overlayEnvioTimer = setTimeout(function(){
     if(lento) lento.style.display = 'block';
   }, 15000);
@@ -723,6 +733,7 @@ function ocultarOverlayEnvio(){
   var o = document.getElementById('overlayEnvio');
   if(o) o.style.display = 'none';
   if(_overlayEnvioTimer){ clearTimeout(_overlayEnvioTimer); _overlayEnvioTimer = null; }
+  setProgreso(0, '', '');
 }
 
 
@@ -1716,6 +1727,7 @@ document.getElementById('solicitudForm').addEventListener('submit', function(e){
     const b64 = await construirYAbrirPDF(tsServidor, folioDisplay);
     if(!b64){ ocultarOverlayEnvio(); btn.disabled=false; return; }
     document.getElementById('statusText').textContent='Enviando solicitud, no cierre esta ventana...';
+    setProgreso(65,'Enviando solicitud…','No cierre ni recargue esta página.');
 
     const limpiar = function(s){ return (s||'').replace(/[^a-zA-Z0-9]/g,'_').substring(0,30); };
     const nombreImp = document.getElementById('nombre').value.trim();
@@ -1775,7 +1787,8 @@ document.getElementById('solicitudForm').addEventListener('submit', function(e){
   .then(function(r){ return r && r.json ? r.json() : null; })
   .then(function(data){
     if(!data) return;
-    ocultarOverlayEnvio();
+    setProgreso(100,'¡Listo!','');
+    setTimeout(function(){ ocultarOverlayEnvio(); }, 500);
     document.getElementById('statusText').textContent='';
     if(data.ok){
       document.getElementById('bannerSuccess').innerHTML=
