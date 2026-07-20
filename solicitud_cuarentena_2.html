@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SAG — Solicitud de Autorización de Ingreso de Material Vegetal a Cuarentena Posentrada Absoluta</title>
 <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+<!-- SheetJS: opcional. Si el CDN no está disponible, la carga de material funciona igual con CSV. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer onerror="window.__noXLSX=true"></script>
 <style>
   :root{
     --navy:#0A1628; --gold:#B8975A; --azul:#006cb8; --rojo:#ef3f44;
@@ -428,6 +430,10 @@
           </table>
         </div>
         <button type="button" class="btn btn-secondary" id="addMaterialRow">+ Agregar especie / variedad</button>
+        <button type="button" class="btn btn-secondary" onclick="descargarPlantillaMaterial()" title="Descarga una planilla con las columnas de esta tabla para llenarla en Excel">📥 Descargar plantilla</button>
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('inputExcelMaterial').click()" title="Carga las filas desde la planilla llenada en Excel">📤 Cargar desde planilla</button>
+        <input type="file" id="inputExcelMaterial" accept=".csv,.xlsx,.xls" style="display:none">
+        <div id="avisoCargaMaterial" style="display:none;margin-top:10px;padding:10px 12px;border-radius:4px;font-size:13px;"></div>
         <div class="msg" id="materialMsg" style="display:none;margin-top:8px;">Debe agregar al menos una fila de material.</div>
         <div id="avisoLimitePlantas" style="display:none;margin-top:8px;padding:8px 12px;background:#FBEAE9;border:1px solid #e53935;border-radius:4px;color:#b71c1c;font-size:13px;">
           ⚠ Ha superado el máximo de <strong>70 plantas</strong> permitidas por cuarentena. Reduzca la cantidad antes de enviar.
@@ -1117,6 +1123,201 @@ function getMaterialData(){
     };
   });
 }
+
+
+// ============================================================
+// PLANTILLA EXCEL / CSV PARA LA TABLA DE MATERIAL
+// ============================================================
+const COLS_PLANTILLA = ['Especie','Variedad','Clon','Tipo Material','Cant. Material',
+  'N Plantas a Establecer','Portainjerto','Reg. Vivero Portainjerto','Cert. Frutal','Var. Protegida'];
+
+function descargarPlantillaMaterial(){
+  const ejemplo = ['Prunus avium','Bing','','Plantas','10','10','Nemaguard','V/06-009','NO','NO'];
+  const sep = ';';
+  const filas = [COLS_PLANTILLA.join(sep), ejemplo.join(sep)];
+  // Filas vacías para completar
+  for(var i=0;i<8;i++) filas.push(new Array(COLS_PLANTILLA.length).fill('').join(sep));
+  // BOM para que Excel (es-CL) reconozca acentos y el separador ;
+  const contenido = '\ufeff' + filas.join('\r\n');
+  const blob = new Blob([contenido], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'Plantilla_Material_Cuarentena.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
+}
+
+// Normaliza texto tipo nombre científico: primera letra mayúscula, resto minúscula
+function normEspecie(v){
+  v = String(v||'').trim().replace(/\s+/g,' ');
+  if(!v) return '';
+  return v.charAt(0).toUpperCase() + v.slice(1).toLowerCase();
+}
+// Compara ignorando mayúsculas, tildes y espacios
+function _norm(s){
+  return String(s||'').trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ');
+}
+// Mapea a un valor exacto de una lista cerrada; '' si no hay coincidencia
+function mapearLista(valor, lista){
+  const n = _norm(valor);
+  if(!n) return '';
+  for(var i=0;i<lista.length;i++){ if(_norm(lista[i])===n) return lista[i]; }
+  return '';
+}
+function siNo(v){
+  const n = _norm(v);
+  return (n==='si'||n==='s'||n==='yes'||n==='1'||n==='true'||n==='verdadero') ? 'SI' : 'NO';
+}
+
+// Parser CSV simple (soporta ; o , y comillas)
+function parsearCSV(texto){
+  texto = texto.replace(/^\ufeff/,'');
+  const lineas = texto.split(/\r\n|\n|\r/).filter(function(l){ return l.trim()!==''; });
+  if(lineas.length===0) return [];
+  const sep = (lineas[0].split(';').length > lineas[0].split(',').length) ? ';' : ',';
+  return lineas.map(function(linea){
+    const celdas = []; let actual = ''; let enComillas = false;
+    for(var i=0;i<linea.length;i++){
+      const c = linea[i];
+      if(c === '"'){ enComillas = !enComillas; continue; }
+      if(c === sep && !enComillas){ celdas.push(actual); actual = ''; continue; }
+      actual += c;
+    }
+    celdas.push(actual);
+    return celdas.map(function(x){ return x.trim(); });
+  });
+}
+
+function mostrarAvisoCarga(tipo, mensaje){
+  const el = document.getElementById('avisoCargaMaterial');
+  if(!el) return;
+  el.style.display = 'block';
+  el.innerHTML = mensaje;
+  if(tipo==='ok'){ el.style.background='#e8f5e9'; el.style.border='1px solid #a5d6a7'; el.style.color='#1b5e20'; }
+  else if(tipo==='warn'){ el.style.background='#fff8e1'; el.style.border='1px solid #ffe082'; el.style.color='#7d5f00'; }
+  else { el.style.background='#FBEAE9'; el.style.border='1px solid #e53935'; el.style.color='#b71c1c'; }
+}
+
+// Vuelca las filas parseadas en la tabla de material
+function volcarFilasMaterial(filas){
+  if(filas.length < 2){ mostrarAvisoCarga('err','La planilla no tiene filas de datos.'); return; }
+  // Detecta si la primera fila es encabezado
+  const primera = filas[0].map(_norm).join('|');
+  const inicio = (primera.indexOf('especie') >= 0) ? 1 : 0;
+
+  const listaEsp = Array.prototype.map.call(
+    document.querySelectorAll('#listaEspecies option'), function(o){ return o.value; });
+  const listaPort = Array.prototype.map.call(
+    document.querySelectorAll('#listaPortainjertos option'), function(o){ return o.value; });
+
+  let agregadas = 0; const avisos = [];
+  const tbody = document.getElementById('materialBody');
+  tbody.innerHTML = '';
+
+  for(var i=inicio;i<filas.length;i++){
+    const f = filas[i];
+    if(!f || f.join('').trim()==='') continue;
+    const especie = normEspecie(f[0]);
+    if(!especie) continue;
+
+    addMaterialRow();
+    const tr = tbody.lastElementChild;
+    const nfila = agregadas + 1;
+
+    tr.querySelector('.m-especie').value  = especie;
+    if(listaEsp.length && !listaEsp.some(function(e){ return _norm(e)===_norm(especie); })){
+      tr.querySelector('.m-especie').style.background = '#fff8e1';
+      avisos.push('Fila '+nfila+': especie "'+especie+'" no está en la nómina; verifique.');
+    }
+    tr.querySelector('.m-variedad').value = String(f[1]||'').trim();
+    tr.querySelector('.m-clon').value     = String(f[2]||'').trim();
+
+    const tipo = mapearLista(f[3], TIPOS_MATERIAL);
+    tr.querySelector('.m-tipo').value = tipo;
+    if(!tipo && String(f[3]||'').trim()){
+      tr.querySelector('.m-tipo').style.background = '#FBEAE9';
+      avisos.push('Fila '+nfila+': tipo de material "'+f[3]+'" no reconocido; selecciónelo manualmente.');
+    }
+
+    tr.querySelector('.m-cantidad').value = String(f[4]||'').replace(/[^0-9]/g,'');
+    tr.querySelector('.m-nplantas').value = String(f[5]||'').replace(/[^0-9]/g,'');
+
+    const port = normEspecie(f[6]);
+    tr.querySelector('.m-portainjerto').value = port;
+    if(port && listaPort.length && !listaPort.some(function(p){ return _norm(p)===_norm(port); })){
+      tr.querySelector('.m-portainjerto').style.background = '#fff8e1';
+      avisos.push('Fila '+nfila+': portainjerto "'+port+'" no está en la nómina; verifique.');
+    }
+
+    // Registro de vivero: acepta V/06-009, 06-009, V/6-9, etc.
+    const vivRaw = String(f[7]||'').trim();
+    const mViv = vivRaw.match(/V?\/?\s*(\d{1,2})\s*-?\s*(.*)$/i);
+    if(mViv){
+      const inpReg = tr.querySelector('.m-vivero-region');
+      const inpSuf = tr.querySelector('.m-vivero-sufijo');
+      if(inpReg) inpReg.value = parseInt(mViv[1],10) || '';
+      if(inpSuf) inpSuf.value = (mViv[2]||'').trim();
+      if(inpSuf) inpSuf.dispatchEvent(new Event('input', {bubbles:true}));
+    }
+
+    tr.querySelector('.m-certfrutal').value    = siNo(f[8]);
+    tr.querySelector('.m-varprotegida').value  = siNo(f[9]);
+    agregadas++;
+  }
+
+  if(agregadas===0){
+    addMaterialRow();
+    mostrarAvisoCarga('err','No se encontraron filas válidas. Revise que la columna Especie esté completa.');
+    return;
+  }
+  actualizarTotalPlantas();
+  let msg = '<strong>'+agregadas+' fila(s) cargada(s).</strong> Revise los datos antes de enviar.';
+  if(avisos.length){
+    msg += '<br><br>' + avisos.slice(0,8).map(function(a){ return '• '+a; }).join('<br>');
+    if(avisos.length>8) msg += '<br>• … y '+(avisos.length-8)+' aviso(s) más.';
+    mostrarAvisoCarga('warn', msg);
+  } else {
+    mostrarAvisoCarga('ok', msg);
+  }
+}
+
+// Handler del input de archivo
+(function(){
+  const inp = document.getElementById('inputExcelMaterial');
+  if(!inp) return;
+  inp.addEventListener('change', function(e){
+    const file = e.target.files[0];
+    if(!file) return;
+    const esExcel = /\.xlsx?$/i.test(file.name);
+
+    if(esExcel && typeof XLSX === 'undefined'){
+      mostrarAvisoCarga('err','No se pudo leer el archivo Excel. Abra la planilla en Excel y guárdela como <strong>CSV (delimitado por punto y coma)</strong>, luego cárguela nuevamente.');
+      inp.value = ''; return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(ev){
+      try{
+        let filas;
+        if(esExcel){
+          const wb = XLSX.read(new Uint8Array(ev.target.result), {type:'array'});
+          const hoja = wb.Sheets[wb.SheetNames[0]];
+          filas = XLSX.utils.sheet_to_json(hoja, {header:1, raw:false, defval:''});
+        } else {
+          filas = parsearCSV(ev.target.result);
+        }
+        volcarFilasMaterial(filas);
+      }catch(err){
+        mostrarAvisoCarga('err','No se pudo leer el archivo: '+err.message);
+      }
+      inp.value = '';
+    };
+    reader.onerror = function(){ mostrarAvisoCarga('err','Error al leer el archivo.'); inp.value=''; };
+    if(esExcel) reader.readAsArrayBuffer(file); else reader.readAsText(file, 'UTF-8');
+  });
+})();
 
 document.getElementById('addMaterialRow').addEventListener('click', addMaterialRow);
 addMaterialRow();
