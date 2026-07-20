@@ -1132,9 +1132,10 @@ const COLS_PLANTILLA = ['Especie','Variedad','Clon','Tipo Material','Cant. Mater
   'N Plantas a Establecer','Portainjerto','Reg. Vivero Portainjerto','Cert. Frutal','Var. Protegida'];
 
 function descargarPlantillaMaterial(){
-  const ejemplo = ['Prunus avium','Bing','','Plantas','10','10','Nemaguard','V/06-009','NO','NO'];
+  const ejemplo  = ['Prunus avium','Bing','','Plantas','10','10','Nemaguard','V/06-009','NO','NO'];
+  const ejemplo2 = ['Prunus armeniaca x Prunus salicina','Pluot','','Plantas','5','5','','','NO','NO'];
   const sep = ';';
-  const filas = [COLS_PLANTILLA.join(sep), ejemplo.join(sep)];
+  const filas = [COLS_PLANTILLA.join(sep), ejemplo.join(sep), ejemplo2.join(sep)];
   // Filas vacías para completar
   for(var i=0;i<8;i++) filas.push(new Array(COLS_PLANTILLA.length).fill('').join(sep));
   // BOM para que Excel (es-CL) reconozca acentos y el separador ;
@@ -1148,11 +1149,68 @@ function descargarPlantillaMaterial(){
   setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
 }
 
-// Normaliza texto tipo nombre científico: primera letra mayúscula, resto minúscula
+// Normaliza nombre científico. Soporta híbridos ('Prunus armeniaca x Prunus salicina')
+// capitalizando cada parte por separado, y respeta 'var.', 'subsp.', 'cv.'.
 function normEspecie(v){
   v = String(v||'').trim().replace(/\s+/g,' ');
   if(!v) return '';
-  return v.charAt(0).toUpperCase() + v.slice(1).toLowerCase();
+  // Separadores de híbrido: ' x ', ' X ', ' × '
+  const partes = v.split(/\s+[x×]\s+/i);
+  const norm = partes.map(function(p){
+    p = p.trim();
+    if(!p) return '';
+    return p.charAt(0).toUpperCase() + p.slice(1).toLowerCase();
+  }).filter(Boolean);
+  return norm.join(' x ');
+}
+
+// Distancia de Levenshtein — para sugerir correcciones ortográficas
+function _lev(a,b){
+  a=_norm(a); b=_norm(b);
+  if(a===b) return 0;
+  if(!a.length) return b.length;
+  if(!b.length) return a.length;
+  let prev = new Array(b.length+1);
+  for(let j=0;j<=b.length;j++) prev[j]=j;
+  for(let i=1;i<=a.length;i++){
+    const cur=[i];
+    for(let j=1;j<=b.length;j++){
+      cur[j] = Math.min(prev[j]+1, cur[j-1]+1, prev[j-1]+(a[i-1]===b[j-1]?0:1));
+    }
+    prev=cur;
+  }
+  return prev[b.length];
+}
+
+// Devuelve el candidato más parecido de la lista, si es lo bastante cercano
+function sugerirDeLista(valor, lista){
+  if(!valor || !lista || !lista.length) return '';
+  let mejor='', dist=Infinity;
+  for(let i=0;i<lista.length;i++){
+    const d=_lev(valor, lista[i]);
+    if(d<dist){ dist=d; mejor=lista[i]; }
+  }
+  // Tolerancia proporcional al largo: ~25% de los caracteres, máx 4
+  const tol = Math.min(4, Math.max(1, Math.floor(_norm(valor).length*0.25)));
+  return dist<=tol ? mejor : '';
+}
+
+// Valida una especie contra la nómina, contemplando híbridos:
+// un híbrido es válido si CADA parte existe en la nómina.
+function validarEspecieNomina(especie, lista){
+  if(!lista || !lista.length) return {ok:true, sugerencia:''};
+  const partes = especie.split(/\s+[x×]\s+/i).map(function(p){ return p.trim(); }).filter(Boolean);
+  const faltantes = [], sugerencias = [];
+  partes.forEach(function(p){
+    const existe = lista.some(function(e){ return _norm(e)===_norm(p); });
+    if(!existe){
+      faltantes.push(p);
+      const s = sugerirDeLista(p, lista);
+      if(s) sugerencias.push(p+' → '+s);
+    }
+  });
+  if(!faltantes.length) return {ok:true, sugerencia:''};
+  return {ok:false, sugerencia: sugerencias.join('; ')};
 }
 // Compara ignorando mayúsculas, tildes y espacios
 function _norm(s){
@@ -1227,9 +1285,11 @@ function volcarFilasMaterial(filas){
     const nfila = agregadas + 1;
 
     tr.querySelector('.m-especie').value  = especie;
-    if(listaEsp.length && !listaEsp.some(function(e){ return _norm(e)===_norm(especie); })){
+    const vEsp = validarEspecieNomina(especie, listaEsp);
+    if(!vEsp.ok){
       tr.querySelector('.m-especie').style.background = '#fff8e1';
-      avisos.push('Fila '+nfila+': especie "'+especie+'" no está en la nómina; verifique.');
+      avisos.push('Fila '+nfila+': especie "'+especie+'" no está en la nómina'+
+        (vEsp.sugerencia ? '. ¿Quiso decir '+vEsp.sugerencia+'?' : '; verifique la escritura.'));
     }
     tr.querySelector('.m-variedad').value = String(f[1]||'').trim();
     tr.querySelector('.m-clon').value     = String(f[2]||'').trim();
@@ -1238,7 +1298,9 @@ function volcarFilasMaterial(filas){
     tr.querySelector('.m-tipo').value = tipo;
     if(!tipo && String(f[3]||'').trim()){
       tr.querySelector('.m-tipo').style.background = '#FBEAE9';
-      avisos.push('Fila '+nfila+': tipo de material "'+f[3]+'" no reconocido; selecciónelo manualmente.');
+      const st = sugerirDeLista(f[3], TIPOS_MATERIAL);
+      avisos.push('Fila '+nfila+': tipo de material "'+f[3]+'" no reconocido'+
+        (st ? '. ¿Quiso decir "'+st+'"?' : '; selecciónelo manualmente.'));
     }
 
     tr.querySelector('.m-cantidad').value = String(f[4]||'').replace(/[^0-9]/g,'');
@@ -1248,7 +1310,9 @@ function volcarFilasMaterial(filas){
     tr.querySelector('.m-portainjerto').value = port;
     if(port && listaPort.length && !listaPort.some(function(p){ return _norm(p)===_norm(port); })){
       tr.querySelector('.m-portainjerto').style.background = '#fff8e1';
-      avisos.push('Fila '+nfila+': portainjerto "'+port+'" no está en la nómina; verifique.');
+      const sp = sugerirDeLista(port, listaPort);
+      avisos.push('Fila '+nfila+': portainjerto "'+port+'" no está en la nómina'+
+        (sp ? '. ¿Quiso decir "'+sp+'"?' : '; verifique la escritura.'));
     }
 
     // Registro de vivero: acepta V/06-009, 06-009, V/6-9, etc.
