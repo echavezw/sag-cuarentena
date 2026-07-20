@@ -312,7 +312,7 @@
             <label>Uso Propuesto <span class="req">*</span></label>
             <select id="uso">
               <option value="">Seleccione...</option>
-              <option value="Propagación">Propagación</option>
+              <option value="Propagación" selected>Propagación</option>
               <option value="Investigación">Investigación</option>
               <option value="Otro">Otro</option>
             </select>
@@ -331,7 +331,7 @@
                 style="width:3em;text-align:center;border:none;border-bottom:1.5px solid #aaa;border-radius:0;padding:2px 2px;font-size:1em;-moz-appearance:textfield;"
                 placeholder="01"
                 oninput="actualizarVivero()"
-                onblur="actualizarVivero()">
+                onblur="formatearRegionVivero();actualizarVivero()">
               <span style="padding:0 1px;white-space:nowrap;">-</span>
               <input type="text" id="viveroSufijo"
                 style="width:6em;border:none;border-bottom:1.5px solid #aaa;border-radius:0;padding:2px 2px;font-size:1em;"
@@ -983,13 +983,13 @@ function construirYAbrirPDF(timestampServidor, folioDisplay){
     return '<tr>' +
       '<td style="text-align:center;">'+(i+1)+'</td>' +
       '<td>'+esc(m.especie)+'</td>' +
-      '<td>'+esc(m.variedad)+'</td>' +
-      '<td>'+esc(m.clon)+'</td>' +
-      '<td>'+esc(m.tipoMaterial)+'</td>' +
+      '<td style="text-align:center;">'+esc(m.variedad)+'</td>' +
+      '<td style="text-align:center;">'+esc(m.clon)+'</td>' +
+      '<td style="text-align:center;">'+esc(m.tipoMaterial)+'</td>' +
       '<td style="text-align:center;">'+esc(m.cantidad)+'</td>' +
       '<td style="text-align:center;">'+esc(m.nPlantasAEstablecer)+'</td>' +
-      '<td>'+esc(m.portainjerto)+'</td>' +
-      '<td>'+esc(m.regViveroPortainjerto)+'</td>' +
+      '<td style="text-align:center;">'+esc(m.portainjerto)+'</td>' +
+      '<td style="text-align:center;">'+esc(m.regViveroPortainjerto)+'</td>' +
       '<td style="text-align:center;">'+m.certificacionFrutal+'</td>' +
       '<td style="text-align:center;">'+m.variedadProtegida+'</td>' +
     '</tr>';
@@ -1399,6 +1399,10 @@ function volcarFilasMaterial(filas){
   });
 })();
 
+document.getElementById('materialBody').addEventListener('input', function(){
+  var av=document.getElementById('avisoCargaMaterial');
+  if(av) av.style.display='none';
+});
 document.getElementById('addMaterialRow').addEventListener('click', addMaterialRow);
 addMaterialRow();
 
@@ -1930,6 +1934,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 /* ── Registro Vivero: region (01-16) + sufijo libre, campo oculto ── */
+function formatearRegionVivero(){
+  var el=document.getElementById("viveroRegion");
+  if(!el||el.value==="") return;
+  var v=parseInt(el.value,10);
+  if(!isNaN(v)) el.value=v<10?"0"+v:String(v);
+}
 function actualizarVivero(){
   var elR = document.getElementById("viveroRegion");
   var elS = document.getElementById("viveroSufijo");
@@ -3521,11 +3531,16 @@ function validarVivero(){
   }
 }
 </script>
-<div id="overlayEnvio" style="display:none;position:fixed;inset:0;background:rgba(10,22,40,.72);z-index:9999;align-items:center;justify-content:center;flex-direction:column;color:#fff;text-align:center;padding:24px">
-  <div style="border:4px solid rgba(255,255,255,.25);border-top-color:#B8975A;border-radius:50%;width:52px;height:52px;animation:spinEnvio 1s linear infinite;margin-bottom:20px"></div>
-  <div style="font-size:18px;font-weight:600;margin-bottom:8px">Enviando solicitud…</div>
-  <div style="font-size:14px;max-width:420px;opacity:.9">Por favor no cierre ni recargue esta página. El proceso puede tardar unos segundos.</div>
-  <div id="overlayEnvioLento" style="display:none;font-size:13px;margin-top:16px;color:#f0d9a0;max-width:420px">Está tardando más de lo habitual. No reenvíe todavía; espere a que termine.</div>
+<div id="overlayEnvio" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(10,22,40,.85);z-index:9999;color:#fff;text-align:center;">
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:24px;">
+    <div id="overlayEnvioTitulo" style="font-size:20px;font-weight:600;margin-bottom:6px;">Preparando solicitud…</div>
+    <div id="overlayEnvioSub" style="font-size:13px;opacity:.8;margin-bottom:24px;max-width:380px;">Por favor no cierre ni recargue esta página.</div>
+    <div style="width:340px;max-width:80vw;background:rgba(255,255,255,.2);border-radius:8px;height:12px;overflow:hidden;margin-bottom:10px;">
+      <div id="barraProgreso" style="height:100%;width:0%;background:#006CB8;border-radius:8px;transition:width .4s ease;"></div>
+    </div>
+    <div id="overlayEnvioPct" style="font-size:12px;opacity:.7;margin-bottom:20px;">0%</div>
+    <div id="overlayEnvioLento" style="display:none;font-size:13px;color:#f0d9a0;max-width:380px;">Está tardando más de lo habitual. No reenvíe todavía; espere a que termine.</div>
+  </div>
 </div>
 <style>@keyframes spinEnvio{to{transform:rotate(360deg)}}</style>
 <div style="text-align:center;font-size:11px;color:#aaa;padding:18px 0 10px;">Desarrollado por EChW, 2026</div>
