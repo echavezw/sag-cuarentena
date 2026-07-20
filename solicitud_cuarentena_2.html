@@ -26,12 +26,15 @@
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
   .grid.cols-3{grid-template-columns:1fr 1fr 1fr;}
   @media(max-width:640px){.grid,.grid.cols-3{grid-template-columns:1fr;}}
-  label{display:block;font-size:13px;margin-bottom:4px;color:#333;}
+  label{display:block;font-size:7.5pt;font-weight:bold;color:#5a6a7a;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;}
   label .req{color:var(--rojo);}
   input[type=text],input[type=email],input[type=number],input[type=date],input[type=month],input[type=password],select,textarea{
-    width:100%;padding:10px;border:1px solid var(--border);border-radius:4px;
-    font-family:inherit;font-size:14px;background:#fff;
+    width:100%;padding:9px 10px;border:1px solid #c8d0d8;border-radius:4px;
+    font-family:inherit;font-size:14px;background:#f0f3f6;color:#111;
   }
+  input[type=text]:focus,input[type=email]:focus,input[type=number]:focus,
+  input[type=date]:focus,input[type=month]:focus,input[type=password]:focus,
+  select:focus,textarea:focus{background:#fff;border-color:#006CB8;outline:none;}
   .field{margin-bottom:14px;position:relative;}
   .ac-list{position:absolute;left:0;right:0;top:100%;margin-top:2px;background:#fff;border:1px solid var(--border);max-height:220px;overflow-y:auto;z-index:60;display:none;box-shadow:0 6px 16px rgba(10,22,40,.12);border-radius:6px;}
   .ac-list.open{display:block;}
