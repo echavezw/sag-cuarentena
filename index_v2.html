@@ -3335,14 +3335,17 @@ function _filasDelRegistro(r) {
 }
 
 // Consolida todas las especies únicas de un registro (todas sus filas), agrupadas por género,
-// con la cantidad de variedades entre paréntesis (columna "Variedades" de Detalle, que guarda
-// el N° de variedades de esa especie, no una lista de nombres).
+// con la cantidad de variedades entre paréntesis.
+// BUGFIX: la columna "Variedades" de Detalle NO es un conteo — en registros actuales guarda
+// el NOMBRE de la variedad (ej. '12G713'), repetido en cada fila de análisis de esa variedad.
+// El conteo real = cantidad de nombres DISTINTOS por especie. Se mantiene un fallback para
+// registros históricos viejos donde "Variedades" sí guardaba directamente un número.
 // Formato: "Prunus avium (6); P. salicina (3)" — primera especie completa por género,
 // el resto abreviado con la inicial del género. Ordenado alfabéticamente.
 function _especiesConsolidadas(r) {
   const rows = _filasDelRegistro(r);
   const especiesSet = new Set();
-  const conteoVariedades = {}; // especie → cantidad de variedades (si está disponible)
+  const variedadesPorEspecie = {}; // especie → Set de valores distintos de "Variedades"
   rows.forEach(row => {
     const esp = String(row['Especie']||'').trim();
     if (!esp) return;
@@ -3359,16 +3362,25 @@ function _especiesConsolidadas(r) {
     } else {
       especiesSet.add(esp);
     }
-    // La columna "Variedades" trae el conteo de variedades de esa especie solo en la
-    // fila donde se registró (el resto de filas de la misma especie la traen vacía).
-    if (!(esp in conteoVariedades)) {
-      const vRaw = String(row['Variedades']||'').trim();
-      const vNum = parseInt(vRaw, 10);
-      if (vRaw && !isNaN(vNum)) conteoVariedades[esp] = vNum;
+    const vRaw = String(row['Variedades']||'').trim();
+    if (vRaw) {
+      if (!variedadesPorEspecie[esp]) variedadesPorEspecie[esp] = new Set();
+      variedadesPorEspecie[esp].add(vRaw);
     }
   });
   let especies = [...especiesSet].sort((a,b) => a.localeCompare(b));
   if (!especies.length) return '';
+
+  // Conteo final por especie: si hay más de un valor distinto → esa es la cantidad de
+  // variedades. Si hay exactamente un valor y es puramente numérico → convención antigua,
+  // se usa ese número directo. Si hay un solo valor no numérico → 1 sola variedad.
+  const conteoVariedades = {};
+  Object.keys(variedadesPorEspecie).forEach(esp => {
+    const vals = variedadesPorEspecie[esp];
+    if (vals.size > 1) { conteoVariedades[esp] = vals.size; return; }
+    const unico = [...vals][0];
+    conteoVariedades[esp] = /^\d+$/.test(unico) ? parseInt(unico, 10) : 1;
+  });
 
   const porGenero = {};
   especies.forEach(esp => {
@@ -4252,7 +4264,7 @@ function _onColDrop(e, targetKey) {
   if(pTbody && window._lastPanelFound) _panelRowsBuild(window._lastPanelFound, pTbody);
 }
 function _panelThead() {
-  var h='<tr><th style="width:28px;cursor:default;position:relative" onclick="event.stopPropagation()"><input type="checkbox" id="panel-chk-all" onclick="toggleAllPanelChk(this)" title="Seleccionar todos"></th>';
+  var h='<tr><th style="width:28px;cursor:default;position:sticky;top:0;z-index:7" onclick="event.stopPropagation()"><input type="checkbox" id="panel-chk-all" onclick="toggleAllPanelChk(this)" title="Seleccionar todos"></th>';
   _orderedPanelCols().forEach(function(col){
     var act=window._panelSortCol===col.key;
     var dir=window._panelSortDir;
@@ -4264,7 +4276,7 @@ function _panelThead() {
        +" ondragover=\"_onColDragOver(event)\""
        +" ondrop=\"_onColDrop(event,'"+col.key+"')\""
        +" onclick=\"_panelSort('"+col.key+"')\" "
-       +"style=\"cursor:pointer;user-select:none;white-space:nowrap;position:relative;"+widthStyle
+       +"style=\"cursor:pointer;user-select:none;white-space:nowrap;position:sticky;top:0;z-index:6;"+widthStyle
        +(act?"border-bottom:2px solid var(--gd);":"")+"\""
        +" title=\"Clic para ordenar\">"
        +"<span class=\"panel-col-grip\" draggable=\"true\" ondragstart=\"_onColDragStart(event,'"+col.key+"')\" onclick=\"event.stopPropagation()\" title=\"Arrastrar para reordenar\">⠿</span> "
