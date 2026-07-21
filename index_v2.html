@@ -3346,26 +3346,47 @@ function _especiesConsolidadas(r) {
   const rows = _filasDelRegistro(r);
   const especiesSet = new Set();
   const variedadesPorEspecie = {}; // especie → Set de valores distintos de "Variedades"
-  rows.forEach(row => {
-    const esp = String(row['Especie']||'').trim();
+
+  // Procesa un par (especie, variedad) individual — misma lógica de spp./entomológico
+  // que antes, factorizada para poder reusarla tanto en filas normales como en filas
+  // "crudas" del portal (ver abajo).
+  function _agregarPar(esp, vRaw, tipoAn) {
+    esp = String(esp||'').trim();
     if (!esp) return;
     const esSpp = /\bspp\.?$/i.test(esp);
     if (esSpp) {
-      // "Genero spp." es VÁLIDO solo cuando viene de una fila de análisis Entomológico
-      // (el análisis de insectos/ácaros es a nivel de género, no por especie individual).
-      // En cualquier otro tipo de análisis, "Genero spp." es un residuo de datos antiguos
-      // (de cuando se agrupaba por género, lógica ya revertida) y debe ignorarse.
-      const tipoAn = String(row['Análisis']||'').trim().toLowerCase();
       const esEntomologico = tipoAn === 'entomológico' || tipoAn === 'entomologico';
       if (esEntomologico) especiesSet.add(esp);
-      // si no es entomológico, se descarta silenciosamente
     } else {
       especiesSet.add(esp);
     }
-    const vRaw = String(row['Variedades']||'').trim();
+    vRaw = String(vRaw||'').trim();
     if (vRaw) {
       if (!variedadesPorEspecie[esp]) variedadesPorEspecie[esp] = new Set();
       variedadesPorEspecie[esp].add(vRaw);
+    }
+  }
+
+  rows.forEach(row => {
+    const espRaw = String(row['Especie']||'').trim();
+    if (!espRaw) return;
+    const varRaw = String(row['Variedades']||'').trim();
+    const tipoAn = String(row['Análisis']||'').trim().toLowerCase();
+
+    // BUGFIX: solicitudes aún sin procesar por SAG (recién llegadas del portal, sin
+    // Resolución ni filas de análisis todavía) guardan Especie y Variedades como listas
+    // separadas por coma EN UNA SOLA CELDA, una entrada por cada especie/variedad
+    // declarada en el material — no una fila por especie como en registros ya
+    // procesados. Se detecta por la coma y se empareja posicionalmente.
+    if (espRaw.includes(',')) {
+      const espList = espRaw.split(',').map(s=>s.trim()).filter(Boolean);
+      const varList = varRaw.includes(',') ? varRaw.split(',').map(s=>s.trim()).filter(Boolean) : [];
+      const pareable = varList.length === espList.length;
+      espList.forEach((esp, idx) => {
+        _agregarPar(esp, pareable ? varList[idx] : '', tipoAn);
+      });
+    } else {
+      _agregarPar(espRaw, varRaw, tipoAn);
     }
   });
   let especies = [...especiesSet].sort((a,b) => a.localeCompare(b));
