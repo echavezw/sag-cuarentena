@@ -394,8 +394,10 @@
         <h2>Identificación del Material a Ingresar</h2>
         <p class="helptext" style="margin-bottom:12px;">
           Puede ingresar el material directamente en la tabla, fila por fila. Si tiene varias especies o variedades,
-          también puede <strong>descargar la plantilla</strong> (📥), completarla en Excel usando la primera fila como ejemplo,
-          y luego <strong>cargarla</strong> (📤). El sistema reconoce el formato automáticamente y avisa si hay valores que requieren revisión.
+          también puede <strong>descargar la plantilla</strong> (📥) y completarla en Excel usando la primera fila como ejemplo.
+          Al terminar, guárdela como <strong>Libro de Excel (.xlsx)</strong> — no como CSV separado por comas, ya que en
+          Excel configurado en español puede alterar los datos — y luego <strong>cárguela</strong> (📤).
+          El sistema reconoce el formato automáticamente y avisa si hay valores que requieren revisión.
         </p>
         <div>
           <table id="materialTable">
@@ -438,8 +440,8 @@
           </table>
         </div>
         <button type="button" class="btn btn-secondary" id="addMaterialRow">+ Agregar especie / variedad</button>
-        <button type="button" class="btn btn-secondary" onclick="descargarPlantillaMaterial()" title="Descarga una planilla con las columnas de esta tabla para llenarla en Excel">📥 Descargar plantilla</button>
-        <button type="button" class="btn btn-secondary" onclick="document.getElementById('inputExcelMaterial').click()" title="Carga las filas desde la planilla llenada en Excel">📤 Cargar desde planilla</button>
+        <button type="button" class="btn btn-secondary" onclick="descargarPlantillaMaterial()" title="Descarga una planilla Excel (.xlsx) con las columnas de esta tabla para llenarla">📥 Descargar plantilla</button>
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('inputExcelMaterial').click()" title="Carga las filas desde la planilla. Prefiera .xlsx; si usa CSV, guárdelo separado por punto y coma (;)">📤 Cargar desde planilla</button>
         <input type="file" id="inputExcelMaterial" accept=".csv,.xlsx,.xls" style="display:none">
         <div id="avisoCargaMaterial" style="display:none;margin-top:10px;padding:10px 12px;border-radius:4px;font-size:13px;"></div>
         <div class="msg" id="materialMsg" style="display:none;margin-top:8px;">Debe agregar al menos una fila de material.</div>
@@ -1158,12 +1160,27 @@ const COLS_PLANTILLA = ['Especie','Variedad','Clon','Tipo Material','Cant. Mater
 function descargarPlantillaMaterial(){
   const ejemplo  = ['Prunus avium','Bing','','Plantas','10','10','Nemaguard','V/06-009','NO','NO'];
   const ejemplo2 = ['Prunus armeniaca x Prunus salicina','Pluot','','Plantas','5','5','','','NO','NO'];
+  const filas = [COLS_PLANTILLA, ejemplo, ejemplo2];
+  for(var i=0;i<8;i++) filas.push(new Array(COLS_PLANTILLA.length).fill(''));
+
+  // Preferido: .xlsx real vía SheetJS — evita por completo el problema de separador
+  // (coma vs punto y coma) que ocurre al ir y volver por CSV en Excel es-CL.
+  if(typeof XLSX !== 'undefined'){
+    try {
+      const hoja = XLSX.utils.aoa_to_sheet(filas);
+      hoja['!cols'] = COLS_PLANTILLA.map(function(){ return {wch:18}; });
+      const libro = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(libro, hoja, 'Material');
+      XLSX.writeFile(libro, 'Plantilla_Material_Cuarentena.xlsx');
+      return;
+    } catch(e) { /* si falla, cae al respaldo CSV de abajo */ }
+  }
+
+  // Respaldo: CSV con ';' (solo si SheetJS no está disponible)
   const sep = ';';
-  const filas = [COLS_PLANTILLA.join(sep), ejemplo.join(sep), ejemplo2.join(sep)];
-  // Filas vacías para completar
-  for(var i=0;i<8;i++) filas.push(new Array(COLS_PLANTILLA.length).fill('').join(sep));
+  const filasCSV = filas.map(function(f){ return f.join(sep); });
   // BOM para que Excel (es-CL) reconozca acentos y el separador ;
-  const contenido = '\ufeff' + filas.join('\r\n');
+  const contenido = '\ufeff' + filasCSV.join('\r\n');
   const blob = new Blob([contenido], {type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
