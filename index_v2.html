@@ -263,6 +263,10 @@ input[type=number]{font-family:var(--mono)}
 .tbl thead th{background:var(--nv);color:rgba(255,255,255,.75);padding:7px 9px;
   font-size:9.5px;font-weight:600;letter-spacing:.4px;text-align:left;
   border-bottom:2px solid rgba(255,255,255,.15);white-space:nowrap;position:sticky;top:0}
+/* Búsqueda Rápida: border-collapse:collapse (heredado de .tbl) rompe position:sticky
+   en el thead en varios navegadores — se fuerza separate solo para esta tabla. */
+#panel-table{border-collapse:separate;border-spacing:0}
+#panel-table thead th{position:sticky;top:0;z-index:6}
 .panel-col-resize{
   position:absolute;right:0;top:0;bottom:0;width:6px;cursor:col-resize;
   background:transparent;z-index:5;
@@ -1735,14 +1739,18 @@ input.field-blocked, select.field-blocked {
       <div class="ff c1"><label class="lbl">Año Solicitud</label><input type="number" id="pb-anio-sol" placeholder="2025" onkeydown="if(event.key==='Enter')buscarPanel()" style="font-family:var(--mono)"></div>
       <div class="ff c1"><label class="lbl">Texto libre</label><input id="pb-texto" placeholder="Importador, especie..." onkeydown="if(event.key==='Enter')buscarPanel()"></div>
     </div>
-    <div style="display:flex;gap:8px;margin-bottom:16px">
+    <div style="display:flex;gap:8px;margin-bottom:16px;align-items:end;flex-wrap:wrap">
       <button class="btn btn-nv btn-sm" onclick="buscarPanel()">Buscar</button>
       <button class="btn btn-gh btn-sm" onclick="limpiarBusqueda()">Limpiar</button>
       <button class="btn btn-gh btn-sm" onclick="exportarCSVBusqueda()" title="Exportar resultados a CSV/Excel">⬇ CSV</button>
       <button class="btn btn-danger btn-sm" onclick="confirmarEliminarSeleccionadosPanel()">🗑 Eliminar selec.</button>
+      <details style="font-size:11px;margin-left:auto">
+        <summary style="cursor:pointer;color:var(--g400);font-size:11px;font-weight:600;padding:3px 8px;border:1px solid var(--g200);border-radius:4px">+ Agregar columnas</summary>
+        <div id="panel-col-toggle-wrap" style="position:absolute;z-index:20;background:var(--wh);border:1px solid var(--g200);border-radius:var(--r);padding:10px;margin-top:4px;box-shadow:var(--sh2);display:flex;flex-wrap:wrap;gap:5px;max-width:460px;max-height:320px;overflow:auto"></div>
+      </details>
     </div>
     <div id="panel-results" style="overflow:auto;height:650px;min-height:200px;max-height:85vh;resize:vertical;border:1px solid var(--g200);border-radius:var(--rs)">
-      <table class="tbl" id="panel-table"><thead id="panel-thead"></thead><tbody id="panel-tbody"></tbody></table>
+      <table class="tbl" id="panel-table" style="table-layout:auto"><thead id="panel-thead" class="panel-thead-sticky"></thead><tbody id="panel-tbody"></tbody></table>
     </div>
   </div>
   </div><!-- /panel-content-1 -->
@@ -3326,12 +3334,15 @@ function _filasDelRegistro(r) {
   return gsData.filter(x => !String(x['Res.']||'').trim() && String(x['Solicitud']||'').trim() === sol);
 }
 
-// Consolida todas las especies únicas de un registro (todas sus filas), agrupadas por género.
-// Formato: "Prunus avium / P. persica / P. salicina" — primera especie completa por género,
+// Consolida todas las especies únicas de un registro (todas sus filas), agrupadas por género,
+// con la cantidad de variedades entre paréntesis (columna "Variedades" de Detalle, que guarda
+// el N° de variedades de esa especie, no una lista de nombres).
+// Formato: "Prunus avium (6); P. salicina (3)" — primera especie completa por género,
 // el resto abreviado con la inicial del género. Ordenado alfabéticamente.
 function _especiesConsolidadas(r) {
   const rows = _filasDelRegistro(r);
   const especiesSet = new Set();
+  const conteoVariedades = {}; // especie → cantidad de variedades (si está disponible)
   rows.forEach(row => {
     const esp = String(row['Especie']||'').trim();
     if (!esp) return;
@@ -3347,6 +3358,13 @@ function _especiesConsolidadas(r) {
       // si no es entomológico, se descarta silenciosamente
     } else {
       especiesSet.add(esp);
+    }
+    // La columna "Variedades" trae el conteo de variedades de esa especie solo en la
+    // fila donde se registró (el resto de filas de la misma especie la traen vacía).
+    if (!(esp in conteoVariedades)) {
+      const vRaw = String(row['Variedades']||'').trim();
+      const vNum = parseInt(vRaw, 10);
+      if (vRaw && !isNaN(vNum)) conteoVariedades[esp] = vNum;
     }
   });
   let especies = [...especiesSet].sort((a,b) => a.localeCompare(b));
@@ -3374,16 +3392,19 @@ function _especiesConsolidadas(r) {
   generosOrdenados.forEach(genero => {
     const especiesDelGenero = porGenero[genero]; // ya viene ordenado alfabéticamente
     especiesDelGenero.forEach((esp, i) => {
+      const n = conteoVariedades[esp];
+      const sufijo = (n!==undefined) ? ` (${n})` : '';
       if (i === 0) {
-        partes.push(esp); // primera especie del género: nombre completo
+        partes.push(esp + sufijo); // primera especie del género: nombre completo
       } else {
         const resto = esp.slice(genero.length).trim(); // lo que sigue al género
-        partes.push(`${genero[0]}. ${resto}`);
+        partes.push(`${genero[0]}. ${resto}${sufijo}`);
       }
     });
   });
-  return partes.join(' / ');
+  return partes.join('; ');
 }
+
 
 // ── MODAL GENÉRICO (ventana flotante, arrastrable y redimensionable) ──
 function abrirModal(html) {
@@ -4113,17 +4134,68 @@ var _PANEL_COLS = [
   }},
 ];
 
+// ── COLUMNAS EXTRA (Búsqueda Rápida) — agregar cualquier columna de la Sheet ──
+// además de las columnas fijas de _PANEL_COLS, vía el botón "Columnas".
+const PANEL_CORE_KEYS = new Set([
+  'Res.','Fecha Res.','Solicitud','Fecha Solicitud','Año de Ingreso','Ano de Ingreso',
+  'Cubículo','Cubiculo','Importador','Especie','Status'
+]);
+const PANEL_OPTIONAL = (typeof CANONICAL_HEADERS!=='undefined' ? CANONICAL_HEADERS : [])
+  .filter(h=>!PANEL_CORE_KEYS.has(h));
+let _panelExtraCols = new Set();
+try { _panelExtraCols = new Set(JSON.parse(localStorage.getItem('eca_panel_extra_cols')||'[]')); } catch(e) {}
+
+// Sincroniza _PANEL_COLS con el set de columnas extra activas (agrega/quita entradas
+// dinámicas al final del arreglo estático de columnas fijas).
+function _syncPanelExtraCols() {
+  for (let i=_PANEL_COLS.length-1; i>=0; i--) {
+    const c=_PANEL_COLS[i];
+    if (c.extra && !_panelExtraCols.has(c.key)) _PANEL_COLS.splice(i,1);
+  }
+  _panelExtraCols.forEach(key=>{
+    if (!_PANEL_COLS.find(c=>c.key===key)) {
+      _PANEL_COLS.push({key, label:key, extra:true, fn:function(r){return String(r[key]||'').toLowerCase();}});
+    }
+  });
+}
+
+function _buildPanelColToggle() {
+  const wrap=$('panel-col-toggle-wrap'); if(!wrap) return;
+  wrap.innerHTML='';
+  PANEL_OPTIONAL.forEach(key=>{
+    const active=_panelExtraCols.has(key);
+    const b=document.createElement('button');
+    b.type='button';
+    b.textContent=key;
+    b.style.cssText='font-size:10px;padding:3px 7px;border-radius:4px;cursor:pointer;border:1px solid var(--g200);'
+      +(active?'background:var(--nv,#0A1628);color:#fff':'background:var(--wh);color:var(--g400)');
+    b.onclick=()=>{
+      if(_panelExtraCols.has(key)) _panelExtraCols.delete(key); else _panelExtraCols.add(key);
+      try { localStorage.setItem('eca_panel_extra_cols', JSON.stringify([..._panelExtraCols])); } catch(e) {}
+      _syncPanelExtraCols();
+      window._panelColOrder = null; // fuerza recalcular el orden con la nueva columna
+      const pThead=$('panel-thead'); if(pThead) pThead.innerHTML=_panelThead();
+      const pTbody=$('panel-tbody'); if(pTbody && window._lastPanelFound) _panelRowsBuild(window._lastPanelFound, pTbody);
+      _buildPanelColToggle();
+    };
+    wrap.appendChild(b);
+  });
+}
+_syncPanelExtraCols();
+_buildPanelColToggle();
+
 // ── ORDEN MANUAL DE COLUMNAS (Búsqueda Rápida) ──
 function _getPanelColOrder() {
   if(window._panelColOrder) return window._panelColOrder;
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem('eca_panel_col_order')||'null'); } catch(e) {}
   const allKeys = _PANEL_COLS.map(c=>c.key);
-  if(saved && Array.isArray(saved) && saved.every(k=>allKeys.includes(k)) && saved.length===allKeys.length) {
-    window._panelColOrder = saved;
-  } else {
-    window._panelColOrder = allKeys;
-  }
+  // Conserva el orden guardado para las claves que sigan existiendo (columnas fijas
+  // + extra activas) y agrega al final cualquier clave nueva (p.ej. columna extra
+  // recién activada) que no estuviera en el orden guardado.
+  let order = (saved && Array.isArray(saved)) ? saved.filter(k=>allKeys.includes(k)) : [];
+  allKeys.forEach(k=>{ if(!order.includes(k)) order.push(k); });
+  window._panelColOrder = order;
   return window._panelColOrder;
 }
 
@@ -4342,8 +4414,15 @@ function _buildPanelCell(key, r, ctx) {
       if(ev.color) td.style.color = ev.color;
       break;
     }
-    default:
-      td.textContent = '\u2014';
+    default: {
+      // Columnas extra agregadas por el usuario vía el botón "Columnas" —
+      // muestran el valor crudo de la Sheet para esa clave.
+      const raw = String(r[key]||'').trim();
+      td.style.fontSize = '11px';
+      td.textContent = raw || '\u2014';
+      if(!raw) td.style.color = 'var(--g400)';
+      break;
+    }
   }
   return td;
 }
