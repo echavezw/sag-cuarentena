@@ -3162,13 +3162,6 @@ function calcBadgePriority(rows) {
     }
   });
 
-  // ── EN ESTABLECIMIENTO ────────────────────────────────────────────────────────
-  const hayActividad = p_analisisPend.length || p_aMuestrear.length ||
-                       p_enAnalisis.length || p_spsCore.length;
-  if (!hayActividad && filasAn.every(r => !isAntes(norm(r['Fecha Estimada Muestreo'])) && !norm(r['Fecha muestreo/Indexaje']) && !norm(r['Fecha de envío'])))
-    return {label:'En establecimiento', cls:'badge-nv',
-      pendientes:['Injertado — período de establecimiento previo al muestreo', ...flagPositivo]};
-
   // Badge = el más urgente que exista dentro del ciclo de análisis
   if (p_analisisPend.length)
     return {label:'Análisis pendiente', cls:'badge-err',
@@ -3179,6 +3172,20 @@ function calcBadgePriority(rows) {
   if (p_enAnalisis.length)
     return {label:'En análisis', cls:'badge-gd',
       pendientes:[...p_enAnalisis.map(p => `🟡 En análisis: ${p}`), ...flagPositivo]};
+
+  // ── EN ESTABLECIMIENTO ────────────────────────────────────────────────────────
+  // BUGFIX: no basta con que ninguna fila esté en los 3 buckets urgentes de arriba.
+  // Filas con Estado Análisis "No Analizada"/"Pendiente" y SIN ninguna fecha
+  // (ni muestreo real, ni estimada vencida) quedaban "invisibles" — no urgentes,
+  // pero tampoco analizadas — y el código anterior las trataba como si el análisis
+  // ya estuviera completo apenas alguna OTRA fila (ya analizada) tuviera SPS/CORE
+  // pendiente. Ahora se exige explícitamente que TODAS las filas de análisis estén
+  // en isAnalizada() antes de avanzar al sub-flujo de Liberada.
+  const todosAnalizados = filasAn.length > 0 &&
+    filasAn.every(r => isAnalizada(norm(r['Estado Análisis'])));
+  if (!todosAnalizados)
+    return {label:'En establecimiento', cls:'badge-nv',
+      pendientes:['Injertado — período de establecimiento previo al muestreo', ...flagPositivo]};
 
   // ── A partir de aquí: TODOS los análisis están completos (Analizada/Sin síntomas) ──
 
