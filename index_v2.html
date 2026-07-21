@@ -3071,19 +3071,36 @@ function calcBadgePriority(rows) {
   const isPendiente = e => { const n=norm(e).toLowerCase(); return n===''||n==='no analizada'||n==='pendiente'; };
   const isEnAnalisis = e => { const n=norm(e).toLowerCase(); return n==='en analisis'||n==='en análisis'; };
 
-  // ── 1. CERRADO ──────────────────────────────────────────────────────────────
-  if (isAfirmativo(first['Liberada'])||isAfirmativo(first['Entregada'])||isAfirmativo(first['Terminada']))
-    return {label:'Cerrado', cls:'badge-ok', pendientes:[]};
+  // ── 0. RECHAZO / DESTRUCCIÓN (override absoluto, decisión manual de SAG) ────
+  const statusManual = norm(first['Status']);
+  const ESTADOS_RECHAZO = ['A destruir', 'Destruida', 'Perdida'];
+  if (ESTADOS_RECHAZO.includes(statusManual))
+    return {label: statusManual, cls:'badge-err', pendientes:[]};
 
-  // ── 2. NO RECIBIDA ──────────────────────────────────────────────────────────
+  // Indicador secundario, NO bloqueante: hubo alguna muestra/variedad con resultado
+  // positivo o no apta en algún momento del historial (aunque ya se haya eliminado
+  // del proceso y el resto continúe con normalidad hacia Liberada).
+  const hayPositivo = rows.some(r => {
+    const rz = norm(r['Resultado']).toLowerCase();
+    return rz === 'positivo' || rz === 'no apta';
+  });
+  const flagPositivo = hayPositivo
+    ? ['🔴 Resultado Positivo/No Apta registrado — variedad eliminada del proceso']
+    : [];
+
+  // ── 13. TERMINADA ────────────────────────────────────────────────────────────
+  if (isAfirmativo(first['Terminada']))
+    return {label:'Terminada', cls:'badge-ok', pendientes: flagPositivo};
+
+  // ── NO RECIBIDA ──────────────────────────────────────────────────────────────
   const res = norm(first['Res.']);
   const recibida = norm(first['Recibida']);
   const fechaIng = norm(first['Fecha de Ingreso']);
   if (res && !isAfirmativo(recibida) && !fechaIng)
     return {label:'No recibida', cls:'badge-nv',
-      pendientes:['Resolución emitida — material aún no ingresado a ECA']};
+      pendientes:['Resolución emitida — material aún no ingresado a ECA', ...flagPositivo]};
 
-  // ── 3. SIN INJERTAR ─────────────────────────────────────────────────────────
+  // ── SIN INJERTAR ─────────────────────────────────────────────────────────────
   // "Injertado/plantado" se confirma con Fecha Injertación/Plantación, PERO si el
   // usuario ya marcó el campo Estado como Injertada/Plantada en Etapa III (aunque
   // todavía no haya cargado la fecha), no corresponde mostrar "Sin injertar".
@@ -3091,20 +3108,20 @@ function calcBadgePriority(rows) {
   const injertadoManual = estadoManual==='injertada' || estadoManual==='plantada';
   if (fechaIng && !norm(first['Fecha Injertación']) && !injertadoManual)
     return {label:'Sin injertar', cls:'badge-gd',
-      pendientes:['Material recibido — pendiente injertación/plantación']};
+      pendientes:['Material recibido — pendiente injertación/plantación', ...flagPositivo]};
 
   // Sin fecha de ingreso y sin res → sin información suficiente
-  if (!fechaIng) return {label:'Sin resolución', cls:'badge-nv', pendientes:[]};
+  if (!fechaIng) return {label:'Sin resolución', cls:'badge-nv', pendientes: flagPositivo};
 
   // ── A partir de aquí: recibido e injertado ──────────────────────────────────
   // Evaluar cada fila de análisis de forma independiente (paralelo)
   const filasAn = rows.filter(r => norm(r['Análisis']) || norm(r['Patógenos']));
 
   // Colectar todos los pendientes por categoría
-  const p_analisisPend = [];   // 5. muestreada=si + estado pendiente
-  const p_aMuestrear = [];     // 6. fecha muestreo vencida + no muestreada
-  const p_enAnalisis = [];     // 7. en análisis
-  const p_spsCore = [];        // 8. analizada sin SPS/CORE (por tipo de análisis)
+  const p_analisisPend = [];   // muestreada=si + estado pendiente
+  const p_aMuestrear = [];     // fecha muestreo vencida + no muestreada
+  const p_enAnalisis = [];     // en análisis
+  const p_spsCore = [];        // analizada sin SPS/CORE de análisis (por tipo)
   const p_spsCoreVisto = new Set(); // dedupe por tipo análisis
 
   filasAn.forEach(r => {
@@ -3121,7 +3138,7 @@ function calcBadgePriority(rows) {
     const label = `${tipo} — ${especie}: ${pat}`;
 
     if (isAnalizada(estado)) {
-      // Verificar SPS/CORE por tipo de análisis (una vez por tipo)
+      // Verificar SPS/CORE de análisis por tipo (una vez por tipo)
       if (!p_spsCoreVisto.has(tipo)) {
         const faltaSps = !norm(r['SPS análisis']);
         const faltaCore = !norm(r['CORE/Factura']);
@@ -3145,53 +3162,78 @@ function calcBadgePriority(rows) {
     }
   });
 
-  // ── 4. EN ESTABLECIMIENTO ───────────────────────────────────────────────────
-  // Injertado, ninguna fila tiene fecha vencida ni muestreada=si ni análisis activos
+  // ── EN ESTABLECIMIENTO ────────────────────────────────────────────────────────
   const hayActividad = p_analisisPend.length || p_aMuestrear.length ||
                        p_enAnalisis.length || p_spsCore.length;
   if (!hayActividad && filasAn.every(r => !isAntes(norm(r['Fecha Estimada Muestreo'])) && !norm(r['Fecha muestreo/Indexaje']) && !norm(r['Fecha de envío'])))
     return {label:'En establecimiento', cls:'badge-nv',
-      pendientes:['Injertado — período de establecimiento previo al muestreo']};
+      pendientes:['Injertado — período de establecimiento previo al muestreo', ...flagPositivo]};
 
-  // Construir lista de todos los pendientes para la ficha
-  const todosPendientes = [
-    ...p_analisisPend.map(p => `🔴 Análisis pendiente: ${p}`),
-    ...p_aMuestrear.map(p => `🟠 A muestrear: ${p}`),
-    ...p_enAnalisis.map(p => `🟡 En análisis: ${p}`),
-    ...p_spsCore.map(p => `🟡 SPS/CORE: ${p}`)
-  ];
-
-  // Badge = el más urgente que exista
+  // Badge = el más urgente que exista dentro del ciclo de análisis
   if (p_analisisPend.length)
-    return {label:'Análisis pendiente', cls:'badge-err', pendientes: todosPendientes};
+    return {label:'Análisis pendiente', cls:'badge-err',
+      pendientes:[...p_analisisPend.map(p => `🔴 Análisis pendiente: ${p}`), ...flagPositivo]};
   if (p_aMuestrear.length)
-    return {label:'A muestrear', cls:'badge-warn', pendientes: todosPendientes};
+    return {label:'A muestrear', cls:'badge-warn',
+      pendientes:[...p_aMuestrear.map(p => `🟠 A muestrear: ${p}`), ...flagPositivo]};
   if (p_enAnalisis.length)
-    return {label:'En análisis', cls:'badge-gd', pendientes: todosPendientes};
+    return {label:'En análisis', cls:'badge-gd',
+      pendientes:[...p_enAnalisis.map(p => `🟡 En análisis: ${p}`), ...flagPositivo]};
 
-  // ── 8. SPS/CORE pendiente ───────────────────────────────────────────────────
+  // ── A partir de aquí: TODOS los análisis están completos (Analizada/Sin síntomas) ──
+
+  // Liberada es un veredicto manual de SAG (campo "Liberada"), no se infiere solo
+  // de tener los análisis completos — falta el paso de que SAG lo marque.
+  if (!isAfirmativo(first['Liberada']))
+    return {label:'Análisis Completo — Pend. Marcar Liberada', cls:'badge-gd',
+      pendientes:['🟢 Todos los análisis completos, pendiente marcar Liberada', ...flagPositivo]};
+
+  // ── LIBERADA — sub-flujo de cierre administrativo ────────────────────────────
+
+  // 5. Pend. SPS/CORE de análisis
   if (p_spsCore.length)
-    return {label:'SPS/CORE pendiente', cls:'badge-warn',
-      pendientes: p_spsCore.map(p => `🟡 ${p}`)};
+    return {label:'Liberada — Pend. SPS/CORE Análisis', cls:'badge-warn',
+      pendientes:[...p_spsCore.map(p => `🟡 ${p}`), ...flagPositivo]};
 
-  // ── 9. COBRO ESTADÍA ────────────────────────────────────────────────────────
-  // Solo aplica si el registro tiene al menos un SPS estadía o CORE/Factura3 registrado
-  // en alguna fila (indicador de que corresponde cobrar estadía)
+  // 6. Pend. Recuento Final — requisito para poder cursar el cobro de estadía
+  if (!norm(first['N° Plantas Finales']))
+    return {label:'Liberada — Pend. Recuento Final', cls:'badge-warn',
+      pendientes:['🟡 N° Plantas Finales no registrado', ...flagPositivo]};
+
+  // 7 / 8. Pend. SPS/CORE de Estadía (solo si corresponde cobrar estadía)
   const hayEstadiaCampos = rows.some(r => norm(r['SPS estadía']) || norm(r['CORE/Factura3']));
   if (hayEstadiaCampos) {
-    const sinEstadia = rows.filter(r => !norm(r['SPS estadía']) || !norm(r['CORE/Factura3']));
-    if (sinEstadia.length)
-      return {label:'Cobro estadía pendiente', cls:'badge-warn',
-        pendientes:['🟡 SPS estadía o CORE/Factura3 incompleto']};
+    const faltaSpsEst = rows.every(r => !norm(r['SPS estadía']));
+    if (faltaSpsEst)
+      return {label:'Liberada — Pend. SPS Estadía', cls:'badge-warn',
+        pendientes:['🟡 SPS estadía no registrado', ...flagPositivo]};
+    const faltaCoreEst = rows.every(r => !norm(r['CORE/Factura3']));
+    if (faltaCoreEst)
+      return {label:'Liberada — Pend. CORE Estadía', cls:'badge-warn',
+        pendientes:['🟡 CORE/Factura3 no registrado', ...flagPositivo]};
   }
 
-  // ── 10. RECUENTO PENDIENTE ───────────────────────────────────────────────────
-  if (!norm(first['N° Plantas Finales']))
-    return {label:'Recuento pendiente', cls:'badge-warn',
-      pendientes:['🟡 N° Plantas Finales no registrado']};
+  // A partir de aquí: análisis + SPS/CORE + recuento + estadía completos.
+  const aFirma = norm(first['A Firma Res. Termino']);
 
-  // ── 11. ANALIZADO ────────────────────────────────────────────────────────────
-  return {label:'Analizado', cls:'badge-ok', pendientes:[]};
+  // 9. Lista para enviar a Firma Res. Término
+  if (!aFirma || aFirma === 'Pendiente Envío a Firma')
+    return {label:'Liberada — Lista para Firma Res. Término', cls:'badge-gd',
+      pendientes: flagPositivo};
+
+  // 10. Enviado a Firma
+  if (aFirma === 'Enviado a Firma')
+    return {label:'Enviado a Firma Res. Término', cls:'badge-gd', pendientes: flagPositivo};
+
+  // 11 / 12. Firmada — según si ya se entregó el material o no
+  if (aFirma === 'Firmada') {
+    if (!isAfirmativo(first['Entregada']))
+      return {label:'Firmada Res. Término — Pend. Retiro', cls:'badge-warn', pendientes: flagPositivo};
+    return {label:'Entregada — Pend. Cierre', cls:'badge-warn', pendientes: flagPositivo};
+  }
+
+  // Fallback defensivo (no debería alcanzarse en flujo normal)
+  return {label:'Liberada — Lista para Firma Res. Término', cls:'badge-gd', pendientes: flagPositivo};
 }
 
 // ── PROGRESO DEL EXPEDIENTE — completado vs pendiente por ítem de proceso ──
