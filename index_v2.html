@@ -3931,6 +3931,8 @@ async function init() {
   _restoreHistTableHeight();
   _restoreRecientesHeight();
   _restorePanelResultsHeight();
+  _syncPanelExtraCols();
+  _buildPanelColToggle();
   // Try existing session first — if found, proceed straight to app (showApp resumes init)
   await checkExistingSession();
   // If no session was found, login screen stays visible and showApp() is triggered by doLogin()
@@ -4140,8 +4142,15 @@ const PANEL_CORE_KEYS = new Set([
   'Res.','Fecha Res.','Solicitud','Fecha Solicitud','Año de Ingreso','Ano de Ingreso',
   'Cubículo','Cubiculo','Importador','Especie','Status'
 ]);
-const PANEL_OPTIONAL = (typeof CANONICAL_HEADERS!=='undefined' ? CANONICAL_HEADERS : [])
-  .filter(h=>!PANEL_CORE_KEYS.has(h));
+// BUGFIX: CANONICAL_HEADERS se declara mucho más abajo en este mismo script (const,
+// con Temporal Dead Zone). Evaluarlo aquí arriba —incluso solo con "typeof"— revienta
+// TODO el script con "Cannot access before initialization" y deja la app sin inicializar
+// (GS.apiKey nunca se setea). Por eso esto se calcula de forma perezosa dentro de una
+// función, invocada recién cuando el usuario abre el desplegable "Agregar columnas".
+function _panelOptionalCols() {
+  return (typeof CANONICAL_HEADERS!=='undefined' ? CANONICAL_HEADERS : [])
+    .filter(h=>!PANEL_CORE_KEYS.has(h));
+}
 let _panelExtraCols = new Set();
 try { _panelExtraCols = new Set(JSON.parse(localStorage.getItem('eca_panel_extra_cols')||'[]')); } catch(e) {}
 
@@ -4162,7 +4171,7 @@ function _syncPanelExtraCols() {
 function _buildPanelColToggle() {
   const wrap=$('panel-col-toggle-wrap'); if(!wrap) return;
   wrap.innerHTML='';
-  PANEL_OPTIONAL.forEach(key=>{
+  _panelOptionalCols().forEach(key=>{
     const active=_panelExtraCols.has(key);
     const b=document.createElement('button');
     b.type='button';
@@ -4181,8 +4190,10 @@ function _buildPanelColToggle() {
     wrap.appendChild(b);
   });
 }
-_syncPanelExtraCols();
-_buildPanelColToggle();
+// NOTA: _syncPanelExtraCols()/_buildPanelColToggle() ya NO se ejecutan aquí a nivel
+// top-level (ver bugfix arriba) — se invocan desde dentro de init(), al final del
+// script, cuando CANONICAL_HEADERS ya está inicializado.
+
 
 // ── ORDEN MANUAL DE COLUMNAS (Búsqueda Rápida) ──
 function _getPanelColOrder() {
