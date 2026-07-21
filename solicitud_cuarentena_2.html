@@ -766,6 +766,14 @@ function buildPdfHtml(nombre,rut,correo,telefono,direccion,comunaImp,regionImp,
     'border:1px solid #7fa9cd;padding:4px 3px;text-align:center;font-size:7.4pt">'+t+'</th>'; }
   function r2(a,b){ return '<table class="lay"><tr><td style="width:50%">'+a+'</td><td style="width:50%">'+b+'</td></tr></table>'; }
   function r3(a,b,c){ return '<table class="lay"><tr><td style="width:33.33%">'+a+'</td><td style="width:33.33%">'+b+'</td><td style="width:33.34%">'+c+'</td></tr></table>'; }
+  function hdrDoc(pag){
+    return '<div class="doc-frame"><table><tr>'+
+      '<td class="logo-cell"><img src="data:image/png;base64,'+LOGO+'" alt="SAG"></td>'+
+      '<td class="title-cell"><h1>SOLICITUD AUTORIZACIÓN CUARENTENA POSENTRADA</h1>'+
+      '<div style="font-size:9.5pt;margin-top:3px">Cuarentena Posentrada Absoluta (EC1)</div></td>'+
+      '<td class="code-cell">Código: F-IIT-IMP-PA-002<br>Versión: 03<br>Fecha Vigencia: 17.06.2019<br>Página: '+pag+'</td>'+
+      '</tr></table></div>';
+  }
   var css=[
     '*{box-sizing:border-box;margin:0;padding:0;}',
     'body{font-family:Arial,Helvetica,sans-serif;font-size:9.5pt;color:#111;padding:9mm 10mm;line-height:1.3;}',
@@ -789,19 +797,14 @@ function buildPdfHtml(nombre,rut,correo,telefono,direccion,comunaImp,regionImp,
     
     
     'table.mat{width:100%;border-collapse:collapse;font-size:8pt;margin-top:6px;}',
-    'table.mat td{border:1px solid #c3cbd3;padding:4px 3px;vertical-align:middle;font-size:7.8pt;word-wrap:break-word;}',
+    'table.mat td{border:1px solid #c3cbd3;padding:4px 3px;vertical-align:middle;font-size:7.8pt;word-wrap:break-word;text-align:center;}',
     '.firma-box{border:1px solid #cfd6dd;border-top:none;margin-top:0;padding:10px 12px;}',
     '.footer-form{font-size:8pt;color:#666;text-align:center;margin-top:20px;border-top:1px solid #ddd;padding-top:6px;}',
     '@page{size:A4;margin:9mm 10mm;}'
   ].join('\n');
   return '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">'+
     '<title>F-IIT-IMP-PA-002</title><style>'+css+'</style></head><body>'+
-    '<div class="doc-frame"><table><tr>'+
-    '<td class="logo-cell"><img src="data:image/png;base64,'+LOGO+'" alt="SAG"></td>'+
-    '<td class="title-cell"><h1>SOLICITUD AUTORIZACIÓN CUARENTENA POSENTRADA</h1>'+
-    '<div style="font-size:9.5pt;margin-top:3px">Cuarentena Posentrada Absoluta (EC1)</div></td>'+
-    '<td class="code-cell">Código: F-IIT-IMP-PA-002<br>Versión: 03<br>Fecha Vigencia: 17.06.2019<br>Página: 1 de 1</td>'+
-    '</tr></table></div>'+
+    hdrDoc('1 de 2')+
     '<table class="header-table">'+
     '<colgroup><col class="lbl-col"><col class="val-col"><col class="lbl-col"><col class="val-col"></colgroup>'+
     '<tr><td class="lbl">N° Solicitud / Año</td><td class="val">'+e(folioDisplay||'')+'</td>'+
@@ -829,6 +832,8 @@ function buildPdfHtml(nombre,rut,correo,telefono,direccion,comunaImp,regionImp,
     r3(fi('Fecha de Ingreso Aproximada',e(mesDisplay)),fi('Sustrato del Portainjerto',e(sustVal)),fi('Comparte Cubículo',comparteStr))+
     r2(fi('Requiere Frío',frioStr),'')+
     '</div>'+
+    '<div style="page-break-before:always"></div>'+
+    hdrDoc('2 de 2')+
     secH('5. Identificación del Material a Ingresar')+
     '<table class="mat">'+
     '<colgroup><col style="width:4%"><col style="width:19%"><col style="width:13%">'+
