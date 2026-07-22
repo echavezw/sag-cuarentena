@@ -292,6 +292,10 @@
           <div class="field" id="f-proveedor">
             <label>Nombre Proveedor <span class="req">*</span></label>
             <input type="text" id="proveedor" autocomplete="off">
+            <div id="proveedorHint" style="font-size:8.5pt;color:#666;margin-top:3px;">
+              La lista muestra los proveedores que usted ha utilizado anteriormente.
+              Si el proveedor es nuevo, escriba el nombre directamente.
+            </div>
             <div class="msg">Campo obligatorio.</div>
           </div>
           <div class="field" id="f-ciudad">
@@ -1479,11 +1483,14 @@ let proveedorDetalleMap = {};
 let comunaDetalleMap = {};
 // Arrays fuente para los dropdowns personalizados
 let proveedoresArr = [], ciudadesArr = [], paisesArr = [], comunasArr = [];
+// Proveedores ya utilizados por el RUT en sesion (historial en Detalle).
+// Es la lista que ve el importador; puede escribir uno nuevo a mano.
+let proveedoresImportadorArr = [];
 
 function cargarListasAutocomplete(){
   fetch(ENDPOINT_URL, {
     method: 'POST',
-    body: JSON.stringify({ action: 'obtenerListas' })
+    body: JSON.stringify({ action: 'obtenerListas', rut: (sesion && sesion.rut) ? sesion.rut : '' })
   })
   .then(function(r){ return r.json(); })
   .then(function(data){
@@ -1491,6 +1498,7 @@ function cargarListasAutocomplete(){
     poblarDatalist('listaEspecies', data.especies);
     poblarDatalist('listaPortainjertos', data.portainjertos);
     proveedoresArr = data.proveedores || [];
+    proveedoresImportadorArr = data.proveedoresImportador || [];
     ciudadesArr    = data.ciudades || [];
     paisesArr      = data.paises || [];
     comunasArr     = data.comunas || [];
@@ -1543,8 +1551,9 @@ function poblarDatalist(datalistId, valores){
 // Dropdown personalizado (reemplaza <datalist> en campos estáticos)
 // Se re-muestra completo al enfocar, sin necesidad de borrar el campo.
 // ============================================================
-function attachAutocomplete(input, getOptions){
+function attachAutocomplete(input, getOptions, emptyHtml){
   if(!input) return;
+  var msgVacio = emptyHtml || 'Sin coincidencias';
   const box = document.createElement('div');
   box.className = 'ac-list';
   input.insertAdjacentElement('afterend', box);
@@ -1565,8 +1574,8 @@ function attachAutocomplete(input, getOptions){
     items = q ? all.filter(function(v){ return norm(v).indexOf(q) !== -1; }) : all.slice();
     activeIndex = -1;
     if(items.length === 0){
-      box.innerHTML = q ? '<div class="ac-empty">Sin coincidencias</div>' : '';
-      box.classList.toggle('open', !!q);
+      box.innerHTML = '<div class="ac-empty">' + msgVacio + '</div>';
+      box.classList.add('open');
       return;
     }
     box.innerHTML = items.slice(0, 100).map(function(v, i){
@@ -1629,7 +1638,9 @@ function attachAutocomplete(input, getOptions){
 
 function initAutocompleteEstaticos(){
   attachAutocomplete(document.getElementById('comuna'),         function(){ return comunasArr; });
-  attachAutocomplete(document.getElementById('proveedor'),      function(){ return proveedoresArr; });
+  attachAutocomplete(document.getElementById('proveedor'),
+    function(){ return proveedoresImportadorArr; },
+    'Sin proveedores previos con ese nombre \u2014 escr\u00edbalo para registrarlo como nuevo');
   attachAutocomplete(document.getElementById('ciudadProveedor'),function(){ return ciudadesArr; });
   attachAutocomplete(document.getElementById('origen'),         function(){ return paisesArr; });
 }
