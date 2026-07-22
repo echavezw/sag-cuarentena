@@ -2075,6 +2075,34 @@ input.field-blocked, select.field-blocked {
       <button class="btn btn-nv btn-sm" onclick="aplicarJSON()">Aplicar al formulario</button>
     </div>
   </div>
+
+<!-- CAMBIAR CLAVE MODAL -->
+<div class="modal-overlay" id="chpass-modal">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-title">Cambiar mi clave</div>
+    <div class="modal-body" style="margin-bottom:10px">Usuario: <b id="chpass-user" style="font-family:var(--mono)"></b></div>
+    <div class="ff" style="margin-bottom:10px">
+      <label class="lbl">Clave actual</label>
+      <input id="chpass-actual" type="password" style="width:100%;padding:9px 11px;border-radius:6px;border:1.5px solid var(--g100)" autocomplete="current-password">
+    </div>
+    <div class="ff" style="margin-bottom:10px">
+      <label class="lbl">Clave nueva</label>
+      <input id="chpass-nueva" type="password" placeholder="Mínimo 6 caracteres" style="width:100%;padding:9px 11px;border-radius:6px;border:1.5px solid var(--g100)" autocomplete="new-password">
+    </div>
+    <div class="ff" style="margin-bottom:10px">
+      <label class="lbl">Confirmar clave nueva</label>
+      <input id="chpass-confirmar" type="password" style="width:100%;padding:9px 11px;border-radius:6px;border:1.5px solid var(--g100)" autocomplete="new-password"
+        onkeydown="if(event.key==='Enter')guardarCambioClave()">
+    </div>
+    <div id="chpass-error" style="display:none;font-size:11.5px;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:7px 10px;margin-bottom:10px"></div>
+    <div id="chpass-ok" style="display:none;font-size:11.5px;color:var(--ok);background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:7px 10px;margin-bottom:10px"></div>
+    <div id="chpass-loading" style="display:none;text-align:center;font-size:11px;color:#888;margin-bottom:8px">Guardando...</div>
+    <div class="modal-actions">
+      <button class="btn btn-gh btn-sm" onclick="cerrarCambiarClave()">Cancelar</button>
+      <button class="btn btn-nv btn-sm" onclick="guardarCambioClave()">Guardar</button>
+    </div>
+  </div>
+</div>
 </div>
 
 <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()" defer></script>
@@ -2874,6 +2902,8 @@ function applyPermsToUI() {
   const u = window._currentUser || {};
   badge.innerHTML = `<span style="font-family:var(--mono)">${u.user||''}</span>
     <span style="background:rgba(255,255,255,.1);padding:1px 7px;border-radius:99px;font-size:8.5px">${(u.rol||'').replace('_',' ')}</span>
+    <button onclick="abrirCambiarClave()" style="background:transparent;border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.6);
+      border-radius:4px;padding:2px 8px;font-size:9px;cursor:pointer">Cambiar clave</button>
     <button onclick="doLogout()" style="background:transparent;border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.6);
       border-radius:4px;padding:2px 8px;font-size:9px;cursor:pointer">Salir</button>`;
 }
@@ -2975,6 +3005,72 @@ async function crearUsuario() {
     recargarUsuarios();
   } catch(e) {
     resultEl.innerHTML = `<span style="color:var(--err)">Error: ${e.message}</span>`;
+  }
+}
+
+// ── CAMBIAR CLAVE (usuario propio, cualquier rol) ──
+function abrirCambiarClave() {
+  const u = window._currentUser || {};
+  $('chpass-user').textContent = u.user || '';
+  $('chpass-actual').value = '';
+  $('chpass-nueva').value = '';
+  $('chpass-confirmar').value = '';
+  $('chpass-error').style.display = 'none';
+  $('chpass-ok').style.display = 'none';
+  document.getElementById('chpass-modal').classList.add('open');
+  setTimeout(() => $('chpass-actual').focus(), 50);
+}
+function cerrarCambiarClave() {
+  document.getElementById('chpass-modal').classList.remove('open');
+}
+async function guardarCambioClave() {
+  const errEl = $('chpass-error'), okEl = $('chpass-ok'), loadEl = $('chpass-loading');
+  errEl.style.display = 'none'; okEl.style.display = 'none';
+  const u = window._currentUser || {};
+  const claveActual = $('chpass-actual').value || '';
+  const claveNueva = $('chpass-nueva').value || '';
+  const claveConfirmar = $('chpass-confirmar').value || '';
+  if (!u.user) { errEl.textContent = 'Sesión inválida. Vuelva a iniciar sesión.'; errEl.style.display = 'block'; return; }
+  if (!claveActual || !claveNueva || !claveConfirmar) { errEl.textContent = 'Complete los tres campos.'; errEl.style.display = 'block'; return; }
+  if (claveNueva.length < 6) { errEl.textContent = 'La clave nueva debe tener mínimo 6 caracteres.'; errEl.style.display = 'block'; return; }
+  if (claveNueva !== claveConfirmar) { errEl.textContent = 'La clave nueva y su confirmación no coinciden.'; errEl.style.display = 'block'; return; }
+
+  loadEl.style.display = 'block';
+  try {
+    const rows = await fetchRawSheet(SHEET_USUARIOS);
+    if (!rows || rows.length < 2) { loadEl.style.display = 'none'; errEl.textContent = 'No se pudo verificar el usuario. Intente nuevamente.'; errEl.style.display = 'block'; return; }
+    const hdr = rows[0];
+    const iUser = hdr.indexOf('Usuario'), iHash = hdr.indexOf('Hash_Clave');
+    const rowsData = rows.slice(1);
+    const idx = rowsData.findIndex(r => String(r[iUser]||'').trim().toLowerCase() === u.user);
+    if (idx === -1) { loadEl.style.display = 'none'; errEl.textContent = 'Usuario no encontrado.'; errEl.style.display = 'block'; return; }
+
+    const hashActualIngresado = await sha256Hex(claveActual);
+    if (String(rowsData[idx][iHash]||'').trim() !== hashActualIngresado) {
+      loadEl.style.display = 'none';
+      errEl.textContent = 'La clave actual es incorrecta.';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    await ensureToken();
+    const hashNuevo = await sha256Hex(claveNueva);
+    const colLetter = await getColumnLetter(SHEET_USUARIOS, 'Hash_Clave');
+    const rowIndex1 = idx + 2;
+    await fetch(`${BASE_URL}/${GS.sheetId}/values/${SHEET_USUARIOS}!${colLetter}${rowIndex1}?valueInputOption=USER_ENTERED`,
+      { method: 'PUT',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values: [[hashNuevo]] }) });
+
+    loadEl.style.display = 'none';
+    okEl.textContent = 'Clave actualizada correctamente.';
+    okEl.style.display = 'block';
+    $('chpass-actual').value = ''; $('chpass-nueva').value = ''; $('chpass-confirmar').value = '';
+    setTimeout(cerrarCambiarClave, 1500);
+  } catch (e) {
+    loadEl.style.display = 'none';
+    errEl.textContent = 'Error de conexión: ' + e.message;
+    errEl.style.display = 'block';
   }
 }
 
