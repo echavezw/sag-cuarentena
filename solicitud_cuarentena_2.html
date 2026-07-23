@@ -1845,6 +1845,7 @@ document.getElementById('solicitudForm').addEventListener('submit', function(e){
         '<button type="button" class="btn btn-secondary" style="margin-top:10px;" onclick="cerrarSesion()">No, cerrar sesión</button>';
       document.getElementById('bannerSuccess').style.display='block';
       document.getElementById('solicitudForm').style.display='none';
+      btn.disabled=false;
     } else {
       document.getElementById('bannerError').textContent=data.error||'Error al enviar la solicitud.';
       document.getElementById('bannerError').style.display='block';
