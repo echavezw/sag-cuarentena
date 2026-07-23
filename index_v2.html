@@ -11409,7 +11409,7 @@ function _openDoc(html, title, formTitle) {
   const footer = `<div style="text-align:center;font-size:7.5pt;color:#888;margin-top:16px;line-height:1.5;border-top:1px solid #ddd;padding-top:8px">
     Servicio Agrícola y Ganadero | Departamento RED de Laboratorios SAG | Estación de Cuarentena Agrícola (ECA)<br>
     Formulario "${ft}"<br>
-    <span style="font-size:6pt">Desarrollado por Ing. Agr. Eduardo Chávez Weisser</span>
+    <span style="font-size:6pt;color:#ccc">Desarrollado por EChW, 2026</span>
   </div>`;
   w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>${_docStyle()}</head><body>${html}${footer}</body></html>`); w.document.addEventListener('DOMContentLoaded',function(){}); setTimeout(()=>w.print(),400);
   w.document.close();
