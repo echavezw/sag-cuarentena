@@ -4127,7 +4127,7 @@ function buscarPanelDefault() {
     if(r['Año de Ingreso'] && r['Año de Ingreso'].trim()) return;
     const rRes=String(r['Res.']||'').trim(), rSol=String(r['Solicitud']||'').trim();
     const allR=gsData.filter(x=>rRes?String(x['Res.']||'').trim()===rRes:String(x['Solicitud']||'').trim()===rSol);
-    const best=allR.map(x=>x['Año de Ingreso']||fmtD(x['Fecha de Ingreso']||'').substring(0,4)||fmtD(x['Fecha Res.']||'').substring(0,4)||'').find(y=>y&&y.trim())||'';
+    const best=allR.map(x=>x['Año de Ingreso']||fmtD(x['Fecha de Ingreso']||'').substring(0,4)||fmtD(x['Fecha Res.']||'').substring(0,4)||fmtD(x['Fecha Ing. Solicitada']||'').substring(0,4)||'').find(y=>y&&y.trim())||'';
     if(best) r['Año de Ingreso']=best;
   });
   window._lastPanelFoundRaw = found;
@@ -9077,7 +9077,7 @@ function buscarPanel() {
     if(r['Año de Ingreso'] && r['Año de Ingreso'].trim()) return;
     const rRes=String(r['Res.']||'').trim(), rSol=String(r['Solicitud']||'').trim();
     const allR=gsData.filter(x=>rRes?String(x['Res.']||'').trim()===rRes:String(x['Solicitud']||'').trim()===rSol);
-    const best=allR.map(x=>x['Año de Ingreso']||fmtD(x['Fecha de Ingreso']||'').substring(0,4)||fmtD(x['Fecha Res.']||'').substring(0,4)||'').find(y=>y&&y.trim())||'';
+    const best=allR.map(x=>x['Año de Ingreso']||fmtD(x['Fecha de Ingreso']||'').substring(0,4)||fmtD(x['Fecha Res.']||'').substring(0,4)||fmtD(x['Fecha Ing. Solicitada']||'').substring(0,4)||'').find(y=>y&&y.trim())||'';
     if(best) r['Año de Ingreso']=best;
   });
   window._lastPanelFound = found;
@@ -9172,6 +9172,7 @@ function buildRows(nsol,imp) {
         _lastLoadedRow['Año de Ingreso'] ||
         fmtD(_lastLoadedRow['Fecha de Ingreso']||'').substring(0,4) ||
         fmtD(_lastLoadedRow['Fecha Res.']||'').substring(0,4) ||
+        fmtD(_lastLoadedRow['Fecha Ing. Solicitada']||'').substring(0,4) ||
         fmtD(_lastLoadedRow['Fecha Solicitud']||'').substring(0,4) || '';
       return _a;
     })(),
@@ -9233,6 +9234,15 @@ function buildRows(nsol,imp) {
       return _espTot>0?String(_espTot):(v('f6-total-fin')||'');
     })(),
     'Meses ECA':       '',
+    // Campos exclusivos del portal de importadores — index_v2 no tiene UI para
+    // editarlos, así que se preservan del valor ya cargado para que doSave
+    // (delete+append) no los sobrescriba en blanco en cada Guardar/Aprobar.
+    'Fecha Reserva':          _lastLoadedRow['Fecha Reserva']||'',
+    'Fecha Hora Envío':       _lastLoadedRow['Fecha Hora Envío']||'',
+    'Fecha Hora Cancelación': _lastLoadedRow['Fecha Hora Cancelación']||'',
+    'Nombre Representante':   _lastLoadedRow['Nombre Representante']||'',
+    'RUT Representante':      _lastLoadedRow['RUT Representante']||'',
+    'Link Timbre Recepcion':  _lastLoadedRow['Link Timbre Recepcion']||'',
   };
   const rows=[];
   // Sync all analysis from DOM
