@@ -5951,7 +5951,7 @@ function copiarFila(i) {
 function addEspRow() {
   const tbody=$('esp-body'); if(!tbody) return;
   const idx=tbody.children.length;
-  if(idx>=40){ setS('Maximo 40 filas.','warn'); return; }
+  if(idx>=80){ setS('Maximo 80 filas.','warn'); return; }
   const prevData = idx>0 ? {
     especie:  document.getElementById(`es-${idx-1}`)?.value||'',
     variedad: document.getElementById(`ev-${idx-1}`)?.value||'',
