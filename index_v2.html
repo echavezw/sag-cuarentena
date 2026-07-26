@@ -9790,6 +9790,7 @@ function initTokenClient() {
   tokenClient=google.accounts.oauth2.initTokenClient({
     client_id:GS.oauthClientId,
     scope:'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file',
+    login_hint:'eduardo.chavez@sag.gob.cl',
     callback:r=>{ if(r.access_token){ accessToken=r.access_token; window._tokenObtainedAt=Date.now(); window._tokenScope=CURRENT_OAUTH_SCOPE; setGSDot('ok','Autenticado'); recargar(); } }
   });
 }
