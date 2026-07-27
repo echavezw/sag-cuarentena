@@ -8267,17 +8267,21 @@ function renderCierreTabs() {
 
   rows.forEach((e,i) => {
     const nEstab = e.nplanEstab||0;
-    // nplanFin: use saved value first; if empty fall back to nplanBrot (Etapa III), then 0
-    const nFin = (e.nplanFin!==undefined && e.nplanFin!=='' && parseInt(e.nplanFin)>0)
-      ? parseInt(e.nplanFin)
+    // nplanFin: usar valor guardado siempre que exista (incluso 0 explícito, ej. entrega
+    // parcial con 0 plantas finales de esa variedad); solo cae a brotadas si nunca se guardó
+    const nFin = (e.nplanFin!==undefined && e.nplanFin!=='')
+      ? (parseInt(e.nplanFin)||0)
       : ((e.nplanBrot!==undefined && e.nplanBrot!=='' && parseInt(e.nplanBrot)>0)
           ? parseInt(e.nplanBrot) : 0);
     const tr = document.createElement('tr');
     tr.id = 'pf-row-'+i;
     const incChecked = e.entregaFinal!==false;
     if(!incChecked) tr.style.opacity = '0.5';
-    // Always show editable input (not — placeholder) so user can enter data
-    const nFinCell = '<input type="number" id="pf-'+i+'" value="'+(nFin||'')+'" placeholder="0"'
+    const hasSavedFin = e.nplanFin!==undefined && e.nplanFin!=='';
+    // Valor a mostrar en el input: si hay valor guardado (incluso 0), mostrarlo tal cual;
+    // si no hay nada guardado, mostrar el fallback de brotadas solo cuando es >0.
+    const nFinDisplay = hasSavedFin ? nFin : (nFin>0 ? nFin : '');
+    const nFinCell = '<input type="number" id="pf-'+i+'" value="'+nFinDisplay+'" placeholder="0"'
       +' style="font-family:var(--mono);text-align:center;width:80px" oninput="markDirty(6);calcPlantasTotal();syncPfToEstadia()">';
     const incCell = '<input type="checkbox" id="pf-inc-'+i+'" '+(incChecked?'checked':'')
       +' onchange="toggleFilaEntrega('+i+')" title="Incluir esta variedad en el conteo final y en el Acta de Entrega">';
