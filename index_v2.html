@@ -8265,7 +8265,27 @@ function renderCierreTabs() {
   const loadedCoreEst = _lastLoadedRow['CORE/Factura3']||'';
   const loadedAvisoEst = _lastLoadedRow['Fecha Aviso SPS Estadía']||'';
 
+  // Variedades con 0 plantas brotadas en Etapa III no se muestran en el recuento final
+  // (no hay nada que contar/entregar de ellas). Se conserva el índice original (i) para
+  // los ids pf-/pf-inc-, ya que saveMaterial() y generarActaEntrega() los buscan por esa
+  // posición en _loadedEspData. El widget maestro SPS/CORE/Aviso usa un índice visual
+  // aparte (visIdx) para que siempre quede anclado a la primera fila que sí se muestra.
+  const visibleRows = [];
   rows.forEach((e,i) => {
+    const brot = e.nplanBrot;
+    const sinBrote = brot!==undefined && brot!=='' && parseInt(brot)===0;
+    if(sinBrote) return;
+    visibleRows.push({e, i});
+  });
+
+  if(!visibleRows.length) {
+    tbody.innerHTML='<tr><td colspan="9" style="color:var(--g400);padding:16px;font-size:12px;text-align:center">Todas las variedades indican 0 plantas brotadas en Etapa III — nada que recontar.</td></tr>';
+    calcPlantasTotal();
+    actualizarVariedadesPendientes();
+    return;
+  }
+
+  visibleRows.forEach(({e,i}, visIdx) => {
     const nEstab = e.nplanEstab||0;
     // nplanFin: usar valor guardado siempre que exista (incluso 0 explícito, ej. entrega
     // parcial con 0 plantas finales de esa variedad); solo cae a brotadas si nunca se guardó
@@ -8292,11 +8312,11 @@ function renderCierreTabs() {
       <td style="padding:4px 6px;text-align:center;vertical-align:middle">${nFinCell}</td>
       <td style="padding:4px 6px;text-align:center;vertical-align:middle">${incCell}</td>
       <td style="padding:5px 8px;text-align:center">
-        <input id="est-sps-${i}" value="${esc(loadedSpsEst)}" placeholder="N° SPS"
+        <input id="est-sps-${visIdx}" value="${esc(loadedSpsEst)}" placeholder="N° SPS"
           style="font-family:var(--mono);text-align:center;width:100%"
-          oninput="markDirty(6);${i===0?'replicarSPSEst(this.value)':''}">
+          oninput="markDirty(6);${visIdx===0?'replicarSPSEst(this.value)':''}">
       </td>
-      <td style="padding:5px 6px;text-align:center">${i===0?`
+      <td style="padding:5px 6px;text-align:center">${visIdx===0?`
         <input type="hidden" id="est-aviso-0" value="${esc(loadedAvisoEst)}">
         <div style="display:flex;align-items:center;justify-content:center;gap:6px">
           <button type="button" title="Redactar aviso por correo (Outlook)" onclick="enviarCorreoSPSEstadia()"
@@ -8308,9 +8328,9 @@ function renderCierreTabs() {
         </div>`:''}
       </td>
       <td style="padding:5px 8px;text-align:center">
-        <input id="est-core-${i}" value="${esc(loadedCoreEst)}" placeholder="N° CORE"
+        <input id="est-core-${visIdx}" value="${esc(loadedCoreEst)}" placeholder="N° CORE"
           style="font-family:var(--mono);text-align:center;width:100%"
-          oninput="markDirty(6);${i===0?'replicarCOREEst(this.value)':''}">
+          oninput="markDirty(6);${visIdx===0?'replicarCOREEst(this.value)':''}">
       </td>
       <td style="padding:4px 6px;text-align:center"><input id="pf-obs-${i}" placeholder="Observaciones..." oninput="markDirty(6)"></td>`;
     tbody.appendChild(tr);
@@ -12421,6 +12441,9 @@ function generarActaEntrega() {
   let rows = '';
   if(espDataAE.length && document.getElementById('plantas-body') && document.getElementById('plantas-body').children.length) {
     rows = espDataAE.map((e,i)=>{
+      const brot = e.nplanBrot;
+      const sinBrote = brot!==undefined && brot!=='' && parseInt(brot)===0;
+      if(sinBrote) return null;
       const incEl = document.getElementById('pf-inc-'+i);
       if(incEl && !incEl.checked) return null;
       const pfEl = document.getElementById('pf-'+i);
