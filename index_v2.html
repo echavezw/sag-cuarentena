@@ -6505,8 +6505,34 @@ function delVerifRow(i) {
     nplan:    v(`vnplan-${j}`),
     nplanBrot:v(`vbrot-${j}`)
   }));
+  const removed = rows[i];
   rows.splice(i,1);
   renderVerifTable(rows);
+
+  // Sin esto, la fila eliminada reaparecía: al volver a Etapa III el merge de
+  // goStage(3) la reconstruía desde window._loadedEspData, y al Guardar
+  // saveMaterial() la volvía a crear porque toma la lista de Etapa I
+  // (getEspecies()/esp-body), no la de Etapa III. Se elimina en las tres fuentes.
+  if(removed && (removed.especie||removed.variedad)) {
+    const espBody = document.getElementById('esp-body');
+    if(espBody && espBody.children.length) {
+      const espRows = [...espBody.children].map((_,j)=>({
+        especie:v(`es-${j}`), variedad:v(`ev-${j}`),
+        tipo:document.getElementById(`et-${j}`)?.value||'',
+        cant:v(`ec-${j}`), portainjerto:v(`ep-${j}`), nplan:v(`en-${j}`)
+      }));
+      const espIdx = espRows.findIndex(r =>
+        (r.especie||'').trim()===(removed.especie||'').trim() &&
+        (r.variedad||'').trim()===(removed.variedad||'').trim());
+      if(espIdx>=0) { espRows.splice(espIdx,1); renderEspTable(espRows); }
+    }
+    if(window._loadedEspData && window._loadedEspData.length) {
+      window._loadedEspData = window._loadedEspData.filter(e =>
+        !((e.especie||'').trim()===(removed.especie||'').trim() &&
+          (e.variedad||'').trim()===(removed.variedad||'').trim()));
+    }
+    markDirty(1); markDirty(3);
+  }
 }
 
 // ── ETAPA IV — ANALYSIS ──
