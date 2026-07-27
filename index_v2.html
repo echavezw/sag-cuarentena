@@ -1527,7 +1527,7 @@ input.field-blocked, select.field-blocked {
   <!-- Tab 6.1: Plantas finales -->
   <div class="tab-panel active" id="t6-0">
   <div class="tab-body">
-    <div class="info-box">Confirme o corrija la cantidad de plantas obtenidas al final del proceso. Datos pre-cargados desde Etapa III.</div>
+    <div class="info-box">Confirme o corrija la cantidad de plantas obtenidas al final del proceso. Datos pre-cargados desde Etapa III. Desmarque "Entregar" en las variedades que <b>no</b> se entregarán en esta acta (análisis pendiente, resultado positivo, etc.): quedarán fuera del conteo final y del Acta de Entrega.</div>
     <div class="tbl-wrap">
     <table class="tbl" id="plantas-tbl">
       <thead><tr>
@@ -1535,6 +1535,7 @@ input.field-blocked, select.field-blocked {
         <th style="text-align:center">Variedad</th>
         <th style="text-align:center">N° Plantas Estab.</th>
         <th style="text-align:center">N° Plantas Finales</th>
+        <th style="width:60px;text-align:center">Entregar</th>
         <th style="text-align:center">N° SPS Estadía</th>
         <th style="width:80px;text-align:center">Aviso</th>
         <th style="text-align:center">N° CORE Estadía</th>
@@ -1542,6 +1543,12 @@ input.field-blocked, select.field-blocked {
       </tr></thead>
       <tbody id="plantas-body"></tbody>
     </table>
+    </div>
+    <div id="pend-entrega-box" style="margin-top:14px;padding:12px 14px;border:1px solid var(--gold-bd);background:var(--gold-bg);border-radius:var(--rs)">
+      <div style="font-family:var(--serif);font-weight:700;font-size:13px;color:var(--inkv);margin-bottom:6px">Entrega Parcial — Registro de Variedades Pendientes</div>
+      <div id="pend-var-list" style="font-size:12px;font-family:var(--mono);margin-bottom:8px;color:var(--inkv)">Sin variedades pendientes.</div>
+      <label class="lbl">Observaciones / Motivo (se guarda con el registro, para gestionar resolución complementaria)</label>
+      <textarea id="f6-var-pend" oninput="cacheField('f6-var-pend')" rows="2" placeholder="Ej: Variedad X queda pendiente por análisis de Xylella fastidiosa; se tramitará resolución complementaria una vez recibido el resultado."></textarea>
     </div>
   </div>
   </div>
@@ -5344,7 +5351,7 @@ async function cargarFilaMulti(rows) {
     // E3
     'f3-fing','f3-anio','f3-nplan','f3-finj','f3-flev',
     // E6/E7
-    'f6-obs','f6-stat','f6-term','f6-lib','f6-nrest','f6-frterm','f6-fent','f6-afirma',
+    'f6-obs','f6-stat','f6-term','f6-lib','f6-nrest','f6-frterm','f6-fent','f6-afirma','f6-var-pend',
   ];
   if(!window._fieldCache) window._fieldCache={};
   _cacheIds.forEach(id=>{
@@ -5407,6 +5414,7 @@ async function cargarFilaMulti(rows) {
   selEl('f6-lib', r['Liberada']||'');
   selEl('f6-stat', r['Status']||'');
   sv('f6-obs', r['Obs.']||'');
+  sv('f6-var-pend', r['Obs. Entrega Parcial']||'');
   selEl('f6-afirma', r['A Firma Res. Termino']||r['A firma']||'');
   updateStatusBadge();
   // Build species table — prefer Material sheet (dedicated), fallback to Detalle rows
@@ -5444,6 +5452,7 @@ async function cargarFilaMulti(rows) {
         })(),
         nplanEstadia: x['N° Plantas Estadía']||x['N° Plantas Estadia']||x['N° Plantas']||'',
         nplanFin:     x['N° Plantas Finales']||'',
+        entregaFinal: x['Entregada Final']!==undefined ? x['Entregada Final']!=='0' : true,
       }));
     }
   } catch(e) { /* fall through to Detalle-based espData */ }
@@ -5535,7 +5544,7 @@ function limpiarFormSilent() {
    'f2-res-mod','f2-fres-mod','f2-vfin-desde','f2-vfin-hasta',
    'f3-fing','f3-anio','f3-nplan','f3-nvar','f3-finj','f3-flev',
    'f1-cda','f1-cert-fito',
-   'f6-nrest','f6-frterm','f6-fent','f6-obs','f6-firma-resp','f6-firma-cargo','f6-firma-tel','f6-firma-email'
+   'f6-nrest','f6-frterm','f6-fent','f6-obs','f6-var-pend','f6-firma-resp','f6-firma-cargo','f6-firma-tel','f6-firma-email'
   ].forEach(id=>{ const e=$(id); if(e) e.value=''; });
   ['f1-imp','f1-pais','f1-uso','f1-frio','f1-pto',
    'f2-estado','f2-recibida','f2-proceso',
@@ -8199,7 +8208,7 @@ function renderCierreTabs() {
   // Guard: if _loadedEspKey is still "__loading__...", data is not ready — show loading state and retry
   const _espKey = window._loadedEspKey||'';
   if(_espKey.startsWith('__loading__')) {
-    tbody.innerHTML='<tr><td colspan="8" style="color:var(--g400);padding:16px;font-size:12px;text-align:center">Cargando datos...</td></tr>';
+    tbody.innerHTML='<tr><td colspan="9" style="color:var(--g400);padding:16px;font-size:12px;text-align:center">Cargando datos...</td></tr>';
     setTimeout(()=>renderCierreTabs(), 150);
     return;
   }
@@ -8218,6 +8227,7 @@ function renderCierreTabs() {
         nplanEstab: parseInt(e.nplanEstab||e.nplan||'0')||0,
         nplanBrot:  e.nplanBrot||'',
         nplanFin:   e.nplanFin||'',  // keep raw string — rendering logic handles fallback
+        entregaFinal: e.entregaFinal!==false,
       });
     });
   } else {
@@ -8246,7 +8256,7 @@ function renderCierreTabs() {
   }
 
   if(!rows.length) {
-    tbody.innerHTML='<tr><td colspan="8" style="color:var(--g400);padding:16px;font-size:12px;text-align:center">Complete la tabla de material en la Etapa I.</td></tr>';
+    tbody.innerHTML='<tr><td colspan="9" style="color:var(--g400);padding:16px;font-size:12px;text-align:center">Complete la tabla de material en la Etapa I.</td></tr>';
     return;
   }
 
@@ -8263,14 +8273,20 @@ function renderCierreTabs() {
       : ((e.nplanBrot!==undefined && e.nplanBrot!=='' && parseInt(e.nplanBrot)>0)
           ? parseInt(e.nplanBrot) : 0);
     const tr = document.createElement('tr');
+    tr.id = 'pf-row-'+i;
+    const incChecked = e.entregaFinal!==false;
+    if(!incChecked) tr.style.opacity = '0.5';
     // Always show editable input (not — placeholder) so user can enter data
     const nFinCell = '<input type="number" id="pf-'+i+'" value="'+(nFin||'')+'" placeholder="0"'
       +' style="font-family:var(--mono);text-align:center;width:80px" oninput="markDirty(6);calcPlantasTotal();syncPfToEstadia()">';
+    const incCell = '<input type="checkbox" id="pf-inc-'+i+'" '+(incChecked?'checked':'')
+      +' onchange="toggleFilaEntrega('+i+')" title="Incluir esta variedad en el conteo final y en el Acta de Entrega">';
     tr.innerHTML=`
       <td style="font-style:italic;padding:5px 8px">${esc(e.especie)}</td>
       <td style="padding:5px 8px;text-align:center;font-size:11px;color:var(--g600)">${esc(e.variedad||'—')}</td>
       <td style="font-family:var(--mono);text-align:center;padding:5px 8px">${nEstab||'—'}</td>
       <td style="padding:4px 6px;text-align:center;vertical-align:middle">${nFinCell}</td>
+      <td style="padding:4px 6px;text-align:center;vertical-align:middle">${incCell}</td>
       <td style="padding:5px 8px;text-align:center">
         <input id="est-sps-${i}" value="${esc(loadedSpsEst)}" placeholder="N° SPS"
           style="font-family:var(--mono);text-align:center;width:100%"
@@ -8303,9 +8319,35 @@ function renderCierreTabs() {
     <td colspan="2" style="padding:7px 8px;font-size:11px;letter-spacing:.4px;text-transform:uppercase">Total</td>
     <td style="font-family:var(--mono);text-align:center;padding:7px 8px">—</td>
     <td id="pf-total" style="font-family:var(--mono);text-align:center;padding:7px 8px;font-size:14px">—</td>
+    <td></td>
     <td colspan="4"></td>`;
   tbody.appendChild(totalTr);
   calcPlantasTotal();
+  actualizarVariedadesPendientes();
+}
+function toggleFilaEntrega(i) {
+  const chk = document.getElementById('pf-inc-'+i);
+  const tr  = document.getElementById('pf-row-'+i);
+  if(tr) tr.style.opacity = (chk && chk.checked) ? '1' : '0.5';
+  markDirty(6);
+  calcPlantasTotal();
+  syncPfToEstadia();
+  actualizarVariedadesPendientes();
+}
+function actualizarVariedadesPendientes() {
+  const box = document.getElementById('pend-var-list');
+  if(!box) return;
+  const pend = [];
+  document.querySelectorAll('[id^="pf-inc-"]').forEach(chk=>{
+    if(chk.checked) return;
+    const i = chk.id.replace('pf-inc-','');
+    const tr = document.getElementById('pf-row-'+i);
+    if(!tr) return;
+    const esp  = tr.children[0]?.textContent||'';
+    const vari = tr.children[1]?.textContent||'';
+    pend.push(esp + (vari && vari!=='—' ? ' — '+vari : ''));
+  });
+  box.textContent = pend.length ? pend.join(' · ') : 'Sin variedades pendientes.';
 }
 function replicarSPSFin(val) {
   document.querySelectorAll('[id^="pfin-sps-"]').forEach(inp=>{ inp.value=val; });
@@ -8460,7 +8502,10 @@ function calcNplanEstab() {
 function calcPlantasTotal() {
   let total = 0;
   document.querySelectorAll('[id^="pf-"]').forEach(inp => {
-    if(inp.id === 'pf-total') return;
+    if(inp.id === 'pf-total' || inp.id.startsWith('pf-obs') || inp.id.startsWith('pf-inc')) return;
+    const i = inp.id.replace('pf-','');
+    const chk = document.getElementById('pf-inc-'+i);
+    if(chk && !chk.checked) return;
     total += parseInt(inp.value)||0;
   });
   const el = document.getElementById('pf-total');
@@ -8478,7 +8523,7 @@ function calcDiff(i,estab) {
 function syncPfToEstadia() {
   // Copy N° Plantas Finales (pf-{i}) → N° Plantas in Cobro Estadía (est-n-{i})
   document.querySelectorAll('[id^="pf-"]').forEach(pfInp => {
-    if (pfInp.id === 'pf-total' || pfInp.id.startsWith('pf-obs')) return;
+    if (pfInp.id === 'pf-total' || pfInp.id.startsWith('pf-obs') || pfInp.id.startsWith('pf-inc')) return;
     const i = pfInp.id.replace('pf-', '');
     const estEl = document.getElementById('est-n-' + i);
     if (estEl && pfInp.value !== '') estEl.value = pfInp.value;
@@ -9190,6 +9235,7 @@ function buildRows(nsol,imp) {
     'Liberada':        getCached('f6-lib',v('f6-lib'))||_lastLoadedRow['Liberada']||'',
     'Entregada':       fmtDisplay(getCached('f6-fent',v('f6-fent')))||_lastLoadedRow['Entregada']||'',
     'Obs.':            getCached('f6-obs',v('f6-obs'))||_lastLoadedRow['Obs.']||'',
+    'Obs. Entrega Parcial': getCached('f6-var-pend',v('f6-var-pend'))||_lastLoadedRow['Obs. Entrega Parcial']||'',
     'Status':          getCached('f6-stat',v('f6-stat'))||_lastLoadedRow['Status']||'',
     'A Firma Res. Termino': getCached('f6-afirma',v('f6-afirma'))||_lastLoadedRow['A Firma Res. Termino']||'',
     'Proveedor':       getCached('f1-prov',v('f1-prov'))||_lastLoadedRow['Proveedor']||'',
@@ -9223,14 +9269,18 @@ function buildRows(nsol,imp) {
     'Fec. Mod.':       fmtDisplay(v('f2-fres-mod')),
     'N° Plantas Finales': (()=>{
       // Prefer live DOM sum; fallback to _loadedEspData sum; then f6-total-fin
+      // Excluye filas marcadas como "no entregar" (checkbox pf-inc-{i} desmarcado)
       let _tot=0; let _hasInput=false;
       document.querySelectorAll('[id^="pf-"]').forEach(inp=>{
-        if(inp.id==='pf-total'||inp.id.startsWith('pf-obs')) return;
+        if(inp.id==='pf-total'||inp.id.startsWith('pf-obs')||inp.id.startsWith('pf-inc')) return;
+        const _i = inp.id.replace('pf-','');
+        const _chk = document.getElementById('pf-inc-'+_i);
+        if(_chk && !_chk.checked) return;
         _hasInput=true; _tot+=parseInt(inp.value)||0;
       });
       if(_hasInput) return _tot>0?String(_tot):'';
       const _espD=window._loadedEspData||[];
-      const _espTot=_espD.reduce((s,e)=>s+(parseInt(e.nplanFin)||0),0);
+      const _espTot=_espD.reduce((s,e)=>s+((e.entregaFinal!==false)?(parseInt(e.nplanFin)||0):0),0);
       return _espTot>0?String(_espTot):(v('f6-total-fin')||'');
     })(),
     'Meses ECA':       '',
@@ -9342,7 +9392,7 @@ const CANONICAL_HEADERS = [
   'Meses ECA','Cantidad','Portainjerto',
   'N° CDA','N° Cert. Fitosanitario','Link Solicitud PDF','Link Resolucion PDF',
   'Link Timbre Recepcion','Fecha Aviso SPS','Fecha Aviso SPS Estadía',
-  'Fecha Reserva','Fecha Hora Envío','Fecha Hora Cancelación'
+  'Fecha Reserva','Fecha Hora Envío','Fecha Hora Cancelación','Obs. Entrega Parcial'
 ];
 
 // ══════════════════════════════════════════════
@@ -9558,13 +9608,29 @@ async function doSave(rows,isUpdate,res,nsol) {
     }
   }
   // Append at true end of data — use CANONICAL_HEADERS for column order
-  const sheetHeaders = await getHeaders();
+  let sheetHeaders = await getHeaders();
   if(sheetHeaders.length < CANONICAL_HEADERS.length) {
     await fetch(
       `${BASE_URL}/${GS.sheetId}/values/${SHEET_DETALLE}!A1?valueInputOption=USER_ENTERED`,
       {method:'PUT',
        headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
        body:JSON.stringify({values:[CANONICAL_HEADERS]})});
+    sheetHeaders = CANONICAL_HEADERS.slice();
+  }
+  // Guard adicional: la Sheet real de Detalle tiene más columnas que CANONICAL_HEADERS
+  // (157 vs ~92), así que el guard de arriba nunca dispara en producción. Si falta
+  // puntualmente alguna columna nueva de CANONICAL_HEADERS por nombre, se agrega al
+  // final del header existente en vez de reemplazarlo entero (evita desalinear las
+  // 157 columnas ya presentes).
+  const missingHeaders = CANONICAL_HEADERS.filter(h => !sheetHeaders.includes(h));
+  if(missingHeaders.length) {
+    const extendedHeaders = sheetHeaders.concat(missingHeaders);
+    await fetch(
+      `${BASE_URL}/${GS.sheetId}/values/${SHEET_DETALLE}!A1?valueInputOption=USER_ENTERED`,
+      {method:'PUT',
+       headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+       body:JSON.stringify({values:[extendedHeaders]})});
+    sheetHeaders = extendedHeaders;
   }
   // Use sheetHeaders to write values in the actual Sheet column order (prevents misalignment
   // when Sheet has columns in a different order than CANONICAL_HEADERS, e.g. legacy extra cols).
@@ -9702,6 +9768,14 @@ async function saveMaterial(nsol, imp, res) {
         const pfEl = pfIdx >= 0 ? document.getElementById('pf-'+pfIdx) : null;
         return pfEl ? (pfEl.value||'') : '';
       })(),
+      // Entregada Final — checkbox pf-inc-{rowIdx} en Etapa VI
+      // (1 = incluida en Acta de Entrega, 0 = excluida/pendiente de entrega parcial)
+      (()=>{
+        const pfIdx = (window._loadedEspData||[]).findIndex(x =>
+          x.especie===e.especie && (x.variedad||'')===(e.variedad||''));
+        const incEl = pfIdx >= 0 ? document.getElementById('pf-inc-'+pfIdx) : null;
+        return incEl ? (incEl.checked ? '1' : '0') : '1';
+      })(),
     ];
   });
 
@@ -9709,7 +9783,7 @@ async function saveMaterial(nsol, imp, res) {
     'Res.','Solicitud','Importador','Especie','Variedad',
     'Tipo Material','Cantidad','Portainjerto','N° Plantas',
     'Cant. Real','Recibida','N° Plantas Establ.','N° Plantas Brotadas','Observaciones',
-    'N° Plantas Estadía','N° Plantas Finales'
+    'N° Plantas Estadía','N° Plantas Finales','Entregada Final'
   ];
 
   // Read existing state BEFORE touching anything
@@ -10150,7 +10224,7 @@ function limpiarEtapa(n) {
   if(n===3){ ['f3-fing','f3-anio','f3-nplan','f3-nvar','f3-finj','f3-flev'].forEach(id=>{const e=$(id);if(e)e.value='';}); selEl('f3-cub',''); selEl('f3-estado',''); }
   if(n===4){ if(!Object.values(anRows).some(a=>a.length)) initAnRows(); renderAnalisisTabs(); }
   if(n===5){ /* tables will re-render */ }
-  if(n===6){ ['f6-nrest','f6-frterm','f6-fent','f6-obs','f6-firma-resp','f6-firma-cargo','f6-firma-tel','f6-firma-email'].forEach(id=>{const e=$(id);if(e)e.value='';}); ['f6-term','f6-lib','f6-stat','f6-afirma'].forEach(id=>{const e=$(id);if(e)e.value='';}); updateStatusBadge(); }
+  if(n===6){ ['f6-nrest','f6-frterm','f6-fent','f6-obs','f6-var-pend','f6-firma-resp','f6-firma-cargo','f6-firma-tel','f6-firma-email'].forEach(id=>{const e=$(id);if(e)e.value='';}); ['f6-term','f6-lib','f6-stat','f6-afirma'].forEach(id=>{const e=$(id);if(e)e.value='';}); updateStatusBadge(); const _pv=document.getElementById('pend-var-list'); if(_pv) _pv.textContent='Sin variedades pendientes.'; }
   setS(`Etapa ${n} limpiada.`,'ok');
 }
 
@@ -12332,20 +12406,41 @@ function generarInformeTermino() {
 // ── DOC 6: ACTA ENTREGA MATERIAL — Etapa VII ──
 function generarActaEntrega() {
   if(!_v('f1-imp')){ setS('Complete datos del registro primero.','warn'); return; }
-  const mat = _matRows();
   // N° Plantas Finales viene de la tabla de Recuento (Etapa VI), inputs pf-{i}
   // Fallback: si la etapa VI no está renderizada, usar _lastLoadedRow['N° Plantas Finales']
   const pfTotalDom = (document.getElementById('pf-total')||{}).value||'';
   const pfTotalSheet = (window._lastLoadedRow && window._lastLoadedRow['N° Plantas Finales']) || '';
   const pfTotal = pfTotalDom || pfTotalSheet;
-  const rows = mat.filter(r=>r.recibida).map((r,i)=>{
-    const pfEl = document.getElementById('pf-'+i);
-    const nFinal = (pfEl && pfEl.value!=='') ? pfEl.value : (pfTotal || r.cantR || r.cant);
-    return `<tr>
+  // Fuente primaria: misma tabla/orden que renderCierreTabs (Etapa VI), respetando el
+  // checkbox "Entregar" (pf-inc-{i}) — las variedades desmarcadas quedan fuera del Acta.
+  const espDataAE = window._loadedEspData||[];
+  let rows = '';
+  if(espDataAE.length && document.getElementById('plantas-body') && document.getElementById('plantas-body').children.length) {
+    rows = espDataAE.map((e,i)=>{
+      const incEl = document.getElementById('pf-inc-'+i);
+      if(incEl && !incEl.checked) return null;
+      const pfEl = document.getElementById('pf-'+i);
+      const nFinal = (pfEl && pfEl.value!=='') ? pfEl.value : (pfTotal || e.nplanFin || e.nplanBrot || '');
+      const obsEl = document.getElementById('pf-obs-'+i);
+      const obs = obsEl ? obsEl.value : '';
+      return `<tr>
+    <td style="font-style:italic">${esc(e.especie)}</td><td>${esc(e.variedad||'—')}</td>
+    <td style="text-align:center">${nFinal}</td><td>${esc(obs)}</td>
+  </tr>`;
+    }).filter(Boolean).join('');
+  } else {
+    // Fallback: sin tabla de Etapa VI renderizada, usar _matRows() (Etapa III)
+    const mat = _matRows();
+    rows = mat.filter(r=>r.recibida).map((r,i)=>{
+      const pfEl = document.getElementById('pf-'+i);
+      const nFinal = (pfEl && pfEl.value!=='') ? pfEl.value : (pfTotal || r.cantR || r.cant);
+      return `<tr>
     <td style="font-style:italic">${r.esp}</td><td>${r.vari}</td>
     <td style="text-align:center">${nFinal}</td><td>${r.obs}</td>
   </tr>`;
-  }).join('') || '<tr><td colspan="4" style="text-align:center;color:#888">Sin filas</td></tr>';
+    }).join('');
+  }
+  rows = rows || '<tr><td colspan="4" style="text-align:center;color:#888">Sin filas</td></tr>';
   const allAn = Object.values(anRows).flat();
   const folios = [...new Set(allAn.map(a=>a.folio).filter(Boolean))].map(f=>`<li>${f}</li>`).join('')||'<li>—</li>';
   // Año Res. Término — derivado de Fecha Res. Término (f6-frterm) o del Sheet
