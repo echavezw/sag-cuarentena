@@ -3858,11 +3858,15 @@ const SHEET_MATERIAL    = 'Material';
 const SHEET_IMPORTADORES = 'Importadores';
 const SHEET_PROVEEDORES  = 'Proveedores';
 const SHEET_PORTAINJERTOS= 'Portainjertos';
+const SHEET_REQUISITOS   = 'RequisitosFitosanitarios';
+const SHEET_PAISES_UE    = 'PaisesUE';
 
 // Reference data loaded from Sheets
 let refImportadores  = [];
 let refProveedores   = [];
 let refPortainjertos = [];
+let refRequisitos    = [];  // pestaña RequisitosFitosanitarios: Especie|País|N° Resolución|Año|Resolución Completa|Clave
+let refPaisesUE      = [];  // pestaña PaisesUE: país individual -> 'CE'
 let _refLoading      = false;  // prevent concurrent loads
 let _refLoaded       = false;  // prevent reloading if already done
 const BASE_URL = 'https://sheets.googleapis.com/v4/spreadsheets';
@@ -4941,6 +4945,25 @@ async function loadRefData() {
     _refLoading = false;
     console.warn('loadRefData error:', e);
     setS('Error cargando datos de referencia: '+e.message,'err');
+  }
+  // Carga independiente de RequisitosFitosanitarios / PaisesUE: si estas pestañas
+  // aun no existen en el Sheet, esto no debe romper la carga de las 3 pestañas de arriba.
+  try {
+    const ranges2 = [SHEET_REQUISITOS, SHEET_PAISES_UE]
+      .map(s => `ranges=${encodeURIComponent(s)}`).join('&');
+    const url2 = `${BASE_URL}/${GS.sheetId}/values:batchGet?${ranges2}&key=${GS.apiKey}`;
+    const resp2 = await fetch(url2);
+    if(resp2.ok) {
+      const data2 = await resp2.json();
+      const vrs2 = data2.valueRanges || [];
+      if(vrs2[0]) refRequisitos = rowsToObj(vrs2[0].values||[]);
+      if(vrs2[1]) refPaisesUE   = rowsToObj(vrs2[1].values||[]);
+      console.log(`Requisitos fitosanitarios: ${refRequisitos.length} filas, PaisesUE: ${refPaisesUE.length} filas.`);
+    } else {
+      console.warn('RequisitosFitosanitarios/PaisesUE no disponibles aun (status '+resp2.status+'). El resuelvo usara los valores por defecto de la plantilla.');
+    }
+  } catch(e) {
+    console.warn('No se pudieron cargar RequisitosFitosanitarios/PaisesUE:', e.message);
   }
 }
 
@@ -11645,6 +11668,51 @@ async function generarTimbreRecepcion() {
 }
 
 // ══════════════════════════════════════════════════════
+// ── Cruce Especie+Origen contra RequisitosFitosanitarios (con fallback CE via PaisesUE) ──
+// Devuelve { encontrado:boolean, lista:[{numero,anio,completa}], viaUE:boolean } o {encontrado:false}
+function _buscarResolucionesFitosanitarias(especiesArr, paisOrigen) {
+  const out = { encontrado:false, lista:[], viaUE:false };
+  if (!refRequisitos || !refRequisitos.length || !especiesArr || !especiesArr.length) return out;
+
+  const paisNorm = normEspecieKey_(paisOrigen);
+  let paisClave = paisOrigen || '';
+  let viaUE = false;
+
+  const matchDirecto = refRequisitos.some(r => normEspecieKey_(r['País']) === paisNorm);
+  if (!matchDirecto && refPaisesUE && refPaisesUE.length) {
+    const fila = refPaisesUE.find(r => normEspecieKey_(r['País Individual']) === paisNorm);
+    if (fila && fila['Grupo (Clave País para RequisitosFitosanitarios)']) {
+      paisClave = fila['Grupo (Clave País para RequisitosFitosanitarios)'];
+      viaUE = true;
+    }
+  }
+  const paisClaveNorm = normEspecieKey_(paisClave);
+
+  const especiesNorm = especiesArr.map(normEspecieKey_).filter(Boolean);
+  const vistos = new Set();
+  especiesNorm.forEach(espNorm => {
+    refRequisitos.forEach(r => {
+      if (normEspecieKey_(r['Especie']) === espNorm && normEspecieKey_(r['País']) === paisClaveNorm) {
+        const completa = (r['Resolución Completa']||'').trim();
+        if (completa && !vistos.has(completa)) {
+          vistos.add(completa);
+          out.lista.push({ numero:r['N° Resolución']||'', anio:r['Año']||'', completa });
+        }
+      }
+    });
+  });
+  out.encontrado = out.lista.length > 0;
+  out.viaUE = viaUE;
+  return out;
+}
+
+// Arma "N° X de AAAA, N° Y de BBBB y N° Z de CCCC" en español a partir de la lista de resoluciones
+function _formatearListaResoluciones(lista) {
+  const partes = lista.map(r => r.completa.replace(/^[Nn][°ºo]\.?\s*/, 'N° '));
+  if (partes.length === 1) return partes[0];
+  return partes.slice(0,-1).join(', ') + ' y ' + partes[partes.length-1];
+}
+
 function generarBorradorResolucion() {
   const imp      = _v('f1-imp');
   const nsol     = _v('f1-nsol');
@@ -11698,16 +11766,27 @@ function generarBorradorResolucion() {
     cpTexto = `El importador designa como Contraparte Técnica ante el SAG para la etapa de importación y cuarentena al/la Ing. Agrónomo Sr(a). ${cp1 || cp2}.`;
   }
 
-  // Textos que varían CE vs no-CE
-  const vistosRes = isCE
-    ? 'y la Resolución N° ______ de ______ y sus modificaciones, todas del Servicio Agrícola y Ganadero.'
-    : 'y las Resoluciones N° 136 de 2021, 5.561 de 2024 y sus modificaciones, todas del Servicio Agrícola y Ganadero.';
-  const resolucionRef = isCE
-    ? 'la Resolución N° ______ de ______ y sus modificaciones'
-    : 'las Resoluciones N° 136 de 2021, 5.561 de 2024 y sus modificaciones';
-  const certRes = isCE
-    ? 'la Resolución N° ______ de ______ y todas sus modificaciones'
-    : 'las Resoluciones N° 136 de 2021, 5.561 de 2024 y sus modificaciones';
+  // Textos que varían CE vs no-CE — se intenta cruzar Especie+Origen contra
+  // RequisitosFitosanitarios (con fallback CE via PaisesUE) antes de usar la plantilla fija.
+  const _reqMatch = _buscarResolucionesFitosanitarias(especies, pais);
+  let vistosRes, resolucionRef, certRes;
+  if (_reqMatch.encontrado) {
+    const listaTexto = _formatearListaResoluciones(_reqMatch.lista);
+    const conector = _reqMatch.lista.length > 1 ? 'las Resoluciones' : 'la Resolución';
+    vistosRes    = `y ${conector} ${listaTexto} y sus modificaciones, todas del Servicio Agrícola y Ganadero.`;
+    resolucionRef = `${conector} ${listaTexto} y sus modificaciones`;
+    certRes       = `${conector} ${listaTexto} y todas sus modificaciones`;
+  } else {
+    vistosRes = isCE
+      ? 'y la Resolución N° ______ de ______ y sus modificaciones, todas del Servicio Agrícola y Ganadero.'
+      : 'y las Resoluciones N° 136 de 2021, 5.561 de 2024 y sus modificaciones, todas del Servicio Agrícola y Ganadero.';
+    resolucionRef = isCE
+      ? 'la Resolución N° ______ de ______ y sus modificaciones'
+      : 'las Resoluciones N° 136 de 2021, 5.561 de 2024 y sus modificaciones';
+    certRes = isCE
+      ? 'la Resolución N° ______ de ______ y todas sus modificaciones'
+      : 'las Resoluciones N° 136 de 2021, 5.561 de 2024 y sus modificaciones';
+  }
 
   // Portainjerto texto
   const portaTexto = multiEsp
