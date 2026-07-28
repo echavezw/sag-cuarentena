@@ -11670,6 +11670,20 @@ async function generarTimbreRecepcion() {
 // ══════════════════════════════════════════════════════
 // ── Cruce Especie+Origen contra RequisitosFitosanitarios (con fallback CE via PaisesUE) ──
 // Devuelve { encontrado:boolean, lista:[{numero,anio,completa}], viaUE:boolean } o {encontrado:false}
+// Especies compuestas ("Prunus armeniaca x Prunus cerasifera") se expanden a la especie
+// híbrida literal (por si está cargada tal cual) + cada especie parental por separado,
+// para poder sumar las resoluciones de ambos padres cuando el híbrido no está en la tabla.
+function _expandirEspeciesHibridas(especiesArr) {
+  const out = [];
+  (especiesArr||[]).forEach(esp => {
+    if (!esp) return;
+    out.push(esp);
+    const partes = String(esp).split(/\s+x\s+/i).map(p => p.trim()).filter(Boolean);
+    if (partes.length > 1) partes.forEach(p => out.push(p));
+  });
+  return [...new Set(out)];
+}
+
 function _buscarResolucionesFitosanitarias(especiesArr, paisOrigen) {
   const out = { encontrado:false, lista:[], viaUE:false, viaGenero:false };
   if (!refRequisitos || !refRequisitos.length || !especiesArr || !especiesArr.length) return out;
@@ -11688,9 +11702,12 @@ function _buscarResolucionesFitosanitarias(especiesArr, paisOrigen) {
   }
   const paisClaveNorm = normEspecieKey_(paisClave);
 
-  // Claves de especie a probar en orden: especie exacta primero, género spp. como fallback
-  const especiesNorm = especiesArr.map(normEspecieKey_).filter(Boolean);
-  const generosSpp = [...new Set(especiesArr
+  // Expandir híbridos: especie tal cual + cada especie parental
+  const especiesExpandido = _expandirEspeciesHibridas(especiesArr);
+
+  // Claves de especie a probar en orden: especie (o parentales) exacta primero, género spp. como fallback
+  const especiesNorm = especiesExpandido.map(normEspecieKey_).filter(Boolean);
+  const generosSpp = [...new Set(especiesExpandido
     .map(e => (String(e||'').trim().split(/\s+/)[0]||''))
     .filter(Boolean)
     .map(g => normEspecieKey_(g + ' spp')))];
