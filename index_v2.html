@@ -11870,9 +11870,17 @@ function generarBorradorTerminoCPE() {
   let totalFin = 0; matRes.forEach(r => { totalFin += parseInt(r.fin) || 0; });
   if (!totalFin && pfTotalEl) totalFin = parseInt(pfTotalEl) || 0;
 
+  // Cruce Especie+Origen contra RequisitosFitosanitarios (mismo criterio que Etapa II: especie exacta,
+  // luego CE via PaisesUE, luego género spp.), con fallback al texto fijo si no hay match.
+  const especiesTermino = [...new Set(mat.map(r => r.esp).filter(Boolean))];
+  const _reqMatchTermino = _buscarResolucionesFitosanitarias(especiesTermino, pais);
+  const reqFitoSegment = _reqMatchTermino.encontrado
+    ? 'las Resoluciones ' + _reqMatchTermino.lista.map(r => r.completa.replace(/^[Nn][°ºo]\.?\s*/, 'N° ')).join(', ') + ', '
+    : 'las Resoluciones N° 7.243 de 2012, 5.410 de 2015, 7.501 de 2020, ';
+
   try {
     _buildDocxTermino({
-      imp, nres, resAutorizaFull, resAutorizaTitle, resAutorizaVistos,
+      imp, nres, resAutorizaFull, resAutorizaTitle, resAutorizaVistos, reqFitoSegment,
       cert: (cert||'______'), cda: (cda||'______'), paisDisplay,
       prov: (prov||'______'), vivero: (vivero||'______'),
       matRes, totalFin
@@ -11924,7 +11932,7 @@ function _buildDocxTermino(d) {
     anexo('Informe Término CPE'), anexo('Informes Fitosanitarios'), anexo('Recuento'),
   ]);
 
-  const VISTOS = 'Lo dispuesto en la Ley N° 18.755 Orgánica del Servicio Agrícola y Ganadero, la Ley N° 19.880 que establece bases generales de los procedimientos administrativos que rigen los actos de los órganos de la administración del Estado, la Ley 19.342 de 1994 que regula derecho de obtentores de nuevas variedades vegetales, el Decreto Ley N° 3.557 de 1980 sobre Protección Agrícola, el Decreto N° 510 de 2016 que habilita puertos para la importación de mercancías sujetas a revisión del Servicio Agrícola y Ganadero, todos del Ministerio de Agricultura. Las Resoluciones N°s 733 de 1998, 3.080 de 2003, 3.815 de 2003, 3.589 de 2012, 6.383 de 2013, 7.316 de 2013, 373 de 2019, 1.284 de 2021 y sus modificaciones, y las Resoluciones N° 7.243 de 2012, 5.410 de 2015, 7.501 de 2020, ';
+  const VISTOS = 'Lo dispuesto en la Ley N° 18.755 Orgánica del Servicio Agrícola y Ganadero, la Ley N° 19.880 que establece bases generales de los procedimientos administrativos que rigen los actos de los órganos de la administración del Estado, la Ley 19.342 de 1994 que regula derecho de obtentores de nuevas variedades vegetales, el Decreto Ley N° 3.557 de 1980 sobre Protección Agrícola, el Decreto N° 510 de 2016 que habilita puertos para la importación de mercancías sujetas a revisión del Servicio Agrícola y Ganadero, todos del Ministerio de Agricultura. Las Resoluciones N°s 733 de 1998, 3.080 de 2003, 3.815 de 2003, 3.589 de 2012, 6.383 de 2013, 7.316 de 2013, 373 de 2019, 1.284 de 2021 y sus modificaciones, y ' + (d.reqFitoSegment || 'las Resoluciones N° 7.243 de 2012, 5.410 de 2015, 7.501 de 2020, ');
 
   const bodyContent = [
     pc([hl('BORRADOR',{bold:true})], {after:120}),
