@@ -11671,7 +11671,7 @@ async function generarTimbreRecepcion() {
 // ── Cruce Especie+Origen contra RequisitosFitosanitarios (con fallback CE via PaisesUE) ──
 // Devuelve { encontrado:boolean, lista:[{numero,anio,completa}], viaUE:boolean } o {encontrado:false}
 function _buscarResolucionesFitosanitarias(especiesArr, paisOrigen) {
-  const out = { encontrado:false, lista:[], viaUE:false };
+  const out = { encontrado:false, lista:[], viaUE:false, viaGenero:false };
   if (!refRequisitos || !refRequisitos.length || !especiesArr || !especiesArr.length) return out;
 
   const paisNorm = normEspecieKey_(paisOrigen);
@@ -11688,21 +11688,41 @@ function _buscarResolucionesFitosanitarias(especiesArr, paisOrigen) {
   }
   const paisClaveNorm = normEspecieKey_(paisClave);
 
+  // Claves de especie a probar en orden: especie exacta primero, género spp. como fallback
   const especiesNorm = especiesArr.map(normEspecieKey_).filter(Boolean);
-  const vistos = new Set();
-  especiesNorm.forEach(espNorm => {
-    refRequisitos.forEach(r => {
-      if (normEspecieKey_(r['Especie']) === espNorm && normEspecieKey_(r['País']) === paisClaveNorm) {
-        const completa = (r['Resolución Completa']||'').trim();
-        if (completa && !vistos.has(completa)) {
-          vistos.add(completa);
-          out.lista.push({ numero:r['N° Resolución']||'', anio:r['Año']||'', completa });
+  const generosSpp = [...new Set(especiesArr
+    .map(e => (String(e||'').trim().split(/\s+/)[0]||''))
+    .filter(Boolean)
+    .map(g => normEspecieKey_(g + ' spp')))];
+
+  function buscarConClaves(espNormArr) {
+    const vistos = new Set();
+    const lista = [];
+    espNormArr.forEach(espNorm => {
+      refRequisitos.forEach(r => {
+        if (normEspecieKey_(r['Especie']) === espNorm && normEspecieKey_(r['País']) === paisClaveNorm) {
+          const completa = (r['Resolución Completa']||'').trim();
+          if (completa && !vistos.has(completa)) {
+            vistos.add(completa);
+            lista.push({ numero:r['N° Resolución']||'', anio:r['Año']||'', completa });
+          }
         }
-      }
+      });
     });
-  });
-  out.encontrado = out.lista.length > 0;
+    return lista;
+  }
+
+  let lista = buscarConClaves(especiesNorm);
+  let viaGenero = false;
+  if (!lista.length && generosSpp.length) {
+    lista = buscarConClaves(generosSpp);
+    viaGenero = lista.length > 0;
+  }
+
+  out.lista = lista;
+  out.encontrado = lista.length > 0;
   out.viaUE = viaUE;
+  out.viaGenero = viaGenero;
   return out;
 }
 
