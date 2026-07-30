@@ -4019,6 +4019,29 @@ const fmtD = v => {
   if(!isNaN(generic.getTime()) && s.length > 10) return generic.toISOString().split('T')[0];
   return s.substring(0,10);
 };
+
+// ── FECHA + HORA de "Fecha Solicitud" (columna nueva junto a "Año Sol.") ──────
+// "Fecha Solicitud" suele venir como texto tipo Date.toString() de JS
+// ("Thu Sep 29 2016 00:00:45 GMT-0300 (...)"), que el constructor Date() nativo
+// sí sabe parsear directo (a diferencia de dd-mm-yyyy). Si eso falla, cae a
+// fmtD() (solo fecha, sin hora real disponible).
+function _parseFechaHoraSol(v) {
+  if(!v) return null;
+  const s = String(v).trim();
+  if(!s) return null;
+  let d = new Date(s);
+  if(isNaN(d.getTime())) {
+    const iso = fmtD(s);
+    d = iso ? new Date(iso + 'T00:00:00') : null;
+  }
+  return (d && !isNaN(d.getTime())) ? d : null;
+}
+function _fmtFechaHoraSol(v) {
+  const d = _parseFechaHoraSol(v);
+  if(!d) return '';
+  const p = n => String(n).padStart(2,'0');
+  return `${p(d.getDate())}-${p(d.getMonth()+1)}-${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
 // Format date for display and saving: dd-mm-yyyy
 const fmtDisplay = v => {
   const d=fmtD(v); if(!d||d.length<10) return d||'';
@@ -4191,6 +4214,7 @@ function _colRawValue(key, r) {
     case 'anio': return (fmtD(r['Fecha Res.']||'')).substring(0,4) || '(sin año)';
     case 'sol': return String(r['Solicitud']||'').trim() || '(sin sol.)';
     case 'anioSol': return (fmtD(r['Fecha Solicitud']||'')).substring(0,4) || '(sin año)';
+    case 'fechaSol': return _fmtFechaHoraSol(r['Fecha Solicitud']) || '(sin fecha)';
     case 'ing': return String(r['Año de Ingreso']||r['Ano de Ingreso']||'').trim() || '(sin año)';
     case 'cub': return String(r['Cubículo']||r['Cubiculo']||'').trim() || '(sin cubículo)';
     case 'imp': return (r['Importador']||'').trim() || '(sin importador)';
@@ -4293,6 +4317,7 @@ var _PANEL_COLS = [
   {key:"anio", label:"Año Res.",  fn:function(r){return parseInt((fmtD(r["Fecha Res."]||"")).substring(0,4))||0}},
   {key:"sol",  label:"Sol.",      fn:function(r){return parseInt(r["Solicitud"]||0)||0}},
   {key:"anioSol", label:"Año Sol.", fn:function(r){return parseInt((fmtD(r["Fecha Solicitud"]||"")).substring(0,4))||0}},
+  {key:"fechaSol", label:"Fecha y Hora Sol.", fn:function(r){const d=_parseFechaHoraSol(r["Fecha Solicitud"]); return d?d.getTime():0;}},
   {key:"ing",  label:"Año Ing.",  fn:function(r){return parseInt(r["Año de Ingreso"]||r["Ano de Ingreso"]||0)||0}},
   {key:"cub",  label:"Cubículo",  fn:function(r){return (r["Cubículo"]||r["Cubiculo"]||"").toLowerCase()}},
   {key:"imp",  label:"Importador",fn:function(r){return (r["Importador"]||"").toLowerCase()}},
@@ -4373,11 +4398,21 @@ function _getPanelColOrder() {
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem('eca_panel_col_order')||'null'); } catch(e) {}
   const allKeys = _PANEL_COLS.map(c=>c.key);
-  // Conserva el orden guardado para las claves que sigan existiendo (columnas fijas
-  // + extra activas) y agrega al final cualquier clave nueva (p.ej. columna extra
-  // recién activada) que no estuviera en el orden guardado.
   let order = (saved && Array.isArray(saved)) ? saved.filter(k=>allKeys.includes(k)) : [];
-  allKeys.forEach(k=>{ if(!order.includes(k)) order.push(k); });
+  // Claves nuevas (p.ej. columna fija recién agregada al código, o columna extra
+  // recién activada) que no estén en el orden guardado: se insertan justo después
+  // de su vecina natural anterior (según el orden de _PANEL_COLS), en vez de
+  // siempre al final — así una columna fija nueva aparece donde corresponde
+  // incluso para usuarios que ya tenían un orden guardado.
+  allKeys.forEach((k, i) => {
+    if (order.includes(k)) return;
+    let insertAt = order.length;
+    for (let j = i - 1; j >= 0; j--) {
+      const prevIdx = order.indexOf(allKeys[j]);
+      if (prevIdx !== -1) { insertAt = prevIdx + 1; break; }
+    }
+    order.splice(insertAt, 0, k);
+  });
   window._panelColOrder = order;
   return window._panelColOrder;
 }
@@ -4519,7 +4554,7 @@ function _panelSort(key) {
   var pThead=$("panel-thead"),pTbody=$("panel-tbody");
   if(!pThead||!pTbody) return;
   pThead.innerHTML=_panelThead();
-  pTbody.innerHTML=_panelRows(found);
+  _panelRowsBuild(found, pTbody);
 }
 // Construye la celda <td> correspondiente a una columna (por key) para una fila de datos.
 // Centralizado aquí para que el orden de columnas (drag & drop) se respete dinámicamente.
@@ -4558,6 +4593,10 @@ function _buildPanelCell(key, r, ctx) {
     case 'anioSol':
       td.style.fontFamily = 'var(--mono)'; td.style.color = 'var(--g400)'; td.style.fontSize = '11px';
       td.textContent = (fmtD(r["Fecha Solicitud"]||"")).substring(0,4) || '\u2014';
+      break;
+    case 'fechaSol':
+      td.style.fontFamily = 'var(--mono)'; td.style.fontSize = '11px'; td.style.whiteSpace = 'nowrap';
+      td.textContent = _fmtFechaHoraSol(r["Fecha Solicitud"]) || '\u2014';
       break;
     case 'ing':
       td.style.fontFamily = 'var(--mono)';
