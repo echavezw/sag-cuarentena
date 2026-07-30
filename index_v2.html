@@ -3200,8 +3200,11 @@ function calcBadgePriority(rows) {
     : [];
 
   // ── 13. TERMINADA ────────────────────────────────────────────────────────────
-  if (isAfirmativo(first['Terminada']))
-    return {label:'Terminada', cls:'badge-ok', pendientes: flagPositivo};
+  if (isAfirmativo(first['Terminada'])) {
+    return isAfirmativo(first['Entregada'])
+      ? {label:'Terminada/Entregada', cls:'badge-ok', pendientes: flagPositivo}
+      : {label:'Terminada/Sin Entregar', cls:'badge-warn', pendientes: ['Terminada — pendiente registrar fecha/estado de entrega', ...flagPositivo]};
+  }
 
   // ── NO RECIBIDA ──────────────────────────────────────────────────────────────
   const res = norm(first['Res.']);
