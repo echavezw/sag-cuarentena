@@ -266,6 +266,8 @@ input[type=number]{font-family:var(--mono)}
 /* Búsqueda Rápida: border-collapse:collapse (heredado de .tbl) rompe position:sticky
    en el thead en varios navegadores — se fuerza separate solo para esta tabla. */
 #panel-table{border-collapse:separate;border-spacing:0}
+#panel-table td{text-align:center}
+#panel-table td.pcol-left{text-align:left}
 #panel-table thead th{position:sticky;top:0;z-index:6}
 .panel-col-resize{
   position:absolute;right:0;top:0;bottom:0;width:6px;cursor:col-resize;
@@ -4650,14 +4652,17 @@ function _buildPanelCell(key, r, ctx) {
       td.textContent = r["Cubículo"]||r["Cubiculo"]||'\u2014';
       break;
     case 'imp':
+      td.classList.add('pcol-left');
       td.textContent = (r["Importador"]||'').trim() || '\u2014';
       break;
     case 'esp':
+      td.classList.add('pcol-left');
       td.style.fontStyle = 'italic'; td.style.fontSize = '11px';
       td.title = _especiesConsolidadas(r); // tooltip con el texto completo si se corta
       td.textContent = _especiesConsolidadas(r) || '\u2014';
       break;
     case 'stat': {
+      td.classList.add('pcol-left');
       const badge = document.createElement('span');
       badge.className = 'badge ' + ctx.sc;
       badge.textContent = ctx.st;
