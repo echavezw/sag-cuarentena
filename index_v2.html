@@ -3175,7 +3175,7 @@ function calcBadgePriority(rows) {
     if (!n) return false;
     if (n.toLowerCase()==='no') return false;
     if (isSi(n)) return true;
-    const d = new Date(n); if (!isNaN(d)) return true; // fecha = cierre efectivo
+    const d = new Date(fmtD(n)); if (!isNaN(d)) return true; // fecha = cierre efectivo
     return false;
   };
   const isAnalizada = e => { const n=norm(e).toLowerCase(); return n==='analizada'||n==='sin sintomas'||n==='sin síntomas'; };
@@ -3424,7 +3424,7 @@ function calcProgreso(rows) {
     detalle: recuento?`${recuento} plantas`:'pendiente'});
 
   // 9. Cierre
-  const isAfirm = v => { const n=norm(v).toLowerCase(); if(!n||n==='no')return false; if(n==='si'||n==='sí')return true; return !isNaN(new Date(norm(v))); };
+  const isAfirm = v => { const n=norm(v).toLowerCase(); if(!n||n==='no')return false; if(n==='si'||n==='sí')return true; return !isNaN(new Date(fmtD(norm(v)))); };
   const cerrado = isAfirm(first['Liberada'])||isAfirm(first['Entregada'])||isAfirm(first['Terminada']);
   items.push({etapa:'Cierre', estado: cerrado?'ok':'pend',
     detalle: cerrado?'liberada/entregada/terminada':'sin cierre formal'});
