@@ -4020,7 +4020,7 @@ const fmtD = v => {
   return s.substring(0,10);
 };
 
-// ── FECHA + HORA de "Fecha Solicitud" (columna nueva junto a "Año Sol.") ──────
+// ── FECHA + HORA de la solicitud (columna nueva junto a "Año Sol.") ───────────
 // "Fecha Solicitud" suele venir como texto tipo Date.toString() de JS
 // ("Thu Sep 29 2016 00:00:45 GMT-0300 (...)"), que el constructor Date() nativo
 // sí sabe parsear directo (a diferencia de dd-mm-yyyy). Si eso falla, cae a
@@ -4036,8 +4036,33 @@ function _parseFechaHoraSol(v) {
   }
   return (d && !isNaN(d.getTime())) ? d : null;
 }
-function _fmtFechaHoraSol(v) {
-  const d = _parseFechaHoraSol(v);
+// Parsea el formato 'DD-MM-YYYY HH:MM[:SS]' usado por las columnas de traza del
+// portal (Fecha Hora Envío / Fecha Reserva) — a diferencia de _parseFechaHoraSol,
+// preserva la hora real en vez de perderla al caer a fmtD() (que solo extrae fecha).
+function _parseFechaHoraEvento(v) {
+  if(!v) return null;
+  const s = String(v).trim();
+  const m = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if(m) {
+    const d = new Date(parseInt(m[3],10), parseInt(m[2],10)-1, parseInt(m[1],10), parseInt(m[4],10), parseInt(m[5],10), m[6]?parseInt(m[6],10):0);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  return _parseFechaHoraSol(s);
+}
+// Fecha+hora "real" de una solicitud: prioriza la marca de tiempo efectivamente
+// capturada por el portal del importador (envío firmado, o reserva de borrador
+// si nunca llegó a enviarse) sobre "Fecha Solicitud", que en registros previos
+// al tracking del portal (o cargados a mano) trae una hora de relleno sin valor
+// real (ej. "00:00:45" fijo).
+function _fechaHoraSolReal(r) {
+  const envio = String(r['Fecha Hora Envío']||'').trim();
+  if(envio) { const d = _parseFechaHoraEvento(envio); if(d) return d; }
+  const reserva = String(r['Fecha Reserva']||'').trim();
+  if(reserva) { const d = _parseFechaHoraEvento(reserva); if(d) return d; }
+  return _parseFechaHoraSol(r['Fecha Solicitud']);
+}
+function _fmtFechaHoraSol(r) {
+  const d = _fechaHoraSolReal(r);
   if(!d) return '';
   const p = n => String(n).padStart(2,'0');
   return `${p(d.getDate())}-${p(d.getMonth()+1)}-${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
@@ -4214,7 +4239,7 @@ function _colRawValue(key, r) {
     case 'anio': return (fmtD(r['Fecha Res.']||'')).substring(0,4) || '(sin año)';
     case 'sol': return String(r['Solicitud']||'').trim() || '(sin sol.)';
     case 'anioSol': return (fmtD(r['Fecha Solicitud']||'')).substring(0,4) || '(sin año)';
-    case 'fechaSol': return _fmtFechaHoraSol(r['Fecha Solicitud']) || '(sin fecha)';
+    case 'fechaSol': return _fmtFechaHoraSol(r) || '(sin fecha)';
     case 'ing': return String(r['Año de Ingreso']||r['Ano de Ingreso']||'').trim() || '(sin año)';
     case 'cub': return String(r['Cubículo']||r['Cubiculo']||'').trim() || '(sin cubículo)';
     case 'imp': return (r['Importador']||'').trim() || '(sin importador)';
@@ -4317,7 +4342,7 @@ var _PANEL_COLS = [
   {key:"anio", label:"Año Res.",  fn:function(r){return parseInt((fmtD(r["Fecha Res."]||"")).substring(0,4))||0}},
   {key:"sol",  label:"Sol.",      fn:function(r){return parseInt(r["Solicitud"]||0)||0}},
   {key:"anioSol", label:"Año Sol.", fn:function(r){return parseInt((fmtD(r["Fecha Solicitud"]||"")).substring(0,4))||0}},
-  {key:"fechaSol", label:"Fecha y Hora Sol.", fn:function(r){const d=_parseFechaHoraSol(r["Fecha Solicitud"]); return d?d.getTime():0;}},
+  {key:"fechaSol", label:"Fecha y Hora Sol.", fn:function(r){const d=_fechaHoraSolReal(r); return d?d.getTime():0;}},
   {key:"ing",  label:"Año Ing.",  fn:function(r){return parseInt(r["Año de Ingreso"]||r["Ano de Ingreso"]||0)||0}},
   {key:"cub",  label:"Cubículo",  fn:function(r){return (r["Cubículo"]||r["Cubiculo"]||"").toLowerCase()}},
   {key:"imp",  label:"Importador",fn:function(r){return (r["Importador"]||"").toLowerCase()}},
@@ -4596,7 +4621,10 @@ function _buildPanelCell(key, r, ctx) {
       break;
     case 'fechaSol':
       td.style.fontFamily = 'var(--mono)'; td.style.fontSize = '11px'; td.style.whiteSpace = 'nowrap';
-      td.textContent = _fmtFechaHoraSol(r["Fecha Solicitud"]) || '\u2014';
+      td.textContent = _fmtFechaHoraSol(r) || '\u2014';
+      td.title = String(r['Fecha Hora Envío']||'').trim() ? 'Hora real de envío (portal)'
+               : String(r['Fecha Reserva']||'').trim() ? 'Hora real de reserva de borrador (portal)'
+               : 'Sin traza de portal — hora no confirmada';
       break;
     case 'ing':
       td.style.fontFamily = 'var(--mono)';
