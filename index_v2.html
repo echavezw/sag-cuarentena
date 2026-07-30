@@ -3447,6 +3447,8 @@ function _filasDelRegistro(r) {
 // el resto abreviado con la inicial del género. Ordenado alfabéticamente.
 function _especiesConsolidadas(r) {
   const rows = _filasDelRegistro(r);
+  const res = String(r['Res.'] || '').trim();
+  const sol = String(r['Solicitud'] || '').trim();
   const especiesSet = new Set();
   const variedadesPorEspecie = {}; // especie → Set de valores distintos de "Variedades"
 
@@ -3494,6 +3496,33 @@ function _especiesConsolidadas(r) {
   });
   let especies = [...especiesSet].sort((a,b) => a.localeCompare(b));
   if (!especies.length) return '';
+
+  // BUGFIX (res. 8173/2025 y otras): en Detalle, "Variedades" guarda una sola variedad
+  // representativa repetida en cada fila de análisis (una fila por correlativo/patógeno,
+  // no una fila por variedad) — el Set de valores distintos por especie subestima el total
+  // real. La pestaña Material es la fuente de verdad (una fila por variedad real), así que
+  // si hay filas de Material para este registro, su conteo de "Variedad" distintas por
+  // especie reemplaza al derivado de Detalle. Se mantiene el cálculo de Detalle como
+  // fallback para especies sin filas en Material.
+  const matRowsReg = (typeof _matData !== 'undefined' && _matData.length) ? _matData.filter(m => {
+    const mRes = String(m['Res.']||'').trim();
+    const mSol = String(m['Solicitud']||'').trim();
+    if (res) return mRes === res;
+    return !mRes && mSol === sol;
+  }) : [];
+  if (matRowsReg.length) {
+    const variedadesPorEspecieMat = {};
+    matRowsReg.forEach(row => {
+      const esp = String(row['Especie']||'').trim();
+      const vari = String(row['Variedad']||'').trim();
+      if (!esp) return;
+      if (!variedadesPorEspecieMat[esp]) variedadesPorEspecieMat[esp] = new Set();
+      if (vari) variedadesPorEspecieMat[esp].add(vari);
+    });
+    Object.keys(variedadesPorEspecieMat).forEach(esp => {
+      if (variedadesPorEspecieMat[esp].size) variedadesPorEspecie[esp] = variedadesPorEspecieMat[esp];
+    });
+  }
 
   // Conteo final por especie: si hay más de un valor distinto → esa es la cantidad de
   // variedades. Si hay exactamente un valor y es puramente numérico → convención antigua,
