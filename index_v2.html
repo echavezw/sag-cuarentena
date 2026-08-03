@@ -9781,9 +9781,16 @@ function descargarExcelReportePMG() {
 async function doSave(rows,isUpdate,res,nsol) {
   // Cancel any pending recargar to avoid race conditions during delete/append
   if(window._recargarTimer) { clearTimeout(window._recargarTimer); window._recargarTimer=null; }
+
+  // ── Paso 1: calcular qué filas antiguas habría que borrar (solo cálculo,
+  // no se ejecuta el borrado todavía). Los índices se calculan ANTES del
+  // append, pero eso es seguro: el append siempre agrega al final de la
+  // hoja (INSERT_ROWS sobre A1:append), así que no desplaza los índices de
+  // las filas existentes que vamos a borrar más abajo.
+  let toDelete=[];
+  let tabId=0;
   if(isUpdate) {
     const allRows=await fetchAllRows(); // Always fresh read from Sheet for delete index calculation
-    const toDelete=[];
     // Determine column indices from actual sheet header row (don't assume positions)
     const hdr = allRows[0]||[];
     const iRes  = hdr.indexOf('Res.');
@@ -9813,30 +9820,12 @@ async function doSave(rows,isUpdate,res,nsol) {
         if(rowSol===String(nsol) && !rowRes) toDelete.push(i+1);
       }
     });
-
     if(toDelete.length) {
       // Get sheet ID (tab id, not spreadsheet id) — need it for batchUpdate
       const sheetMeta = await fetch(`${BASE_URL}/${GS.sheetId}?fields=sheets.properties&key=${GS.apiKey}`);
       const sheetMetaJson = await sheetMeta.json();
       const detailSheet = (sheetMetaJson.sheets||[]).find(s=>s.properties?.title===SHEET_DETALLE);
-      const tabId = detailSheet?.properties?.sheetId ?? 0;
-
-      // Delete rows from bottom to top so indices don't shift
-      const sortedDesc = [...toDelete].sort((a,b)=>b-a);
-      const deleteRequests = sortedDesc.map(rowIdx => ({
-        deleteDimension: {
-          range: {
-            sheetId: tabId,
-            dimension: 'ROWS',
-            startIndex: rowIdx,   // 0-based, row 1 = header = index 0, first data = index 1
-            endIndex: rowIdx + 1
-          }
-        }
-      }));
-      await fetch(`${BASE_URL}/${GS.sheetId}:batchUpdate`,
-        {method:'POST',
-         headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
-         body:JSON.stringify({requests:deleteRequests})});
+      tabId = detailSheet?.properties?.sheetId ?? 0;
     }
   }
   // Append at true end of data — use CANONICAL_HEADERS for column order
@@ -9882,7 +9871,11 @@ async function doSave(rows,isUpdate,res,nsol) {
     }
   }
   const valueRows=rows.map(r=>headers.map(h=>r[h]||''));
-  // Use a fixed large range so Sheets appends after last non-empty row
+  // ── Paso 2: escribir la fila NUEVA primero (append). Solo si esto tiene
+  // éxito se procede a borrar la fila antigua — así, si el append falla
+  // (token vencido, error de red, error de la API), la fila antigua queda
+  // intacta en vez de perderse. Peor caso posible ahora: fila duplicada
+  // (recuperable a mano), nunca pérdida de datos.
   const appendResp = await fetch(
     `${BASE_URL}/${GS.sheetId}/values/${SHEET_DETALLE}!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
     {method:'POST',
@@ -9891,6 +9884,35 @@ async function doSave(rows,isUpdate,res,nsol) {
   if(!appendResp.ok) {
     const errTxt = await appendResp.text();
     throw new Error(`Error guardando (${appendResp.status}): ${errTxt.substring(0,200)}`);
+  }
+  // ── Paso 3: append confirmado — ahora sí se borra la fila antigua. Los
+  // índices de toDelete siguen siendo válidos porque el append solo agregó
+  // filas al final, sin desplazar las filas anteriores.
+  if(isUpdate && toDelete.length) {
+    const sortedDesc = [...toDelete].sort((a,b)=>b-a);
+    const deleteRequests = sortedDesc.map(rowIdx => ({
+      deleteDimension: {
+        range: {
+          sheetId: tabId,
+          dimension: 'ROWS',
+          startIndex: rowIdx,   // 0-based, row 1 = header = index 0, first data = index 1
+          endIndex: rowIdx + 1
+        }
+      }
+    }));
+    try {
+      const delResp = await fetch(`${BASE_URL}/${GS.sheetId}:batchUpdate`,
+        {method:'POST',
+         headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+         body:JSON.stringify({requests:deleteRequests})});
+      if(!delResp.ok) {
+        const delErrTxt = await delResp.text();
+        setS(`Guardado OK, pero no se pudo limpiar la fila anterior (queda duplicada, revisar manualmente): ${delErrTxt.substring(0,150)}`,'warn');
+      }
+    } catch(delErr) {
+      // El guardado ya está a salvo (append confirmado); solo avisa del duplicado.
+      setS('Guardado OK, pero no se pudo limpiar la fila anterior (queda duplicada, revisar manualmente).','warn');
+    }
   }
   setS(`Guardado correctamente (${rows.length} filas).`,'ok');
   // Update snapshot to match what was just saved — prevents false alarms on next save
