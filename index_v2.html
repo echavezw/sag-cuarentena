@@ -1229,7 +1229,7 @@ input.field-blocked, select.field-blocked {
       <div class="ff c2"><label class="lbl">Vigencia Final Desde</label><input type="date" id="f2-vfin-desde"></div>
       <div class="ff c2"><label class="lbl">Vigencia Final Hasta</label><input type="date" id="f2-vfin-hasta" oninput="onVfinHasta()"></div>
       <div class="ff c1"><label class="lbl">Estado Resolución</label>
-        <select id="f2-estado"><option value="">—</option><option>Sin Firma</option><option>Vencida</option><option>Vigente</option></select></div>
+        <select id="f2-estado"><option value="">—</option><option>Sin Firma</option><option>Enviada a Firma</option><option>Vencida</option><option>Vigente</option></select></div>
       <div class="ff c1 ff-secondary"><label class="lbl">Recibida</label>
         <select id="f2-recibida"><option value="">—</option><option>Si</option><option>No</option></select></div>
       <div class="ff c2 ff-secondary"><label class="lbl">Proceso <span class="auto">AUTO</span></label>
@@ -9220,7 +9220,7 @@ function renderRecientes() {
     const _res=r['Res.']||'';
     const _beEntrada = badgeEstadoEntrada(r['Status']);
     const st= _beEntrada ? _beEntrada.label : (_res ? (r['Status']||'En proceso') : (r['Estado Res.']||'Sin Firma'));
-    const sc= _beEntrada ? _beEntrada.cls : (st==='Entregada'?'badge-ok':st==='A destruir'||st==='No Recibida'?'badge-err':st==='Sin Firma'?'badge-warn':'badge-nv');
+    const sc= _beEntrada ? _beEntrada.cls : (st==='Entregada'?'badge-ok':st==='A destruir'||st==='No Recibida'?'badge-err':st==='Sin Firma'||st==='Enviada a Firma'?'badge-warn':'badge-nv');
     const _yr=fmtD(r['Fecha Res.']||'').substring(0,4);
     const _sol=r['Solicitud']||'';
     const onclick=_res
