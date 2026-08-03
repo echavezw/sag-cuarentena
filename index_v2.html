@@ -4697,24 +4697,35 @@ function _buildPanelCell(key, r, ctx) {
   return td;
 }
 
-// Últ. Evento (Búsqueda Rápida): según el Status del registro, devuelve el
-// momento más relevante de su ciclo — envío firmado, cancelación o reserva —
-// leyendo las columnas de traza del portal (Fecha Hora Envío / Cancelación /
-// Reserva). Formato de esas columnas: 'DD-MM-YYYY HH:MM'.
+// Últ. Evento (Búsqueda Rápida): devuelve el evento más reciente del registro,
+// combinando dos orígenes — la traza del portal de importadores (Fecha Hora
+// Envío / Cancelación / Reserva, escritas por Code.gs) y la traza interna SAG
+// (Fecha/Tipo Último Evento SAG, escrita por index_v2 cada vez que cambia el
+// badge de estado: aprobar/rechazar, avance de etapas, cambios de Estado Res.,
+// etc.). Se elige el candidato con el timestamp real más reciente, no un
+// origen fijo — así conviven ambas trazas sin perder eventos posteriores.
+// Formato de esas columnas: 'DD-MM-YYYY HH:MM'.
 function _ultimoEvento(r) {
-  const st = String(r['Status']||'').trim();
-  const envio  = String(r['Fecha Hora Envío']||'').trim();
-  const cancel = String(r['Fecha Hora Cancelación']||'').trim();
-  const reserva= String(r['Fecha Reserva']||'').trim();
-  // Cancelada → prioriza fecha/hora de cancelación.
-  if(/cancelad/i.test(st) && cancel) return { texto:cancel, tipo:'Cancelada', valor:cancel, color:'var(--g400)' };
-  // Enviada / recibida / en trámite posterior → fecha/hora de envío firmado.
-  if(envio) return { texto:envio, tipo:'Envío firmado', valor:envio };
-  // Borrador sin enviar → fecha/hora de reserva.
-  if(reserva) return { texto:reserva, tipo:'Reserva (borrador)', valor:reserva, color:'var(--g400)' };
-  // Sin traza (registros históricos previos a estas columnas).
-  if(cancel) return { texto:cancel, tipo:'Cancelada', valor:cancel, color:'var(--g400)' };
-  return { texto:'', tipo:'', valor:'' };
+  const envio   = String(r['Fecha Hora Envío']||'').trim();
+  const cancel  = String(r['Fecha Hora Cancelación']||'').trim();
+  const reserva = String(r['Fecha Reserva']||'').trim();
+  const sagFecha= String(r['Fecha Último Evento SAG']||'').trim();
+  const sagTipo = String(r['Tipo Último Evento SAG']||'').trim();
+
+  const candidatos = [];
+  if(envio)   candidatos.push({ texto:envio,   tipo:'Envío firmado',        valor:envio });
+  if(reserva) candidatos.push({ texto:reserva, tipo:'Reserva (borrador)',   valor:reserva, color:'var(--g400)' });
+  if(cancel)  candidatos.push({ texto:cancel,  tipo:'Cancelada',            valor:cancel,  color:'var(--g400)' });
+  if(sagFecha)candidatos.push({ texto:sagFecha,tipo:sagTipo||'Actualización SAG', valor:sagFecha });
+
+  if(!candidatos.length) return { texto:'', tipo:'', valor:'' };
+
+  let mejor = candidatos[0], mejorFecha = _parseFechaHoraEvento(mejor.texto);
+  for(let i=1;i<candidatos.length;i++){
+    const f = _parseFechaHoraEvento(candidatos[i].texto);
+    if(f && (!mejorFecha || f > mejorFecha)){ mejor = candidatos[i]; mejorFecha = f; }
+  }
+  return mejor;
 }
 
 function _panelRowsBuild(found, tbodyEl) {
@@ -5381,6 +5392,8 @@ async function aprobarSolicitud() {
         const fila = await _filaDetallePorSolicitud(nSol);
         if(!fila){ setS('No se encontró la fila de la solicitud.','err'); return; }
         await _escribirCeldaDetalle(fila, 'Status', _ST_APROBADA);
+        await _escribirCeldaDetalle(fila, 'Fecha Último Evento SAG', _nowStrSAG());
+        await _escribirCeldaDetalle(fila, 'Tipo Último Evento SAG', _ST_APROBADA);
         setS(`Solicitud N° ${nSol} aprobada.`,'ok');
         actualizarTimbreAprob(_ST_APROBADA);
         if(_lastLoadedRow) _lastLoadedRow['Status']=_ST_APROBADA;
@@ -5410,6 +5423,8 @@ async function rechazarSolicitud() {
         if(!fila){ setS('No se encontró la fila de la solicitud.','err'); return; }
         await _escribirCeldaDetalle(fila, 'Status', _ST_RECHAZADA);
         await _escribirCeldaDetalle(fila, 'Obs.', motivoTxt);
+        await _escribirCeldaDetalle(fila, 'Fecha Último Evento SAG', _nowStrSAG());
+        await _escribirCeldaDetalle(fila, 'Tipo Último Evento SAG', _ST_RECHAZADA);
         // Correo al importador vía Apps Script
         const correo = _lastLoadedRow ? (_lastLoadedRow['Email Importacion']||_lastLoadedRow['Correo']||'') : '';
         const nombre = _lastLoadedRow ? (_lastLoadedRow['Importador']||'') : '';
@@ -9329,6 +9344,15 @@ function limpiarBusqueda() {
 }
 
 // ── GUARDAR ──
+// Fecha/hora actual en formato 'DD-MM-YYYY HH:MM' (mismo formato que las
+// columnas de traza del portal) — usado para timbrar cambios de badge/estado
+// hechos desde index_v2 (Guardar, Aprobar, Rechazar).
+function _nowStrSAG() {
+  const d = new Date();
+  const p = n => String(n).padStart(2,'0');
+  return `${p(d.getDate())}-${p(d.getMonth()+1)}-${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 async function guardarTodo() {
   if(window._saving){setS('Guardado en curso, espere...','warn');return;}
   if(!GS.sheetId){setS('Configure la conexion a Google Sheets.','warn');goStage('config');return;}
@@ -9360,6 +9384,21 @@ async function guardarTodo() {
     } else {
       existing=gsData.filter(r=>String(r['Solicitud']||'').trim()===String(nsol)&&!String(r['Res.']||'').trim());
       existKey='Sol.'+nsol;
+    }
+    // ── Registro de "Último Evento SAG": compara el badge ANTES (existing, tal
+    // como está hoy en el Sheet) contra el badge DESPUÉS (rows, lo que se va a
+    // guardar). Si el label cambió, timbra fecha/hora + nuevo label. Si no
+    // cambió, preserva el timbre anterior (mismo patrón que las columnas
+    // exclusivas del portal en buildRows).
+    const _oldBadgeLabel = existing.length ? calcBadgePriority(existing).label : null;
+    const _newBadgeLabel = calcBadgePriority(rows).label;
+    if(_oldBadgeLabel !== _newBadgeLabel) {
+      const _stamp = _nowStrSAG();
+      rows.forEach(r=>{ r['Fecha Último Evento SAG']=_stamp; r['Tipo Último Evento SAG']=_newBadgeLabel; });
+    } else {
+      const _prevFecha = _lastLoadedRow['Fecha Último Evento SAG']||'';
+      const _prevTipo  = _lastLoadedRow['Tipo Último Evento SAG']||'';
+      rows.forEach(r=>{ r['Fecha Último Evento SAG']=_prevFecha; r['Tipo Último Evento SAG']=_prevTipo; });
     }
     if(existing.length) {
       showModal('Actualizar registro',`Ya existe un registro para ${res?'Res. '+res:'Solicitud '+nsol}. Se sobreescribira.`,
@@ -9584,7 +9623,8 @@ const CANONICAL_HEADERS = [
   'Meses ECA','Cantidad','Portainjerto',
   'N° CDA','N° Cert. Fitosanitario','Link Solicitud PDF','Link Resolucion PDF',
   'Link Timbre Recepcion','Fecha Aviso SPS','Fecha Aviso SPS Estadía',
-  'Fecha Reserva','Fecha Hora Envío','Fecha Hora Cancelación','Obs. Entrega Parcial'
+  'Fecha Reserva','Fecha Hora Envío','Fecha Hora Cancelación','Obs. Entrega Parcial',
+  'Fecha Último Evento SAG','Tipo Último Evento SAG'
 ];
 
 // ══════════════════════════════════════════════
