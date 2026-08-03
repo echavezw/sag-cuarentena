@@ -3668,7 +3668,7 @@ function mostrarFichaResumen(r) {
   const sol = String(r['Solicitud']||'').trim();
   const yr = (fmtD(r['Fecha Res.']||'')).substring(0,4);
   const _beEntrada = badgeEstadoEntrada(r['Status']);
-  const bp = _beEntrada ? {label:_beEntrada.label, cls:_beEntrada.cls, pendientes:[]} : (res ? (rows.length ? calcBadgePriority(rows) : {label:'No recibida', cls:'badge-nv', pendientes:['Resolución emitida — material aún no ingresado a ECA']}) : {label: r['Estado Res.']||'Sin Firma', cls:'badge-nv', pendientes:[]});
+  const bp = _beEntrada ? {label:_beEntrada.label, cls:_beEntrada.cls, pendientes:[]} : (res ? (rows.length ? calcBadgePriority(rows) : {label:'No recibida', cls:'badge-nv', pendientes:['Resolución emitida — material aún no ingresado a ECA']}) : {label: r['Estado Res.']||'Sin Firma', cls: r['Estado Res.']==='Enviada a Firma' ? 'badge-gd' : 'badge-nv', pendientes:[]});
   const status = bp.label;
   const sc = bp.cls;
 
@@ -4726,7 +4726,7 @@ function _panelRowsBuild(found, tbodyEl) {
     var sol=r["Solicitud"]||"";
     var rows = _filasDelRegistro(r);
     var _beEntrada = badgeEstadoEntrada(r["Status"]);
-    var bp = _beEntrada ? {label:_beEntrada.label, cls:_beEntrada.cls, pendientes:[]} : (res ? (rows.length ? calcBadgePriority(rows) : {label:'No recibida', cls:'badge-nv', pendientes:['Resolución emitida — material aún no ingresado a ECA']}) : {label: r["Estado Res."]||"Sin Firma", cls:'badge-nv', pendientes:[]});
+    var bp = _beEntrada ? {label:_beEntrada.label, cls:_beEntrada.cls, pendientes:[]} : (res ? (rows.length ? calcBadgePriority(rows) : {label:'No recibida', cls:'badge-nv', pendientes:['Resolución emitida — material aún no ingresado a ECA']}) : {label: r["Estado Res."]||"Sin Firma", cls: r["Estado Res."]==='Enviada a Firma' ? 'badge-gd' : 'badge-nv', pendientes:[]});
     var st = bp.label;
     var sc = bp.cls;
     var loadRow = function(){ cargarFichaPanel(res, yr, sol); };
