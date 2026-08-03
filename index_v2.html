@@ -9220,7 +9220,7 @@ function renderRecientes() {
     const _res=r['Res.']||'';
     const _beEntrada = badgeEstadoEntrada(r['Status']);
     const st= _beEntrada ? _beEntrada.label : (_res ? (r['Status']||'En proceso') : (r['Estado Res.']||'Sin Firma'));
-    const sc= _beEntrada ? _beEntrada.cls : (st==='Entregada'?'badge-ok':st==='A destruir'||st==='No Recibida'?'badge-err':st==='Sin Firma'||st==='Enviada a Firma'?'badge-warn':'badge-nv');
+    const sc= _beEntrada ? _beEntrada.cls : (st==='Entregada'?'badge-ok':st==='A destruir'||st==='No Recibida'?'badge-err':st==='Enviada a Firma'?'badge-gd':st==='Sin Firma'?'badge-warn':'badge-nv');
     const _yr=fmtD(r['Fecha Res.']||'').substring(0,4);
     const _sol=r['Solicitud']||'';
     const onclick=_res
