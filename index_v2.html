@@ -5394,6 +5394,7 @@ async function aprobarSolicitud() {
         await _escribirCeldaDetalle(fila, 'Status', _ST_APROBADA);
         await _escribirCeldaDetalle(fila, 'Fecha Último Evento SAG', _nowStrSAG());
         await _escribirCeldaDetalle(fila, 'Tipo Último Evento SAG', _ST_APROBADA);
+        registrarEventoHistorial(nSol, '', (_lastLoadedRow&&_lastLoadedRow['Importador'])||'', _ST_APROBADA, 'SAG interno');
         setS(`Solicitud N° ${nSol} aprobada.`,'ok');
         actualizarTimbreAprob(_ST_APROBADA);
         if(_lastLoadedRow) _lastLoadedRow['Status']=_ST_APROBADA;
@@ -5425,6 +5426,7 @@ async function rechazarSolicitud() {
         await _escribirCeldaDetalle(fila, 'Obs.', motivoTxt);
         await _escribirCeldaDetalle(fila, 'Fecha Último Evento SAG', _nowStrSAG());
         await _escribirCeldaDetalle(fila, 'Tipo Último Evento SAG', _ST_RECHAZADA);
+        registrarEventoHistorial(nSol, '', (_lastLoadedRow&&_lastLoadedRow['Importador'])||'', _ST_RECHAZADA, 'SAG interno');
         // Correo al importador vía Apps Script
         const correo = _lastLoadedRow ? (_lastLoadedRow['Email Importacion']||_lastLoadedRow['Correo']||'') : '';
         const nombre = _lastLoadedRow ? (_lastLoadedRow['Importador']||'') : '';
@@ -9400,9 +9402,11 @@ async function guardarTodo() {
       (_oldTieneRes ? calcBadgePriority(existing).label : (existing[0]['Estado Res.']||'Sin Firma'));
     const _newBadgeLabel = res ?
       (rows.length ? calcBadgePriority(rows).label : 'No recibida') : (rows[0]?.['Estado Res.']||'Sin Firma');
+    let _eventoSAG = null;
     if(_oldBadgeLabel !== _newBadgeLabel) {
       const _stamp = _nowStrSAG();
       rows.forEach(r=>{ r['Fecha Último Evento SAG']=_stamp; r['Tipo Último Evento SAG']=_newBadgeLabel; });
+      _eventoSAG = { tipo:_newBadgeLabel, origen:'SAG interno' };
     } else {
       const _prevFecha = _lastLoadedRow['Fecha Último Evento SAG']||'';
       const _prevTipo  = _lastLoadedRow['Tipo Último Evento SAG']||'';
@@ -9410,9 +9414,9 @@ async function guardarTodo() {
     }
     if(existing.length) {
       showModal('Actualizar registro',`Ya existe un registro para ${res?'Res. '+res:'Solicitud '+nsol}. Se sobreescribira.`,
-        async()=>{ closeModal(); await doSave(rows,true,res,nsol); },'Actualizar','btn-nv'); return;
+        async()=>{ closeModal(); await doSave(rows,true,res,nsol,_eventoSAG); },'Actualizar','btn-nv'); return;
     }
-    await doSave(rows,false,'',nsol);
+    await doSave(rows,false,'',nsol,_eventoSAG);
   } catch(e){
     // If error is a 401 (expired token), retry once with a fresh token
     if(/401/.test(e.message) && !window._retriedAfter401) {
@@ -9786,7 +9790,51 @@ function descargarExcelReportePMG() {
   setS('Reporte PMG descargado.','ok');
 }
 
-async function doSave(rows,isUpdate,res,nsol) {
+// ── Historial completo de eventos de badge (a diferencia de "Fecha/Tipo
+// Último Evento SAG" en Detalle, que solo guarda el MÁS RECIENTE y se
+// sobrescribe, esta pestaña acumula TODOS los cambios de badge sin borrar
+// nada — permite revisar cuándo pasó cada transición de estado). Se crea
+// sola la primera vez que se necesita (addSheet + header row).
+const SHEET_HISTORIAL = 'HistorialEventos';
+const HISTORIAL_HEADERS = ['Fecha Hora','Solicitud','Res.','Importador','Tipo Evento','Origen'];
+let _historialTabAsegurada = false;
+
+async function _asegurarTabHistorial() {
+  if(_historialTabAsegurada) return;
+  const sheetMeta = await fetch(`${BASE_URL}/${GS.sheetId}?fields=sheets.properties&key=${GS.apiKey}`);
+  const sheetMetaJson = await sheetMeta.json();
+  const tab = (sheetMetaJson.sheets||[]).find(s=>s.properties?.title===SHEET_HISTORIAL);
+  if(!tab) {
+    await fetch(`${BASE_URL}/${GS.sheetId}:batchUpdate`,
+      {method:'POST',
+       headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+       body:JSON.stringify({requests:[{addSheet:{properties:{title:SHEET_HISTORIAL}}}]})});
+    await fetch(
+      `${BASE_URL}/${GS.sheetId}/values/${SHEET_HISTORIAL}!A1?valueInputOption=USER_ENTERED`,
+      {method:'PUT',
+       headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+       body:JSON.stringify({values:[HISTORIAL_HEADERS]})});
+  }
+  _historialTabAsegurada = true;
+}
+
+// Agrega una fila al historial — nunca sobrescribe, nunca borra. Errores acá
+// no deben bloquear ni revertir el guardado principal en Detalle (por eso el
+// try/catch propio); el historial es complementario, no crítico.
+async function registrarEventoHistorial(sol, res, imp, tipoEvento, origen) {
+  try {
+    await _asegurarTabHistorial();
+    await fetch(
+      `${BASE_URL}/${GS.sheetId}/values/${SHEET_HISTORIAL}!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+      {method:'POST',
+       headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+       body:JSON.stringify({values:[[_nowStrSAG(), sol||'', res||'', imp||'', tipoEvento||'', origen||'']]})});
+  } catch(e) {
+    console.error('No se pudo registrar en HistorialEventos:', e);
+  }
+}
+
+async function doSave(rows,isUpdate,res,nsol,eventoSAG) {
   // Cancel any pending recargar to avoid race conditions during delete/append
   if(window._recargarTimer) { clearTimeout(window._recargarTimer); window._recargarTimer=null; }
 
@@ -9892,6 +9940,11 @@ async function doSave(rows,isUpdate,res,nsol) {
   if(!appendResp.ok) {
     const errTxt = await appendResp.text();
     throw new Error(`Error guardando (${appendResp.status}): ${errTxt.substring(0,200)}`);
+  }
+  // Historial completo — solo si esta vez cambió el badge (eventoSAG viene de
+  // guardarTodo). No bloquea ni revierte el guardado si falla.
+  if(eventoSAG) {
+    registrarEventoHistorial(nsol, res, rows[0]?.['Importador']||'', eventoSAG.tipo, eventoSAG.origen);
   }
   // ── Paso 3: append confirmado — ahora sí se borra la fila antigua. Los
   // índices de toDelete siguen siendo válidos porque el append solo agregó
