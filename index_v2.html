@@ -9814,8 +9814,24 @@ function descargarExcelReportePMG() {
 // sobrescribe, esta pestaña acumula TODOS los cambios de badge sin borrar
 // nada — permite revisar cuándo pasó cada transición de estado). Se crea
 // sola la primera vez que se necesita (addSheet + header row).
+// ── Identidad del usuario autenticado (para la columna 'Usuario' del
+// historial) — se pide una sola vez por sesión y se cachea en memoria.
+// Requiere el scope userinfo.email agregado al OAuth; si por algún motivo
+// falla (token viejo sin ese scope, red, etc.) simplemente queda en blanco,
+// nunca bloquea el guardado.
+let _currentUserEmail = '';
+async function _obtenerUsuarioActual() {
+  if(_currentUserEmail) return _currentUserEmail;
+  try {
+    const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo',
+      {headers:{Authorization:`Bearer ${accessToken}`}});
+    if(r.ok) { const d = await r.json(); _currentUserEmail = d.email || ''; }
+  } catch(e) { /* no bloquea el registro del evento */ }
+  return _currentUserEmail;
+}
+
 const SHEET_HISTORIAL = 'HistorialEventos';
-const HISTORIAL_HEADERS = ['Fecha Hora','Solicitud','Res.','Importador','Tipo Evento','Origen'];
+const HISTORIAL_HEADERS = ['Fecha Hora','Solicitud','Res.','Importador','Tipo Evento','Origen','Usuario'];
 let _historialTabAsegurada = false;
 
 async function _asegurarTabHistorial() {
@@ -9833,6 +9849,22 @@ async function _asegurarTabHistorial() {
       {method:'PUT',
        headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
        body:JSON.stringify({values:[HISTORIAL_HEADERS]})});
+  } else {
+    // Tab preexistente (creada antes de agregar la columna Usuario) — retoca
+    // solo el encabezado si falta, sin tocar filas ya escritas.
+    const headerResp = await fetch(
+      `${BASE_URL}/${GS.sheetId}/values/${SHEET_HISTORIAL}!A1:Z1`,
+      {headers:{Authorization:`Bearer ${accessToken}`}});
+    const headerJson = await headerResp.json();
+    const existingHeaders = (headerJson.values && headerJson.values[0]) || [];
+    if(!existingHeaders.includes('Usuario')) {
+      const newHeaders = existingHeaders.length ? existingHeaders.concat(['Usuario']) : HISTORIAL_HEADERS.slice();
+      await fetch(
+        `${BASE_URL}/${GS.sheetId}/values/${SHEET_HISTORIAL}!A1?valueInputOption=USER_ENTERED`,
+        {method:'PUT',
+         headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+         body:JSON.stringify({values:[newHeaders]})});
+    }
   }
   _historialTabAsegurada = true;
 }
@@ -9843,11 +9875,12 @@ async function _asegurarTabHistorial() {
 async function registrarEventoHistorial(sol, res, imp, tipoEvento, origen) {
   try {
     await _asegurarTabHistorial();
+    const usuario = await _obtenerUsuarioActual();
     await fetch(
       `${BASE_URL}/${GS.sheetId}/values/${SHEET_HISTORIAL}!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
       {method:'POST',
        headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
-       body:JSON.stringify({values:[[_nowStrSAG(), sol||'', res||'', imp||'', tipoEvento||'', origen||'']]})});
+       body:JSON.stringify({values:[[_nowStrSAG(), sol||'', res||'', imp||'', tipoEvento||'', origen||'', usuario||'']]})});
   } catch(e) {
     console.error('No se pudo registrar en HistorialEventos:', e);
   }
@@ -10197,7 +10230,7 @@ function initTokenClient() {
   if(!GS.oauthClientId||typeof google==='undefined') return;
   tokenClient=google.accounts.oauth2.initTokenClient({
     client_id:GS.oauthClientId,
-    scope:'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file',
+    scope:'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email',
     login_hint:'eduardo.chavez@sag.gob.cl',
     callback:r=>{ if(r.access_token){ accessToken=r.access_token; window._tokenObtainedAt=Date.now(); window._tokenScope=CURRENT_OAUTH_SCOPE; setGSDot('ok','Autenticado'); recargar(); } }
   });
@@ -10234,7 +10267,7 @@ function _requestNewToken(forceConsent) {
   });
 }
 
-const CURRENT_OAUTH_SCOPE = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file';
+const CURRENT_OAUTH_SCOPE = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email';
 
 async function ensureToken() {
   // Google access tokens expire ~1hr. Refresh proactively if older than 50min,
