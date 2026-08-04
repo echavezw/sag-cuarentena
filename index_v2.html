@@ -5318,7 +5318,7 @@ function navegarReg(dir) {
 // ═══════════════════════════════════════════════════════════════
 // Estados de aprobación reconocidos en la columna Status
 const _ST_PEND_APROB = 'Sol. Recibida Pend. Aprobación';
-const _ST_APROBADA   = 'Enviada a Firma Res. Ingreso';
+const _ST_APROBADA   = 'Aprobada';
 const _ST_RECHAZADA  = 'Rechazada';
 
 // Actualiza timbre + visibilidad de botones según el Status del registro cargado
@@ -5384,7 +5384,7 @@ async function aprobarSolicitud() {
   const nSol = (document.getElementById('f1-nsol')?.value||'').trim();
   if(!nSol){ setS('No hay solicitud cargada.','warn'); return; }
   showModal('Aprobar Solicitud',
-    `¿Confirma la aprobación de la Solicitud N° ${nSol}? El estado pasará a "Enviada a Firma Res. Ingreso".`,
+    `¿Confirma la aprobación de la Solicitud N° ${nSol}? El estado pasará a "Aprobada" y se notificará por correo al importador.`,
     async ()=>{
       closeModal();
       try{
@@ -5395,7 +5395,15 @@ async function aprobarSolicitud() {
         await _escribirCeldaDetalle(fila, 'Fecha Último Evento SAG', _nowStrSAG());
         await _escribirCeldaDetalle(fila, 'Tipo Último Evento SAG', _ST_APROBADA);
         registrarEventoHistorial(nSol, '', (_lastLoadedRow&&_lastLoadedRow['Importador'])||'', _ST_APROBADA, 'SAG interno');
-        setS(`Solicitud N° ${nSol} aprobada.`,'ok');
+        // Correo al importador vía Apps Script (mismo patrón que rechazarSolicitud)
+        const correoAprob = _lastLoadedRow ? (_lastLoadedRow['Email Importacion']||_lastLoadedRow['Correo']||'') : '';
+        const nombreAprob = _lastLoadedRow ? (_lastLoadedRow['Importador']||'') : '';
+        try{
+          await fetch(_PORTAL_ENDPOINT,{method:'POST',
+            body:JSON.stringify({action:'aprobarSolicitud',adminToken:_ADMIN_TOKEN,
+              folio:nSol, correo:correoAprob, nombre:nombreAprob})});
+        }catch(mailErr){ /* la aprobación ya quedó guardada; el correo es best-effort */ }
+        setS(`Solicitud N° ${nSol} aprobada. Importador notificado.`,'ok');
         actualizarTimbreAprob(_ST_APROBADA);
         if(_lastLoadedRow) _lastLoadedRow['Status']=_ST_APROBADA;
         recargar();
@@ -5454,6 +5462,7 @@ function badgeEstadoEntrada(status) {
   if(st.indexOf('Sol. Creada')===0)   return {label:'Sol. Creada Pend. Envío PDF', cls:'badge-nv'};
   if(st.indexOf('Sol. En Envío')===0)  return {label:'Envío Incompleto', cls:'badge-err'};
   if(st.indexOf('Sol. Recibida')===0)  return {label:'Sol. Recibida Pend. Aprobación',   cls:'badge-warn'};
+  if(st==='Aprobada')                  return {label:'Aprobada',           cls:'badge-ok'};
   if(st==='Enviada a Firma Res. Ingreso') return {label:'Enviada a Firma Res. Ingreso', cls:'badge-gd'};
   if(st==='Rechazada')                 return {label:'Rechazada',          cls:'badge-err'};
   if(st==='Cancelada')                 return {label:'Cancelada',          cls:'badge-nv'};
@@ -9479,7 +9488,17 @@ function buildRows(nsol,imp) {
     'Entregada':       fmtDisplay(getCached('f6-fent',v('f6-fent')))||_lastLoadedRow['Entregada']||'',
     'Obs.':            getCached('f6-obs',v('f6-obs'))||_lastLoadedRow['Obs.']||'',
     'Obs. Entrega Parcial': getCached('f6-var-pend',v('f6-var-pend'))||_lastLoadedRow['Obs. Entrega Parcial']||'',
-    'Status':          getCached('f6-stat',v('f6-stat'))||_lastLoadedRow['Status']||'',
+    'Status':          (function(){
+      const _cached = getCached('f6-stat',v('f6-stat'));
+      if(_cached) return _cached;
+      const _prevStatus = _lastLoadedRow['Status']||'';
+      // 'Aprobada' es un estado transicional (recién aprobado en Etapa I, sin
+      // trabajar aún la resolución). En cuanto SAG guarda con un Estado Res.
+      // definido en Etapa II, el badge pasa a ser controlado por Estado
+      // Res./calcBadgePriority en vez de quedar fijo en 'Aprobada' para siempre.
+      if(_prevStatus==='Aprobada' && v('f2-estado').trim()) return '';
+      return _prevStatus;
+    })(),
     'A Firma Res. Termino': getCached('f6-afirma',v('f6-afirma'))||_lastLoadedRow['A Firma Res. Termino']||'',
     'Proveedor':       getCached('f1-prov',v('f1-prov'))||_lastLoadedRow['Proveedor']||'',
     'Representante':   v('f1-rep'),
