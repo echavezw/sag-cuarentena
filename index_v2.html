@@ -9387,11 +9387,19 @@ async function guardarTodo() {
     }
     // ── Registro de "Último Evento SAG": compara el badge ANTES (existing, tal
     // como está hoy en el Sheet) contra el badge DESPUÉS (rows, lo que se va a
-    // guardar). Si el label cambió, timbra fecha/hora + nuevo label. Si no
-    // cambió, preserva el timbre anterior (mismo patrón que las columnas
-    // exclusivas del portal en buildRows).
-    const _oldBadgeLabel = existing.length ? calcBadgePriority(existing).label : null;
-    const _newBadgeLabel = calcBadgePriority(rows).label;
+    // guardar). El cálculo del label replica exactamente la lógica de
+    // Búsqueda Rápida: si el registro tiene N° de Resolución, el badge sale
+    // de calcBadgePriority(); si NO tiene Res., el badge sale directo del
+    // campo "Estado Res." (calcBadgePriority no aplica en ese caso — bug
+    // corregido: antes se usaba calcBadgePriority siempre, así que cambiar
+    // "Estado Res." en registros sin Res. nunca quedaba registrado). Si el
+    // label cambió, timbra fecha/hora + nuevo label; si no, preserva el
+    // timbre anterior (mismo patrón que las columnas exclusivas del portal).
+    const _oldTieneRes = existing.length && String(existing[0]['Res.']||'').trim();
+    const _oldBadgeLabel = !existing.length ? null :
+      (_oldTieneRes ? calcBadgePriority(existing).label : (existing[0]['Estado Res.']||'Sin Firma'));
+    const _newBadgeLabel = res ?
+      (rows.length ? calcBadgePriority(rows).label : 'No recibida') : (rows[0]?.['Estado Res.']||'Sin Firma');
     if(_oldBadgeLabel !== _newBadgeLabel) {
       const _stamp = _nowStrSAG();
       rows.forEach(r=>{ r['Fecha Último Evento SAG']=_stamp; r['Tipo Último Evento SAG']=_newBadgeLabel; });
