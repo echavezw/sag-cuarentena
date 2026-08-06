@@ -1060,6 +1060,9 @@ input.field-blocked, select.field-blocked {
       <div class="ff ff-secondary" style="grid-column:span 3"><label class="lbl">Oficina <span class="auto">FIJO</span></label><input id="f1-oficina" readonly value="Red Laboratorios SAG - ECA"></div>
       <div class="ff ff-secondary" style="grid-column:span 2"><label class="lbl">Region</label><input id="f1-region" value="Metropolitana"></div>
       <div class="ff" style="grid-column:span 3;justify-content:flex-start;align-items:flex-end"><label class="lbl" style="visibility:hidden">.</label><span class="timbre-wrap" id="f1-timbre-wrap" style="display:none;margin:0"><span id="f1-timbre" class="timbre-aprob timbre-alto"></span></span></div>
+      <div class="ff" id="f1-fito-wrap" style="grid-column:span 12;justify-content:flex-start;display:none">
+        <span class="badge badge-nv" id="f1-fito-badge" title="Cruce Especie + País de Origen contra RequisitosFitosanitarios"></span>
+      </div>
     </div>
 
     </div>
@@ -1145,6 +1148,7 @@ input.field-blocked, select.field-blocked {
         <th style="width:70px;text-align:center">Cantidad</th>
         <th style="width:110px;text-align:center">Portainjerto</th>
         <th style="width:80px;text-align:center">N° Plantas Estab.</th>
+        <th style="width:110px;text-align:center">Fitosanitario</th>
         <th style="width:30px;text-align:center;cursor:pointer"
           onclick="toggleAllAnChecks('${key}')" title="Marcar/desmarcar todos">
           <span style="font-family:var(--serif);font-size:13px;color:var(--gd)">✓</span>
@@ -5206,6 +5210,9 @@ async function loadRefData() {
       if(vrs2[0]) refRequisitos = rowsToObj(vrs2[0].values||[]);
       if(vrs2[1]) refPaisesUE   = rowsToObj(vrs2[1].values||[]);
       console.log(`Requisitos fitosanitarios: ${refRequisitos.length} filas, PaisesUE: ${refPaisesUE.length} filas.`);
+      // Si Etapa I ya estaba abierta cuando terminó de cargar (badge mostraba
+      // "Verificando..."), recalcula ahora con los datos ya disponibles.
+      if (typeof actualizarBadgeFitosanitario === 'function') actualizarBadgeFitosanitario();
     } else {
       console.warn('RequisitosFitosanitarios/PaisesUE no disponibles aun (status '+resp2.status+'). El resuelvo usara los valores por defecto de la plantilla.');
     }
@@ -6102,6 +6109,7 @@ function onPais() {
   const pais = v('f1-pais');
   const isCE = CE_PAISES.includes(pais);
   sv('f1-zona-ce', isCE ? 'Comunidad Europea (CE)' : (pais ? 'Fuera de CE' : ''));
+  actualizarBadgeFitosanitario();
 }
 
 function loadCubiculos() {
@@ -6175,7 +6183,9 @@ function renderEspTable(data) {
     <td></td><td></td><td></td>
     <td style="padding:6px 8px;font-family:var(--mono);font-weight:700;text-align:center;color:var(--inkv)">${nplanTotal||'—'}</td>
     <td></td>
+    <td></td>
   </tr>`;
+  actualizarBadgeFitosanitario();
 }
 
 function makeEspRow(i, r, prevRow) {
@@ -6203,7 +6213,7 @@ function makeEspRow(i, r, prevRow) {
     <td style="display:flex;align-items:center;gap:2px">
       ${copyBtn}
       <input id="es-${i}" value="${esc(r.especie||'')}" placeholder="Especie..." 
-        list="esp-dl" style="font-style:italic;flex:1;text-align:center">
+        list="esp-dl" style="font-style:italic;flex:1;text-align:center" onblur="actualizarBadgeFitosanitario()">
     </td>
     <td><input id="ev-${i}" value="${esc(r.variedad||'')}" placeholder="Variedad(es)..." style="text-align:center"></td>
     <td>
@@ -6214,6 +6224,7 @@ function makeEspRow(i, r, prevRow) {
     </td>
     <td><input id="ep-${i}" value="${esc(r.portainjerto||'')}" list="pi-dl" placeholder="Portainjerto..." style="text-align:center" oninput="autoFillDownEsp('ep',${i})"></td>
     <td><input type="number" id="en-${i}" value="${r.nplan||''}" min="0" style="font-family:var(--mono);text-align:center;width:100%" oninput="autoFillDownEsp('en',${i})"></td>
+    <td style="text-align:center"><span id="ef-${i}" class="badge badge-nv" style="font-size:9px"></span></td>
     <td><button class="del-btn" onclick="delEspRow(${i})">×</button></td>`;
   return tr;
 }
@@ -12186,6 +12197,66 @@ function _formatearListaResoluciones(lista) {
   const partes = lista.map(r => r.completa.replace(/^[Nn][°ºo]\.?\s*/, 'N° '));
   if (partes.length === 1) return partes[0];
   return partes.slice(0,-1).join(', ') + ' y ' + partes[partes.length-1];
+}
+
+// ── Badge de cumplimiento fitosanitario (Etapa I) ──
+// Cruza cada especie de la tabla de Material contra RequisitosFitosanitarios usando el
+// País de Origen de la solicitud, con el mismo criterio que Etapa II (especie exacta,
+// fallback CE vía PaisesUE, fallback género spp.). Actualiza un badge general junto al
+// timbre de Aprobar/Rechazar y una celda por fila en la tabla de Material.
+function actualizarBadgeFitosanitario() {
+  const badgeEl = $('f1-fito-badge');
+  const wrapEl  = $('f1-fito-wrap');
+  if (!badgeEl || !wrapEl) return;
+
+  const pais = v('f1-pais');
+  const especies = typeof getEspecies === 'function' ? getEspecies() : [];
+
+  // Limpia celdas por fila primero (filas sin especie quedan en blanco)
+  document.querySelectorAll('[id^="ef-"]').forEach(el => { el.textContent=''; el.className='badge badge-nv'; });
+
+  if (!especies.length || !pais) {
+    wrapEl.style.display = 'none';
+    return;
+  }
+  wrapEl.style.display = '';
+
+  // refRequisitos aún no cargó (carga asíncrona en loadRefData) — estado neutro, no afirmar
+  // incumplimiento con datos incompletos.
+  if (!refRequisitos || !refRequisitos.length) {
+    badgeEl.textContent = '— Verificando requisitos fitosanitarios —';
+    badgeEl.className = 'badge badge-nv';
+    return;
+  }
+
+  const faltantes = [];
+  const tbody = $('esp-body');
+  const filas = tbody ? [...tbody.children] : [];
+  filas.forEach((_, i) => {
+    const especie = cleanEspecie(v(`es-${i}`));
+    const celda = $('ef-' + i);
+    if (!especie || !celda) return;
+    const r = _buscarResolucionesFitosanitarias([especie], pais);
+    if (r.encontrado) {
+      const nums = r.lista.map(x => 'N°' + x.numero).join(', ');
+      celda.textContent = '✓ ' + nums;
+      celda.className = 'badge badge-ok';
+      celda.title = _formatearListaResoluciones(r.lista);
+    } else {
+      celda.textContent = '✗ Sin resolución';
+      celda.className = 'badge badge-err';
+      celda.title = 'Sin resolución fitosanitaria registrada para "' + especie + '" — ' + pais;
+      faltantes.push(especie);
+    }
+  });
+
+  if (!faltantes.length) {
+    badgeEl.textContent = '✓ Cumple requisitos fitosanitarios';
+    badgeEl.className = 'badge badge-ok';
+  } else {
+    badgeEl.textContent = `⚠ ${faltantes.length} de ${especies.length} especie(s) sin resolución para ${pais}: ${faltantes.join(', ')}`;
+    badgeEl.className = 'badge badge-err';
+  }
 }
 
 function generarBorradorResolucion() {
