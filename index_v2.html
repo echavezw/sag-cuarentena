@@ -3755,7 +3755,7 @@ function mostrarFichaResumen(r) {
   const res = String(r['Res.']||'').trim();
   const sol = String(r['Solicitud']||'').trim();
   const yr = (fmtD(r['Fecha Res.']||'')).substring(0,4);
-  const _beEntrada = badgeEstadoEntrada(r['Status']);
+  const _beEntrada = badgeEstadoEntrada(r['Status'], res);
   const bp = _beEntrada ? {label:_beEntrada.label, cls:_beEntrada.cls, pendientes:[]} : (res ? (rows.length ? calcBadgePriority(rows) : {label:'No recibida', cls:'badge-nv', pendientes:['Resolución emitida — material aún no ingresado a ECA']}) : {label: r['Estado Res.']||'Sin Firma', cls: r['Estado Res.']==='Enviada a Firma Res. Ingreso' ? 'badge-gd' : 'badge-nv', pendientes:[]});
   const status = bp.label;
   const sc = bp.cls;
@@ -4853,7 +4853,7 @@ function _panelRowsBuild(found, tbodyEl) {
     var yr=(fmtD(r["Fecha Res."]||"")).substring(0,4);
     var sol=r["Solicitud"]||"";
     var rows = _filasDelRegistro(r);
-    var _beEntrada = badgeEstadoEntrada(r["Status"]);
+    var _beEntrada = badgeEstadoEntrada(r["Status"], res);
     var bp = _beEntrada ? {label:_beEntrada.label, cls:_beEntrada.cls, pendientes:[]} : (res ? (rows.length ? calcBadgePriority(rows) : {label:'No recibida', cls:'badge-nv', pendientes:['Resolución emitida — material aún no ingresado a ECA']}) : {label: r["Estado Res."]||"Sin Firma", cls: r["Estado Res."]==='Enviada a Firma Res. Ingreso' ? 'badge-gd' : 'badge-nv', pendientes:[]});
     var st = bp.label;
     var sc = bp.cls;
@@ -5574,13 +5574,19 @@ async function rechazarSolicitud() {
 
 // Mapea el Status de un registro sin resolución a {label, cls} de badge.
 // Devuelve null si el Status no es un estado de Etapa I (para caer a la lógica normal).
-function badgeEstadoEntrada(status) {
+function badgeEstadoEntrada(status, res) {
   const st = String(status||'').trim();
+  const tieneRes = !!String(res||'').trim();
   if(st.indexOf('Sol. Creada')===0)   return {label:'Sol. Creada Pend. Envío PDF', cls:'badge-nv'};
   if(st.indexOf('Sol. En Envío')===0)  return {label:'Envío Incompleto', cls:'badge-err'};
   if(st.indexOf('Sol. Recibida')===0)  return {label:'Sol. Recibida Pend. Aprobación',   cls:'badge-warn'};
   if(st==='Aprobada')                  return {label:'Aprobada',           cls:'badge-ok'};
-  if(st==='Enviada a Firma Res. Ingreso') return {label:'Enviada a Firma Res. Ingreso', cls:'badge-gd'};
+  // 'Enviada a Firma Res. Ingreso' es un estado PRE-resolución. El campo Status
+  // del Sheet no se limpia automáticamente al cargar el N° de Resolución, así
+  // que sin este chequeo el badge quedaba pegado acá para siempre aunque el
+  // registro ya tuviera Res. asignada (calcBadgePriority ya lo consideraría
+  // "No recibida"). Devolver null acá hace que el llamador caiga a esa lógica.
+  if(st==='Enviada a Firma Res. Ingreso' && !tieneRes) return {label:'Enviada a Firma Res. Ingreso', cls:'badge-gd'};
   if(st==='Rechazada')                 return {label:'Rechazada',          cls:'badge-err'};
   if(st==='Cancelada')                 return {label:'Cancelada',          cls:'badge-nv'};
   return null;
@@ -9361,9 +9367,12 @@ function renderRecientes() {
   </tr></thead><tbody>`;
   recent.forEach(r=>{
     const _res=r['Res.']||'';
-    const _beEntrada = badgeEstadoEntrada(r['Status']);
-    const st= _beEntrada ? _beEntrada.label : (_res ? (r['Status']||'En proceso') : (r['Estado Res.']||'Sin Firma'));
-    const sc= _beEntrada ? _beEntrada.cls : (st==='Entregada'?'badge-ok':st==='A destruir'||st==='No Recibida'?'badge-err':st==='Enviada a Firma Res. Ingreso'?'badge-gd':st==='Sin Firma'?'badge-warn':'badge-nv');
+    const _beEntrada = badgeEstadoEntrada(r['Status'], _res);
+    const _bp = _beEntrada ? {label:_beEntrada.label, cls:_beEntrada.cls} :
+      (_res ? (function(){ const _rr=_filasDelRegistro(r); return _rr.length ? calcBadgePriority(_rr) : {label:'No recibida', cls:'badge-nv'}; })()
+            : {label: r['Estado Res.']||'Sin Firma', cls: r['Estado Res.']==='Enviada a Firma Res. Ingreso' ? 'badge-gd' : 'badge-nv'});
+    const st= _bp.label;
+    const sc= _bp.cls;
     const _yr=fmtD(r['Fecha Res.']||'').substring(0,4);
     const _sol=r['Solicitud']||'';
     const onclick=_res
