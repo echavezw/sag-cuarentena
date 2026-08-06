@@ -9508,6 +9508,14 @@ async function guardarTodo() {
         const rYear=fmtD(r['Fecha Res.']||'').substring(0,4);
         return rRes===res && (!saveYear2||!rYear||rYear===saveYear2);
       });
+      // Fallback: primera vez que se ingresa el N° de Resolución para este
+      // registro — todavía no hay fila indexada por Res., sino por Solicitud
+      // sin Res. Sin esto, existing.length queda en 0, isUpdate se manda en
+      // false, y la fila antigua nunca se borra (queda duplicada con el
+      // badge desactualizado "Enviada a Firma Res. Ingreso").
+      if(!existing.length) {
+        existing=gsData.filter(r=>String(r['Solicitud']||'').trim()===String(nsol)&&!String(r['Res.']||'').trim());
+      }
       existKey=res;
     } else {
       existing=gsData.filter(r=>String(r['Solicitud']||'').trim()===String(nsol)&&!String(r['Res.']||'').trim());
@@ -10036,9 +10044,14 @@ async function doSave(rows,isUpdate,res,nsol,eventoSAG) {
         const rowRes  = iRes>=0  ? String(row[iRes]||'').trim()  : String(row[2]||'').trim();
         const rowFRes = iFRes>=0 ? String(row[iFRes]||'').trim() : '';
         const rowYear = _extractYear(rowFRes);
+        const rowSol  = iSol>=0 ? String(row[iSol]||'').trim() : String(row[0]||'').trim();
         // Match res number AND year (when year available) to avoid deleting same-number different-year
         const resMatch = rowRes===res.trim() && (!saveYear || !rowYear || rowYear===saveYear);
-        if(resMatch) toDelete.push(i+1);
+        // Transición: primera vez que se ingresa N° Resolución para este registro
+        // — la fila antigua está indexada solo por Solicitud, sin Res. Sin este
+        // match también se borra, quedaba huérfana con el badge desactualizado.
+        const transitionMatch = !rowRes && rowSol===String(nsol);
+        if(resMatch || transitionMatch) toDelete.push(i+1);
       } else {
         const rowSol = iSol>=0 ? String(row[iSol]||'').trim() : String(row[0]||'').trim();
         const rowRes = iRes>=0 ? String(row[iRes]||'').trim() : String(row[2]||'').trim();
