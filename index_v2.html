@@ -3219,7 +3219,7 @@ function calcStatusAuto(rows) {
   // Si tiene resolución emitida → No recibida; si no → Sin resolución
   const fechaIng = String(first['Fecha de Ingreso'] || '').trim();
   const resNum = String(first['Res.'] || '').trim();
-  if (!fechaIng) return resNum ? 'No recibida' : 'Sin resolución';
+  if (!fechaIng) return resNum ? 'Firmada/No Recibida' : 'Sin resolución';
 
   // 3. Con ingreso pero sin injertación → Recibida
   const fechaInj = String(first['Fecha Injertación'] || '').trim();
@@ -3301,7 +3301,7 @@ function calcBadgePriority(rows) {
   const recibida = norm(first['Recibida']);
   const fechaIng = norm(first['Fecha de Ingreso']);
   if (res && !isAfirmativo(recibida) && !fechaIng)
-    return {label:'No recibida', cls:'badge-nv',
+    return {label:'Firmada/No Recibida', cls:'badge-nv',
       pendientes:['Resolución emitida — material aún no ingresado a ECA', ...flagPositivo]};
 
   // ── SIN INJERTAR ─────────────────────────────────────────────────────────────
@@ -3756,7 +3756,7 @@ function mostrarFichaResumen(r) {
   const sol = String(r['Solicitud']||'').trim();
   const yr = (fmtD(r['Fecha Res.']||'')).substring(0,4);
   const _beEntrada = badgeEstadoEntrada(r['Status'], res);
-  const bp = _beEntrada ? {label:_beEntrada.label, cls:_beEntrada.cls, pendientes:[]} : (res ? (rows.length ? calcBadgePriority(rows) : {label:'No recibida', cls:'badge-nv', pendientes:['Resolución emitida — material aún no ingresado a ECA']}) : {label: r['Estado Res.']||'Sin Firma', cls: r['Estado Res.']==='Enviada a Firma Res. Ingreso' ? 'badge-gd' : 'badge-nv', pendientes:[]});
+  const bp = _beEntrada ? {label:_beEntrada.label, cls:_beEntrada.cls, pendientes:[]} : (res ? (rows.length ? calcBadgePriority(rows) : {label:'Firmada/No Recibida', cls:'badge-nv', pendientes:['Resolución emitida — material aún no ingresado a ECA']}) : {label: r['Estado Res.']||'Sin Firma', cls: r['Estado Res.']==='Enviada a Firma Res. Ingreso' ? 'badge-gd' : 'badge-nv', pendientes:[]});
   const status = bp.label;
   const sc = bp.cls;
 
@@ -3777,7 +3777,7 @@ function mostrarFichaResumen(r) {
   // Progreso híbrido — completado vs pendiente por ítem de proceso.
   // Solo se muestra el desglose completo si el registro pasó establecimiento.
   const enEstablecimiento = bp.label === 'En establecimiento' || bp.label === 'Sin injertar' ||
-                            bp.label === 'No recibida' || bp.label === 'Sin resolución';
+                            bp.label === 'Firmada/No Recibida' || bp.label === 'Sin resolución';
   const progreso = res ? calcProgreso(rows) : [];
   const icono = {ok:'✓', pend:'○', na:'–'};
   const colorEstado = {ok:'var(--ok)', pend:'var(--err)', na:'var(--g400)'};
@@ -4854,7 +4854,7 @@ function _panelRowsBuild(found, tbodyEl) {
     var sol=r["Solicitud"]||"";
     var rows = _filasDelRegistro(r);
     var _beEntrada = badgeEstadoEntrada(r["Status"], res);
-    var bp = _beEntrada ? {label:_beEntrada.label, cls:_beEntrada.cls, pendientes:[]} : (res ? (rows.length ? calcBadgePriority(rows) : {label:'No recibida', cls:'badge-nv', pendientes:['Resolución emitida — material aún no ingresado a ECA']}) : {label: r["Estado Res."]||"Sin Firma", cls: r["Estado Res."]==='Enviada a Firma Res. Ingreso' ? 'badge-gd' : 'badge-nv', pendientes:[]});
+    var bp = _beEntrada ? {label:_beEntrada.label, cls:_beEntrada.cls, pendientes:[]} : (res ? (rows.length ? calcBadgePriority(rows) : {label:'Firmada/No Recibida', cls:'badge-nv', pendientes:['Resolución emitida — material aún no ingresado a ECA']}) : {label: r["Estado Res."]||"Sin Firma", cls: r["Estado Res."]==='Enviada a Firma Res. Ingreso' ? 'badge-gd' : 'badge-nv', pendientes:[]});
     var st = bp.label;
     var sc = bp.cls;
     var loadRow = function(){ cargarFichaPanel(res, yr, sol); };
@@ -9369,7 +9369,7 @@ function renderRecientes() {
     const _res=r['Res.']||'';
     const _beEntrada = badgeEstadoEntrada(r['Status'], _res);
     const _bp = _beEntrada ? {label:_beEntrada.label, cls:_beEntrada.cls} :
-      (_res ? (function(){ const _rr=_filasDelRegistro(r); return _rr.length ? calcBadgePriority(_rr) : {label:'No recibida', cls:'badge-nv'}; })()
+      (_res ? (function(){ const _rr=_filasDelRegistro(r); return _rr.length ? calcBadgePriority(_rr) : {label:'Firmada/No Recibida', cls:'badge-nv'}; })()
             : {label: r['Estado Res.']||'Sin Firma', cls: r['Estado Res.']==='Enviada a Firma Res. Ingreso' ? 'badge-gd' : 'badge-nv'});
     const st= _bp.label;
     const sc= _bp.cls;
@@ -9544,7 +9544,7 @@ async function guardarTodo() {
     const _oldBadgeLabel = !existing.length ? null :
       (_oldTieneRes ? calcBadgePriority(existing).label : (existing[0]['Estado Res.']||'Sin Firma'));
     const _newBadgeLabel = res ?
-      (rows.length ? calcBadgePriority(rows).label : 'No recibida') : (rows[0]?.['Estado Res.']||'Sin Firma');
+      (rows.length ? calcBadgePriority(rows).label : 'Firmada/No Recibida') : (rows[0]?.['Estado Res.']||'Sin Firma');
     let _eventoSAG = null;
     if(_oldBadgeLabel !== _newBadgeLabel) {
       const _stamp = _nowStrSAG();
@@ -9559,7 +9559,7 @@ async function guardarTodo() {
       showModal('Actualizar registro',`Ya existe un registro para ${res?'Res. '+res:'Solicitud '+nsol}. Se sobreescribira.`,
         async()=>{ closeModal(); await doSave(rows,true,res,nsol,_eventoSAG); },'Actualizar','btn-nv'); return;
     }
-    await doSave(rows,false,'',nsol,_eventoSAG);
+    await doSave(rows,false,res,nsol,_eventoSAG);
   } catch(e){
     // If error is a 401 (expired token), retry once with a fresh token
     if(/401/.test(e.message) && !window._retriedAfter401) {
@@ -9631,6 +9631,11 @@ function buildRows(nsol,imp) {
       // definido en Etapa II, el badge pasa a ser controlado por Estado
       // Res./calcBadgePriority en vez de quedar fijo en 'Aprobada' para siempre.
       if(_prevStatus==='Aprobada' && v('f2-estado').trim()) return '';
+      // Mismo criterio para 'Enviada a Firma Res. Ingreso': una vez que se
+      // carga el N° de Resolución, ese Status queda obsoleto (el badge ya lo
+      // ignora vía badgeEstadoEntrada, pero el campo crudo en el Sheet seguía
+      // mostrando el texto viejo para siempre — bug corregido 06-ago-2026).
+      if(_prevStatus==='Enviada a Firma Res. Ingreso' && v('f2-nres').trim()) return '';
       return _prevStatus;
     })(),
     'A Firma Res. Termino': getCached('f6-afirma',v('f6-afirma'))||_lastLoadedRow['A Firma Res. Termino']||'',
