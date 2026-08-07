@@ -5579,6 +5579,19 @@ async function rechazarSolicitud() {
 }
 
 
+// Notifica al importador que su solicitud fue enviada a firma de la Resolución
+// de Ingreso (mismo patrón best-effort que aprobarSolicitud/rechazarSolicitud:
+// el cambio de Estado Res. ya quedó guardado en el Sheet vía guardarTodo(),
+// esto solo se encarga del correo). No bloquea el guardado si falla.
+async function notificarEnvioFirma(nsol, correo, nombre) {
+  if(!correo) return;
+  try{
+    await fetch(_PORTAL_ENDPOINT,{method:'POST',
+      body:JSON.stringify({action:'notificarEnvioFirma',adminToken:_ADMIN_TOKEN,
+        folio:nsol, correo:correo, nombre:nombre})});
+  }catch(mailErr){ /* el guardado ya quedó hecho; el correo es best-effort */ }
+}
+
 // Mapea el Status de un registro sin resolución a {label, cls} de badge.
 // Devuelve null si el Status no es un estado de Etapa I (para caer a la lógica normal).
 function badgeEstadoEntrada(status, res) {
@@ -9517,6 +9530,7 @@ async function guardarTodo() {
     setS('Preparando datos...','');
     // Snapshot anRows before building rows — safety net for data loss
     window._anRowsSnapshot = JSON.parse(JSON.stringify(anRows));
+    const _prevEstadoRes = _lastLoadedRow['Estado Res.']||'';
     const rows=buildRows(nsol,imp);
     const res=v('f2-nres').trim();
     let existing=[];
@@ -9566,11 +9580,19 @@ async function guardarTodo() {
       const _prevTipo  = _lastLoadedRow['Tipo Último Evento SAG']||'';
       rows.forEach(r=>{ r['Fecha Último Evento SAG']=_prevFecha; r['Tipo Último Evento SAG']=_prevTipo; });
     }
+    // Estado Res. recién marcado 'Enviada a Firma Res. Ingreso' en este guardado
+    // (no lo estaba antes) — dispara el correo al importador, igual que aprobarSolicitud.
+    const _newEstadoRes = rows[0]?.['Estado Res.']||'';
+    const _notificarFirma = _prevEstadoRes!=='Enviada a Firma Res. Ingreso' && _newEstadoRes==='Enviada a Firma Res. Ingreso';
+    const _correoFirma = rows[0]?.['Email Importacion']||_lastLoadedRow['Email Importacion']||_lastLoadedRow['Correo']||'';
+    const _nombreFirma = rows[0]?.['Importador']||imp;
     if(existing.length) {
       showModal('Actualizar registro',`Ya existe un registro para ${res?'Res. '+res:'Solicitud '+nsol}. Se sobreescribira.`,
-        async()=>{ closeModal(); await doSave(rows,true,res,nsol,_eventoSAG); },'Actualizar','btn-nv'); return;
+        async()=>{ closeModal(); await doSave(rows,true,res,nsol,_eventoSAG);
+          if(_notificarFirma) notificarEnvioFirma(nsol,_correoFirma,_nombreFirma); },'Actualizar','btn-nv'); return;
     }
     await doSave(rows,false,res,nsol,_eventoSAG);
+    if(_notificarFirma) notificarEnvioFirma(nsol,_correoFirma,_nombreFirma);
   } catch(e){
     // If error is a 401 (expired token), retry once with a fresh token
     if(/401/.test(e.message) && !window._retriedAfter401) {
