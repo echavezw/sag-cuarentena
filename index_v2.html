@@ -3315,7 +3315,7 @@ function calcBadgePriority(rows) {
   const estadoManual = norm(first['Estado']).toLowerCase();
   const injertadoManual = estadoManual==='injertada' || estadoManual==='plantada';
   if (fechaIng && !norm(first['Fecha Injertación']) && !injertadoManual)
-    return {label:'Sin injertar', cls:'badge-gd',
+    return {label:'Recibida/Sin injertar', cls:'badge-gd',
       pendientes:['Material recibido — pendiente injertación/plantación', ...flagPositivo]};
 
   // Sin fecha de ingreso y sin res → sin información suficiente
@@ -3780,7 +3780,7 @@ function mostrarFichaResumen(r) {
 
   // Progreso híbrido — completado vs pendiente por ítem de proceso.
   // Solo se muestra el desglose completo si el registro pasó establecimiento.
-  const enEstablecimiento = bp.label === 'En establecimiento' || bp.label === 'Sin injertar' ||
+  const enEstablecimiento = bp.label === 'En establecimiento' || bp.label === 'Recibida/Sin injertar' ||
                             bp.label === 'Firmada/No Recibida' || bp.label === 'Sin resolución';
   const progreso = res ? calcProgreso(rows) : [];
   const icono = {ok:'✓', pend:'○', na:'–'};
