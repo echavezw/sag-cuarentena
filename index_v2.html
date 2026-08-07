@@ -5504,6 +5504,15 @@ async function _escribirCeldaDetalle(rowIndex1, colNombre, valor) {
      body:JSON.stringify({values:[[valor]]})});
 }
 
+// Registra en HistorialEventos el resultado del envío de un correo (no el
+// cambio de estado en sí, que ya se registra aparte) — para tener trazabilidad
+// separada de si el correo salió o falló. Usado por aprobarSolicitud,
+// rechazarSolicitud y notificarEnvioFirma (todos los correos que dispara
+// index_v2.html hacia el importador vía Apps Script).
+function _registrarCorreoHistorial(nsol, res, nombre, label, exito) {
+  registrarEventoHistorial(nsol, res||'', nombre||'', `Correo: ${label}${exito?'':' (FALLÓ)'}`, 'Notificación por correo');
+}
+
 async function aprobarSolicitud() {
   const nSol = (document.getElementById('f1-nsol')?.value||'').trim();
   if(!nSol){ setS('No hay solicitud cargada.','warn'); return; }
@@ -5526,7 +5535,8 @@ async function aprobarSolicitud() {
           await fetch(_PORTAL_ENDPOINT,{method:'POST',
             body:JSON.stringify({action:'aprobarSolicitud',adminToken:_ADMIN_TOKEN,
               folio:nSol, correo:correoAprob, nombre:nombreAprob})});
-        }catch(mailErr){ /* la aprobación ya quedó guardada; el correo es best-effort */ }
+          _registrarCorreoHistorial(nSol, '', nombreAprob, 'Solicitud Aprobada', true);
+        }catch(mailErr){ _registrarCorreoHistorial(nSol, '', nombreAprob, 'Solicitud Aprobada', false); }
         setS(`Solicitud N° ${nSol} aprobada. Importador notificado.`,'ok');
         actualizarTimbreAprob(_ST_APROBADA);
         if(_lastLoadedRow) _lastLoadedRow['Status']=_ST_APROBADA;
@@ -5566,7 +5576,8 @@ async function rechazarSolicitud() {
           await fetch(_PORTAL_ENDPOINT,{method:'POST',
             body:JSON.stringify({action:'rechazarSolicitud',adminToken:_ADMIN_TOKEN,
               folio:nSol, correo:correo, nombre:nombre, motivo:motivoTxt})});
-        }catch(mailErr){ /* el rechazo ya quedó guardado; el correo es best-effort */ }
+          _registrarCorreoHistorial(nSol, '', nombre, 'Solicitud Rechazada', true);
+        }catch(mailErr){ _registrarCorreoHistorial(nSol, '', nombre, 'Solicitud Rechazada', false); }
         setS(`Solicitud N° ${nSol} rechazada. Importador notificado.`,'ok');
         actualizarTimbreAprob(_ST_RECHAZADA);
         if(_lastLoadedRow){ _lastLoadedRow['Status']=_ST_RECHAZADA; _lastLoadedRow['Obs.']=motivoTxt; }
@@ -5584,14 +5595,20 @@ async function rechazarSolicitud() {
 // el cambio de Estado Res. ya quedó guardado en el Sheet vía guardarTodo(),
 // esto solo se encarga del correo). No bloquea el guardado si falla.
 async function notificarEnvioFirma(nsol, correo, nombre) {
-  if(!correo) { setS('Guardado OK, pero no se notificó por correo: el importador no tiene Email Importacion registrado.','warn'); return; }
+  if(!correo) {
+    setS('Guardado OK, pero no se notificó por correo: el importador no tiene Email Importacion registrado.','warn');
+    _registrarCorreoHistorial(nsol, '', nombre, 'Enviada a Firma Res. Ingreso', false);
+    return;
+  }
   try{
     await fetch(_PORTAL_ENDPOINT,{method:'POST',
       body:JSON.stringify({action:'notificarEnvioFirma',adminToken:_ADMIN_TOKEN,
         folio:nsol, correo:correo, nombre:nombre})});
     setS(`Correo de notificación (Enviada a Firma) enviado a ${correo}.`,'ok');
+    _registrarCorreoHistorial(nsol, '', nombre, 'Enviada a Firma Res. Ingreso', true);
   }catch(mailErr){
     setS(`Guardado OK, pero falló el envío del correo de notificación a ${correo}.`,'warn');
+    _registrarCorreoHistorial(nsol, '', nombre, 'Enviada a Firma Res. Ingreso', false);
   }
 }
 
