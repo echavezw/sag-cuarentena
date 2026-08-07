@@ -5584,12 +5584,15 @@ async function rechazarSolicitud() {
 // el cambio de Estado Res. ya quedó guardado en el Sheet vía guardarTodo(),
 // esto solo se encarga del correo). No bloquea el guardado si falla.
 async function notificarEnvioFirma(nsol, correo, nombre) {
-  if(!correo) return;
+  if(!correo) { setS('Guardado OK, pero no se notificó por correo: el importador no tiene Email Importacion registrado.','warn'); return; }
   try{
     await fetch(_PORTAL_ENDPOINT,{method:'POST',
       body:JSON.stringify({action:'notificarEnvioFirma',adminToken:_ADMIN_TOKEN,
         folio:nsol, correo:correo, nombre:nombre})});
-  }catch(mailErr){ /* el guardado ya quedó hecho; el correo es best-effort */ }
+    setS(`Correo de notificación (Enviada a Firma) enviado a ${correo}.`,'ok');
+  }catch(mailErr){
+    setS(`Guardado OK, pero falló el envío del correo de notificación a ${correo}.`,'warn');
+  }
 }
 
 // Mapea el Status de un registro sin resolución a {label, cls} de badge.
@@ -9578,13 +9581,33 @@ async function guardarTodo() {
     const _notificarFirma = _prevEstadoRes!=='Enviada a Firma Res. Ingreso' && _newEstadoRes==='Enviada a Firma Res. Ingreso';
     const _correoFirma = rows[0]?.['Email Importacion']||_lastLoadedRow['Email Importacion']||_lastLoadedRow['Correo']||'';
     const _nombreFirma = rows[0]?.['Importador']||imp;
+
+    // Guarda (con o sin modal de sobrescritura previo) y, si corresponde, notifica por correo.
+    const _guardarYNotificar = async (isUpdate) => {
+      await doSave(rows,isUpdate,res,nsol,_eventoSAG);
+      if(_notificarFirma) await notificarEnvioFirma(nsol,_correoFirma,_nombreFirma);
+    };
+
+    if(_notificarFirma) {
+      const destinoTxt = _correoFirma ? `Se notificará por correo a ${_correoFirma} (${_nombreFirma}).` : `El importador no tiene correo registrado — no se podrá notificar.`;
+      showModal('Confirmar envío a firma',
+        `Está marcando esta solicitud como "Enviada a Firma Res. Ingreso". ${destinoTxt} ¿Continuar?`,
+        async()=>{
+          closeModal();
+          if(existing.length) {
+            showModal('Actualizar registro',`Ya existe un registro para ${res?'Res. '+res:'Solicitud '+nsol}. Se sobreescribira.`,
+              async()=>{ closeModal(); await _guardarYNotificar(true); },'Actualizar','btn-nv'); return;
+          }
+          await _guardarYNotificar(false);
+        },'Continuar','btn-nv');
+      return;
+    }
+
     if(existing.length) {
       showModal('Actualizar registro',`Ya existe un registro para ${res?'Res. '+res:'Solicitud '+nsol}. Se sobreescribira.`,
-        async()=>{ closeModal(); await doSave(rows,true,res,nsol,_eventoSAG);
-          if(_notificarFirma) notificarEnvioFirma(nsol,_correoFirma,_nombreFirma); },'Actualizar','btn-nv'); return;
+        async()=>{ closeModal(); await _guardarYNotificar(true); },'Actualizar','btn-nv'); return;
     }
-    await doSave(rows,false,res,nsol,_eventoSAG);
-    if(_notificarFirma) notificarEnvioFirma(nsol,_correoFirma,_nombreFirma);
+    await _guardarYNotificar(false);
   } catch(e){
     // If error is a 401 (expired token), retry once with a fresh token
     if(/401/.test(e.message) && !window._retriedAfter401) {
