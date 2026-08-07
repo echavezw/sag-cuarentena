@@ -8606,28 +8606,17 @@ function renderCierreTabs() {
   const loadedCoreEst = _lastLoadedRow['CORE/Factura3']||'';
   const loadedAvisoEst = _lastLoadedRow['Fecha Aviso SPS Estadía']||'';
 
-  // Variedades con 0 plantas brotadas en Etapa III no se muestran en el recuento final
-  // (no hay nada que contar/entregar de ellas). Se conserva el índice original (i) para
-  // los ids pf-/pf-inc-, ya que saveMaterial() y generarActaEntrega() los buscan por esa
-  // posición en _loadedEspData. El widget maestro SPS/CORE/Aviso usa un índice visual
-  // aparte (visIdx) para que siempre quede anclado a la primera fila que sí se muestra.
-  const visibleRows = [];
-  rows.forEach((e,i) => {
-    const brot = e.nplanBrot;
-    const sinBrote = brot!==undefined && brot!=='' && parseInt(brot)===0;
-    if(sinBrote) return;
-    visibleRows.push({e, i});
-  });
-
-  if(!visibleRows.length) {
-    tbody.innerHTML='<tr><td colspan="9" style="color:var(--g400);padding:16px;font-size:12px;text-align:center">Todas las variedades indican 0 plantas brotadas en Etapa III — nada que recontar.</td></tr>';
-    calcPlantasTotal();
-    actualizarVariedadesPendientes();
-    return;
-  }
+  // Todas las variedades de la solicitud se muestran en el recuento final,
+  // incluidas las que no brotaron, no llegaron o no fueron recibidas en la ECA
+  // (nEstab=0) — para estas, el recuento final se fuerza a 0 explícito en vez
+  // de ocultarlas (antes se excluían del todo, dejando la tabla incompleta).
+  const visibleRows = rows.map((e,i) => ({e, i}));
 
   visibleRows.forEach(({e,i}, visIdx) => {
     const nEstab = e.nplanEstab||0;
+    const brot = e.nplanBrot;
+    const sinBrote = brot!==undefined && brot!=='' && parseInt(brot)===0;
+    const noRecibida = nEstab===0; // no llegó / no fue recibida en la ECA
     // nplanFin: usar valor guardado siempre que exista (incluso 0 explícito, ej. entrega
     // parcial con 0 plantas finales de esa variedad); solo cae a brotadas si nunca se guardó
     const nFin = (e.nplanFin!==undefined && e.nplanFin!=='')
@@ -8639,9 +8628,12 @@ function renderCierreTabs() {
     const incChecked = e.entregaFinal!==false;
     if(!incChecked) tr.style.opacity = '0.5';
     const hasSavedFin = e.nplanFin!==undefined && e.nplanFin!=='';
-    // Valor a mostrar en el input: si hay valor guardado (incluso 0), mostrarlo tal cual;
-    // si no hay nada guardado, mostrar el fallback de brotadas solo cuando es >0.
-    const nFinDisplay = hasSavedFin ? nFin : (nFin>0 ? nFin : '');
+    // Valor a mostrar en el input: si hay valor guardado (incluso 0), mostrarlo tal cual.
+    // Si no llegó/no fue recibida (nEstab=0) o no brotó, se fuerza 0 explícito — son
+    // desenlaces ya conocidos, no pendientes. Si no hay nada guardado y sigue en proceso
+    // (con establecidas >0), se muestra el fallback de brotadas solo cuando es >0, o vacío
+    // (pendiente real, no un cero confirmado).
+    const nFinDisplay = hasSavedFin ? nFin : ((noRecibida || sinBrote) ? 0 : (nFin>0 ? nFin : ''));
     const nFinCell = '<input type="number" id="pf-'+i+'" value="'+nFinDisplay+'" placeholder="0"'
       +' style="font-family:var(--mono);text-align:center;width:80px" oninput="markDirty(6);calcPlantasTotal();syncPfToEstadia()">';
     const incCell = '<input type="checkbox" id="pf-inc-'+i+'" '+(incChecked?'checked':'')
@@ -12403,7 +12395,11 @@ function generarBorradorTerminoCPE() {
   const resAutorizaTitle = fresFmt ? `${nres} / ${fresFmt}` : `${nres}`;
   const resAutorizaVistos = `${nres} de ${anio}`;
 
-  // Material resultante con recuento final (Etapa VI)
+  // Material resultante con recuento final (Etapa VI). Todas las variedades de
+  // la solicitud van en la tabla; las que no tienen recuento final guardado
+  // (no brotaron, no llegaron, no fueron recibidas, o simplemente no se ha
+  // recontado) muestran 0 explícito — nunca se rellenan con lo establecido o
+  // lo declarado, para no dar la falsa impresión de que sobrevivió.
   const mat = _matRows();
   const pf = {};
   document.querySelectorAll('[id^="pf-"]').forEach(inp => {
@@ -12411,10 +12407,14 @@ function generarBorradorTerminoCPE() {
     const i = parseInt(inp.id.replace('pf-','')); if (!isNaN(i)) pf[i] = inp.value || '';
   });
   const pfTotalEl = (document.getElementById('pf-total')||{}).value || '';
-  const matRes = mat.map((r,i) => ({
-    esp: r.esp || '', vari: r.vari || '',
-    fin: (pf[i] !== undefined && pf[i] !== '') ? pf[i] : (r.nplan || r.cantR || '')
-  }));
+  const espData = window._loadedEspData||[];
+  const matRes = mat.map((r,i) => {
+    let fin;
+    if (pf[i] !== undefined && pf[i] !== '') fin = pf[i];
+    else if (espData[i] && espData[i].nplanFin !== undefined && espData[i].nplanFin !== '') fin = espData[i].nplanFin;
+    else fin = 0;
+    return { esp: r.esp || '', vari: r.vari || '', fin };
+  });
   let totalFin = 0; matRes.forEach(r => { totalFin += parseInt(r.fin) || 0; });
   if (!totalFin && pfTotalEl) totalFin = parseInt(pfTotalEl) || 0;
 
@@ -12464,12 +12464,12 @@ function _buildDocxTermino(d) {
   const matBody = (d.matRes.length ? d.matRes : [{esp:'',vari:'',fin:''}]).map(r => _wxRow([
     _wxCell(hl(r.esp, {italic:true}),   {w:3800}),
     _wxCell(hl(r.vari),                 {w:3800, center:true}),
-    _wxCell(hl(String(r.fin||'')),      {w:3200, center:true}),
+    _wxCell(hl(String(r.fin!==''&&r.fin!==undefined&&r.fin!==null?r.fin:0)), {w:3200, center:true}),
   ]));
   const matTot = _wxRow([
     _wxCell(t(''), {w:3800}),
     _wxCell(t('TOTAL',{bold:true}), {w:3800, center:true}),
-    _wxCell(hl(String(d.totalFin||''),{bold:true}), {w:3200, center:true}),
+    _wxCell(hl(String(d.totalFin!==undefined&&d.totalFin!==null?d.totalFin:0),{bold:true}), {w:3200, center:true}),
   ]);
   const tablaMat = _wxTable([matHead, ...matBody, matTot]);
 
