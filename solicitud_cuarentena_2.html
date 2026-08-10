@@ -7,6 +7,11 @@
 <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 <!-- SheetJS: opcional. Si el CDN no está disponible, la carga de material funciona igual con CSV. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer onerror="window.__noXLSX=true"></script>
+<!-- html2canvas + jsPDF: generan el PDF real de la solicitud en el navegador, con fidelidad
+     visual exacta a la Vista Previa (reemplaza la conversión HTML→PDF de Apps Script, que no
+     respeta colores de fondo). -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" onerror="window.__noHTML2CANVAS=true"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" onerror="window.__noJSPDF=true"></script>
 <style>
   :root{
     --navy:#0A1628; --gold:#B8975A; --azul:#006cb8; --rojo:#ef3f44;
@@ -961,6 +966,239 @@ function buildPdfHtml(nombre,rut,correo,telefono,direccion,comunaImp,regionImp,
     '</body></html>';
 }
 
+// ════════════════════════════════════════════════════════════════════════════════
+// GENERACIÓN DE PDF REAL EN EL NAVEGADOR (html2canvas + jsPDF)
+// Reemplaza la conversión HTML→PDF de Apps Script (que no respeta fondos/colores)
+// para que el PDF enviado sea visualmente idéntico a la Vista Previa. El encabezado
+// institucional (logo, título, caja de código, "Página X de N") se dibuja de forma
+// nativa con jsPDF sobre cada página YA COMPUESTA, así el número total de páginas
+// es siempre exacto — se calcula después de paginar el contenido real, sea cual sea
+// su largo. El Anexo (Resolución 373/2019) SIEMPRE comienza en una hoja nueva,
+// independientemente de cuántas páginas ocupe el cuerpo de la solicitud.
+// ════════════════════════════════════════════════════════════════════════════════
+
+// CSS compartido por los bloques de contenido (sin las clases del marco de
+// encabezado, que ahora se dibuja aparte con jsPDF).
+function bodyPdfCss(){
+  return [
+    '*{box-sizing:border-box;margin:0;padding:0;}',
+    'body{font-family:Arial,Helvetica,sans-serif;font-size:9.5pt;color:#111;line-height:1.3;background:#fff;}',
+    '.header-table{width:100%;border-collapse:collapse;margin-bottom:10px;table-layout:fixed;}',
+    '.header-table col.lbl-col{width:17%;}',
+    '.header-table col.val-col{width:33%;}',
+    '.header-table td{border:1px solid #333;padding:4px 6px;font-size:8.6pt;vertical-align:middle;word-wrap:break-word;overflow-wrap:break-word;}',
+    '.header-table .lbl{font-weight:bold;background:#eef2f6;color:#123;}',
+    '.section-inner{border:1px solid #cfd6dd;padding:6px 8px 2px;margin-bottom:9px;}',
+    'table.lay{width:100%;border-collapse:collapse;margin-bottom:6px;}',
+    'table.lay td{vertical-align:top;padding:0 10px 0 0;}',
+    'table.mat{width:100%;border-collapse:collapse;font-size:8pt;margin-top:6px;}',
+    'table.mat td{border:1px solid #c3cbd3;padding:4px 3px;vertical-align:middle;font-size:7.8pt;word-wrap:break-word;text-align:center;background:#f0f3f6;}',
+    '.firma-box{border:1px solid #cfd6dd;border-top:none;margin-top:0;padding:10px 12px;}',
+    '.footer-form{font-size:8pt;color:#666;text-align:center;margin-top:20px;border-top:1px solid #ddd;padding-top:6px;}'
+  ].join('\n');
+}
+
+// Cuerpo de la solicitud (secciones 1 a 6), sin encabezado ni saltos de página
+// manuales — el largo real de este contenido determina cuántas páginas ocupa.
+function buildFormBodyHtml(nombre,rut,correo,telefono,direccion,comunaImp,regionImp,
+  repImp,repNombre,repRut,cpImpN,cpImpC,cpImpT,cpTerrN,cpTerrC,cpTerrT,
+  provVal,ciudProv,origenVal,usoFinalPdf,viveroVal,ptoIng,mesDisplay,
+  sustVal,comparte,compResN,requiereFrio,horasFVal,filasHTML,tsDisplay,fechaHoy,folioDisplay){
+  var e=esc;
+  var comparteStr = comparte ? ('SÍ — Res. N° ' + e(compResN)) : 'NO';
+  var frioStr = requiereFrio ? ('SÍ — ' + e(horasFVal) + ' horas') : 'NO';
+  var viveroStr = e(_fmtVivero(viveroVal));
+  return '<style>'+bodyPdfCss()+'</style>'+
+    '<table class="header-table">'+
+    '<colgroup><col class="lbl-col"><col class="val-col"><col class="lbl-col"><col class="val-col"></colgroup>'+
+    '<tr><td class="lbl">N° Solicitud / Año</td><td class="val">'+e(folioDisplay||'')+'</td>'+
+    '<td class="lbl">Fecha Recepción</td><td class="val">'+e(tsDisplay)+'</td></tr>'+
+    '<tr><td class="lbl">Región</td><td class="val">Región Metropolitana</td>'+
+    '<td class="lbl">Oficina Sectorial</td><td class="val">Red de Laboratorios SAG-ECA</td></tr>'+
+    '<tr><td class="lbl">Fecha de emisión</td><td class="val">'+e(fechaHoy)+'</td>'+
+    '<td class="lbl">Tipo de cuarentena</td><td class="val">Cuarentena Posentrada Absoluta (EC1)</td></tr>'+
+    '</table>'+
+    secH('1. Identificación del Importador')+'<div class="section-inner">'+
+    r2(fi('Nombre o Razón Social',e(nombre)),fi('RUT',e(rut)))+
+    r3(fi('Celular / Teléfono',e(telefono)),fi('Correo Electrónico',e(correo)),fi('Representante',e(repImp)))+
+    r3(fi('Dirección',e(direccion)),fi('Comuna',e(comunaImp)),fi('Región',e(regionImp)))+
+    '</div>'+
+    secH('2. Contrapartes Técnicas')+'<div class="section-inner">'+
+    r3(fi('Contraparte Proceso Importación',e(cpImpN)),fi('Correo',e(cpImpC)),fi('Teléfono',e(cpImpT)))+
+    r3(fi('Contraparte Proceso Territorial',e(cpTerrN)),fi('Correo',e(cpTerrC)),fi('Teléfono',e(cpTerrT)))+
+    '</div>'+
+    secH('3. Información Origen del Material')+'<div class="section-inner">'+
+    '<table class="lay"><tr><td style="width:50%">'+fi('Proveedor',e(provVal))+'</td>'+
+    '<td style="width:25%">'+fi('Ciudad',e(ciudProv))+'</td>'+
+    '<td style="width:25%">'+fi('País',e(origenVal))+'</td></tr></table></div>'+
+    secH('4. Uso, Registro y Logística')+'<div class="section-inner">'+
+    r3(fi('Uso Propuesto',e(usoFinalPdf)),fi('N° Registro Vivero',viveroStr),fi('Punto de Ingreso',e(ptoIng)))+
+    r3(fi('Fecha de Ingreso Aproximada',e(mesDisplay)),fi('Sustrato del Portainjerto',e(sustVal)),fi('Comparte Cubículo',comparteStr))+
+    r2(fi('Requiere Frío',frioStr),'')+
+    '</div>'+
+    secH('5. Identificación del Material a Ingresar')+
+    '<table class="mat">'+
+    '<colgroup><col style="width:4%"><col style="width:19%"><col style="width:13%">'+
+    '<col style="width:8%"><col style="width:11%"><col style="width:7%"><col style="width:7%">'+
+    '<col style="width:12%"><col style="width:11%"><col style="width:4%"><col style="width:4%"></colgroup>'+
+    '<thead><tr>'+
+    thm('#')+thm('Especie<br>(nombre científico)')+thm('Variedad')+thm('Clon')+
+    thm('Tipo<br>Material')+thm('Cant.<br>Material')+thm('N° Plantas<br>a Establecer')+
+    thm('Portainjerto')+thm('Reg. Vivero<br>Portainjerto')+thm('Cert.<br>Frutal')+thm('Var.<br>Prot.')+
+    '</tr></thead><tbody>'+filasHTML+'</tbody></table>'+
+    '<div style="height:16px;line-height:16px;font-size:1px">&nbsp;</div>'+
+    secH('6. Declaración Electrónica del Representante')+
+    '<div class="firma-box"><div style="font-size:9.5pt;line-height:1.6">'+
+    '<div style="background:#f0f7ff;border:1px solid #006cb8;border-radius:4px;padding:10px 14px;margin-bottom:10px">'+
+    'El/La suscrito/a declara que los antecedentes proporcionados en esta solicitud son fidedignos y que '+
+    'actúa en representación de <strong>'+e(nombre)+'</strong>, RUT <strong>'+e(rut)+'</strong>, '+
+    'asumiendo responsabilidad por la veracidad de la información. '+
+    'Autoriza el envío de información y documentos por correo electrónico. '+
+    'Asimismo, declara conocer y aceptar íntegramente las regulaciones establecidas para el ingreso de '+
+    'material vegetal a nivel de Cuarentena Posentrada Absoluta conforme a la Resolución Exenta N° 373/2019 '+
+    'del SAG, cuyo texto se incluye como Anexo en las páginas siguientes de este documento.'+
+    '</div>'+
+    '<table class="lay" style="margin-bottom:10px"><tr>'+
+    '<td style="width:50%"><strong>Nombre del representante:</strong><br>'+e(repNombre)+'</td>'+
+    '<td style="width:50%"><strong>RUT del representante:</strong><br>'+e(repRut)+'</td>'+
+    '</tr></table>'+
+    '<div style="background:#f5f5f5;border:1px solid #ccc;border-radius:4px;padding:8px 12px;font-size:8.5pt">'+
+    '<strong>Fecha y hora de recepción SAG-ECA:</strong> '+e(tsDisplay)+
+    '<span style="margin-left:16px;color:#666">USO SAG — Conclusión: ☐ Cumple &nbsp;&nbsp; ☐ No Cumple</span>'+
+    '</div></div></div>'+
+    '<div class="footer-form">F-IIT-IMP-PA-002 · Red de Laboratorios SAG-ECA · Región Metropolitana<br>'+
+    'Servicio Agrícola y Ganadero | Departamento RED de Laboratorios SAG | Estación de Cuarentena Agrícola (ECA)<br>'+
+    'Documento presentado electrónicamente. La declaración del representante tiene valor de acuse formal.<br>'+
+    'Desarrollado por EChW, 2026</div>';
+}
+
+// Cuerpo del Anexo — siempre se renderiza como bloque independiente para forzar
+// que comience en una hoja nueva, cualquiera sea el largo del cuerpo anterior.
+function anexoPageBodyHtml(){
+  return '<style>'+bodyPdfCss()+'</style>'+
+    secH('Anexo — Regulaciones para el Ingreso de Material Vegetal a Cuarentena Posentrada Absoluta')+
+    '<div style="margin-top:8px">'+anexo373BodyHtml()+'</div>'+
+    '<div class="footer-form">F-IIT-IMP-PA-002 · Red de Laboratorios SAG-ECA · Región Metropolitana<br>'+
+    'Servicio Agrícola y Ganadero | Departamento RED de Laboratorios SAG | Estación de Cuarentena Agrícola (ECA)<br>'+
+    'Desarrollado por EChW, 2026</div>';
+}
+
+// Renderiza un bloque de contenido (HTML con su propio <style>) en un contenedor
+// oculto, lo captura con html2canvas y lo corta en imágenes del alto exacto de
+// una página de contenido (contentHeightMM), listas para insertar en el PDF.
+// Devuelve siempre al menos 1 página, incluso si el contenido es más corto que
+// una página completa.
+async function renderBodyToPageImages(bodyHtml, contentWidthMM, contentHeightMM){
+  const PX_PER_MM = 96 / 25.4;
+  const SCALE = 2; // resolución para nitidez del texto
+  const widthPx = Math.round(contentWidthMM * PX_PER_MM);
+
+  const container = document.createElement('div');
+  container.style.position = 'fixed';
+  container.style.left = '-99999px';
+  container.style.top = '0';
+  container.style.width = widthPx + 'px';
+  container.style.background = '#ffffff';
+  container.innerHTML = bodyHtml;
+  document.body.appendChild(container);
+
+  let canvas;
+  try {
+    canvas = await html2canvas(container, { scale: SCALE, backgroundColor: '#ffffff', useCORS: true });
+  } finally {
+    document.body.removeChild(container);
+  }
+
+  const pxPerMmScaled = PX_PER_MM * SCALE;
+  const pageHeightPx = Math.max(1, Math.round(contentHeightMM * pxPerMmScaled));
+  const totalHeightPx = canvas.height;
+
+  const pages = [];
+  let y = 0;
+  while (y < totalHeightPx) {
+    const sliceH = Math.min(pageHeightPx, totalHeightPx - y);
+    const pageCanvas = document.createElement('canvas');
+    pageCanvas.width = canvas.width;
+    pageCanvas.height = sliceH;
+    const ctx = pageCanvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+    ctx.drawImage(canvas, 0, y, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+    pages.push({ dataUrl: pageCanvas.toDataURL('image/png'), heightMM: sliceH / pxPerMmScaled });
+    y += sliceH;
+  }
+  if (pages.length === 0) {
+    pages.push({ dataUrl: canvas.toDataURL('image/png'), heightMM: 1 });
+  }
+  return pages;
+}
+
+// Dibuja el encabezado institucional (logo, título, caja de código, contador de
+// página) directamente con jsPDF sobre una página ya compuesta — así el número
+// total de páginas ("X de N") es siempre exacto, sin importar cuántas páginas
+// reales ocupó el contenido.
+function drawHeaderOnPage(doc, pageNum, totalPages, margin, headerH){
+  const pageW = 210;
+  const logoColW = 26;
+  const codeColW = 34;
+  const midX0 = margin + logoColW;
+  const midX1 = pageW - margin - codeColW;
+
+  doc.setDrawColor(0,0,0);
+  doc.setLineWidth(0.5);
+  doc.rect(margin, margin, pageW - 2*margin, headerH);
+  doc.line(midX0, margin, midX0, margin + headerH);
+  doc.line(midX1, margin, midX1, margin + headerH);
+
+  try { doc.addImage('data:image/png;base64,'+LOGO_SAG_B64, 'PNG', margin+3, margin+4, 20, 20); } catch(e){}
+
+  doc.setTextColor(10,22,40);
+  doc.setFont('helvetica','bold'); doc.setFontSize(10.5);
+  doc.text('SOLICITUD AUTORIZACIÓN CUARENTENA POSENTRADA', (midX0+midX1)/2, margin+11, {align:'center', maxWidth: midX1-midX0-6});
+  doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
+  doc.text('Cuarentena Posentrada Absoluta (EC1)', (midX0+midX1)/2, margin+17, {align:'center'});
+
+  doc.setTextColor(51,51,51);
+  doc.setFont('helvetica','normal'); doc.setFontSize(6.6);
+  const codeX = midX1 + 2;
+  doc.text('Código: F-IIT-IMP-PA-002', codeX, margin+6);
+  doc.text('Versión: 03', codeX, margin+10.5);
+  doc.text('Fecha Vigencia: 17.06.2019', codeX, margin+15);
+  doc.text('Página: '+pageNum+' de '+totalPages, codeX, margin+19.5);
+  doc.setTextColor(0,0,0);
+}
+
+// Orquesta la generación del PDF real: renderiza el cuerpo de la solicitud y el
+// Anexo por separado (el Anexo siempre arranca en hoja nueva), calcula el total
+// de páginas real, y recién entonces dibuja el encabezado con el contador
+// correcto en cada una. Devuelve el PDF final en base64.
+async function generarPDFRealBase64(bodyFormHtml, bodyAnexoHtml){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+  const MARGIN = 10, HEADER_H = 28, GAP = 4;
+  const CONTENT_W = 210 - 2*MARGIN;
+  const CONTENT_H = 297 - 2*MARGIN - HEADER_H - GAP;
+
+  const pagesForm  = await renderBodyToPageImages(bodyFormHtml, CONTENT_W, CONTENT_H);
+  const pagesAnexo = await renderBodyToPageImages(bodyAnexoHtml, CONTENT_W, CONTENT_H);
+  const allPages = pagesForm.concat(pagesAnexo); // el Anexo siempre inicia como página nueva
+  const totalPages = allPages.length;
+
+  allPages.forEach(function(pg, idx){
+    if (idx > 0) doc.addPage();
+    doc.addImage(pg.dataUrl, 'PNG', MARGIN, MARGIN + HEADER_H + GAP, CONTENT_W, pg.heightMM);
+  });
+
+  for (let i = 1; i <= totalPages; i++){
+    doc.setPage(i);
+    drawHeaderOnPage(doc, i, totalPages, MARGIN, HEADER_H);
+  }
+
+  return doc.output('datauristring').split(',')[1];
+}
+
+
 
 // Helper para formatear el código de Registro de Vivero
 function _fmtVivero(raw) {
@@ -1045,7 +1283,7 @@ async function verVistaPrevia() {
   }
 }
 
-function construirYAbrirPDF(timestampServidor, folioDisplay){
+async function construirYAbrirPDF(timestampServidor, folioDisplay){
   const mat = getMaterialData();
   const nombre    = document.getElementById('nombre').value.trim();
   const rut       = document.getElementById('rut').value.trim();
@@ -1109,13 +1347,23 @@ function construirYAbrirPDF(timestampServidor, folioDisplay){
     provVal, ciudProv, origenVal, usoFinalPdf, viveroVal, ptoIng, mesDisplay,
     sustVal, comparte, compResN, requiereFrio, horasFVal, filasHTML, tsDisplay, fechaHoy, folioDisplay||''
   );
-    // Convertir a base64 usando Blob para manejar caracteres Unicode correctamente
-  return new Promise(function(resolve){
-    const blob = new Blob([html], {type:'text/html'});
-    const reader = new FileReader();
-    reader.onload = function(){ resolve(reader.result.split(',')[1]); };
-    reader.readAsDataURL(blob);
-  });
+  // Guardado para verVistaPrevia() u otros usos que necesiten el HTML completo.
+  window.__ultimoHtmlSolicitud = html;
+
+  if (typeof html2canvas === 'undefined' || !window.jspdf) {
+    alert('No se pudo cargar el generador de PDF (html2canvas/jsPDF). Verifique su conexión e intente nuevamente.');
+    return null;
+  }
+
+  const bodyFormHtml = buildFormBodyHtml(
+    nombre, rut, correo, telefono, direccion, comunaImp, regionImp,
+    repImp, repNombre, repRut, cpImpN, cpImpC, cpImpT, cpTerrN, cpTerrC, cpTerrT,
+    provVal, ciudProv, origenVal, usoFinalPdf, viveroVal, ptoIng, mesDisplay,
+    sustVal, comparte, compResN, requiereFrio, horasFVal, filasHTML, tsDisplay, fechaHoy, folioDisplay||''
+  );
+  const bodyAnexoHtml = anexoPageBodyHtml();
+
+  return await generarPDFRealBase64(bodyFormHtml, bodyAnexoHtml);
 }
 
 function esc(str){
