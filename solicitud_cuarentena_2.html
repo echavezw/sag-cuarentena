@@ -584,7 +584,7 @@ function verAnexoResolucion(){
     '<td class="title-cell"><h1>ANEXO — RESOLUCIÓN EXENTA N° 373/2019</h1>'+
     '<div style="font-size:10pt;margin-top:4px">Regulaciones para el Ingreso de Material Vegetal a Cuarentena Posentrada Absoluta</div></td>'+
     '</tr></table></div>'+
-    anexo373BodyHtml()+
+    '<div style="text-align:justify">'+anexo373BodyHtml()+'</div>'+
     '</body></html>';
   var blob = new Blob([html], {type:'text/html'});
   var url = URL.createObjectURL(blob);
@@ -889,7 +889,9 @@ function buildPdfHtml(nombre,rut,correo,telefono,direccion,comunaImp,regionImp,
     
     
     'table.mat{width:100%;border-collapse:collapse;font-size:8pt;margin-top:6px;}',
-    'table.mat td{border:1px solid #c3cbd3;padding:4px 3px;vertical-align:middle;font-size:7.8pt;word-wrap:break-word;text-align:center;background:#f0f3f6;}',
+    'table.mat td{border:1px solid #c3cbd3;padding:4px 3px;vertical-align:middle;font-size:7.8pt;word-wrap:break-word;text-align:center;}',
+    'table.mat tbody tr:nth-child(odd) td{background:#ffffff;}',
+    'table.mat tbody tr:nth-child(even) td{background:#e7ebef;}',
     '.firma-box{border:1px solid #cfd6dd;border-top:none;margin-top:0;padding:10px 12px;}',
     '.footer-form{font-size:8pt;color:#666;text-align:center;margin-top:20px;border-top:1px solid #ddd;padding-top:6px;}',
     '@page{size:A4;margin:9mm 10mm;}'
@@ -939,7 +941,7 @@ function buildPdfHtml(nombre,rut,correo,telefono,direccion,comunaImp,regionImp,
     '<div style="height:16px;line-height:16px;font-size:1px">&nbsp;</div>'+
     secH('6. Declaración Electrónica del Representante')+
     '<div class="firma-box"><div style="font-size:9.5pt;line-height:1.6">'+
-    '<div style="background:#f0f7ff;border:1px solid #006cb8;border-radius:4px;padding:10px 14px;margin-bottom:10px">'+
+    '<div style="background:#f0f7ff;border:1px solid #006cb8;border-radius:4px;padding:10px 14px;margin-bottom:10px;text-align:justify">'+
     'El/La suscrito/a declara que los antecedentes proporcionados en esta solicitud son fidedignos y que '+
     'actúa en representación de <strong>'+e(nombre)+'</strong>, RUT <strong>'+e(rut)+'</strong>, '+
     'asumiendo responsabilidad por la veracidad de la información. '+
@@ -963,7 +965,7 @@ function buildPdfHtml(nombre,rut,correo,telefono,direccion,comunaImp,regionImp,
     '<div style="page-break-before:always"></div>'+
     hdrDoc('3 de 3')+
     secH('Anexo — Regulaciones para el Ingreso de Material Vegetal a Cuarentena Posentrada Absoluta')+
-    '<div style="margin-top:8px">'+anexo373BodyHtml()+'</div>'+
+    '<div style="margin-top:8px;text-align:justify">'+anexo373BodyHtml()+'</div>'+
     '<div class="footer-form">F-IIT-IMP-PA-002 · Red de Laboratorios SAG-ECA · Región Metropolitana<br>'+
     'Servicio Agrícola y Ganadero | Departamento RED de Laboratorios SAG | Estación de Cuarentena Agrícola (ECA)<br>'+
     'Desarrollado por EChW, 2026</div>'+
@@ -996,7 +998,9 @@ function bodyPdfCss(){
     'table.lay{width:100%;border-collapse:collapse;margin-bottom:6px;}',
     'table.lay td{vertical-align:top;padding:0 10px 0 0;}',
     'table.mat{width:100%;border-collapse:collapse;font-size:8pt;margin-top:6px;}',
-    'table.mat td{border:1px solid #c3cbd3;padding:4px 3px;vertical-align:middle;font-size:7.8pt;word-wrap:break-word;text-align:center;background:#f0f3f6;}',
+    'table.mat td{border:1px solid #c3cbd3;padding:4px 3px;vertical-align:middle;font-size:7.8pt;word-wrap:break-word;text-align:center;}',
+    'table.mat tbody tr:nth-child(odd) td{background:#ffffff;}',
+    'table.mat tbody tr:nth-child(even) td{background:#e7ebef;}',
     '.firma-box{border:1px solid #cfd6dd;border-top:none;margin-top:0;padding:10px 12px;}',
     '.footer-form{font-size:8pt;color:#666;text-align:center;margin-top:20px;border-top:1px solid #ddd;padding-top:6px;}'
   ].join('\n');
@@ -1004,10 +1008,11 @@ function bodyPdfCss(){
 
 // Cuerpo de la solicitud (secciones 1 a 6), sin encabezado ni saltos de página
 // manuales — el largo real de este contenido determina cuántas páginas ocupa.
-function buildFormBodyHtml(nombre,rut,correo,telefono,direccion,comunaImp,regionImp,
+// Bloque 1 del cuerpo (secciones 1 a 4) — información general de la solicitud.
+function buildFormBodyPart1Html(nombre,rut,correo,telefono,direccion,comunaImp,regionImp,
   repImp,repNombre,repRut,cpImpN,cpImpC,cpImpT,cpTerrN,cpTerrC,cpTerrT,
   provVal,ciudProv,origenVal,usoFinalPdf,viveroVal,ptoIng,mesDisplay,
-  sustVal,comparte,compResN,requiereFrio,horasFVal,filasHTML,tsDisplay,fechaHoy,folioDisplay){
+  sustVal,comparte,compResN,requiereFrio,horasFVal,tsDisplay,fechaHoy,folioDisplay){
   var e=esc;
   var comparteStr = comparte ? ('SÍ — Res. N° ' + e(compResN)) : 'NO';
   var frioStr = requiereFrio ? ('SÍ — ' + e(horasFVal) + ' horas') : 'NO';
@@ -1039,7 +1044,14 @@ function buildFormBodyHtml(nombre,rut,correo,telefono,direccion,comunaImp,region
     r3(fi('Uso Propuesto',e(usoFinalPdf)),fi('N° Registro Vivero',viveroStr),fi('Punto de Ingreso',e(ptoIng)))+
     r3(fi('Fecha de Ingreso Aproximada',e(mesDisplay)),fi('Sustrato del Portainjerto',e(sustVal)),fi('Comparte Cubículo',comparteStr))+
     r2(fi('Requiere Frío',frioStr),'')+
-    '</div>'+
+    '</div>';
+}
+
+// Bloque 2 del cuerpo (secciones 5 y 6) — SIEMPRE comienza en una hoja nueva
+// (se renderiza y pagina por separado del Bloque 1, igual que el Anexo).
+function buildFormBodyPart2Html(nombre,rut,repNombre,repRut,filasHTML,tsDisplay){
+  var e=esc;
+  return '<style>'+bodyPdfCss()+'</style>'+
     secH('5. Identificación del Material a Ingresar')+
     '<table class="mat">'+
     '<colgroup><col style="width:4%"><col style="width:19%"><col style="width:13%">'+
@@ -1053,7 +1065,7 @@ function buildFormBodyHtml(nombre,rut,correo,telefono,direccion,comunaImp,region
     '<div style="height:16px;line-height:16px;font-size:1px">&nbsp;</div>'+
     secH('6. Declaración Electrónica del Representante')+
     '<div class="firma-box"><div style="font-size:9.5pt;line-height:1.6">'+
-    '<div style="background:#f0f7ff;border:1px solid #006cb8;border-radius:4px;padding:10px 14px;margin-bottom:10px">'+
+    '<div style="background:#f0f7ff;border:1px solid #006cb8;border-radius:4px;padding:10px 14px;margin-bottom:10px;text-align:justify">'+
     'El/La suscrito/a declara que los antecedentes proporcionados en esta solicitud son fidedignos y que '+
     'actúa en representación de <strong>'+e(nombre)+'</strong>, RUT <strong>'+e(rut)+'</strong>, '+
     'asumiendo responsabilidad por la veracidad de la información. '+
@@ -1069,11 +1081,7 @@ function buildFormBodyHtml(nombre,rut,correo,telefono,direccion,comunaImp,region
     '<div style="background:#f5f5f5;border:1px solid #ccc;border-radius:4px;padding:8px 12px;font-size:8.5pt">'+
     '<strong>Fecha y hora de recepción SAG-ECA:</strong> '+e(tsDisplay)+
     '<span style="margin-left:16px;color:#666">USO SAG — Conclusión: ☐ Cumple &nbsp;&nbsp; ☐ No Cumple</span>'+
-    '</div></div></div>'+
-    '<div class="footer-form">F-IIT-IMP-PA-002 · Red de Laboratorios SAG-ECA · Región Metropolitana<br>'+
-    'Servicio Agrícola y Ganadero | Departamento RED de Laboratorios SAG | Estación de Cuarentena Agrícola (ECA)<br>'+
-    'Documento presentado electrónicamente. La declaración del representante tiene valor de acuse formal.<br>'+
-    'Desarrollado por EChW, 2026</div>';
+    '</div></div></div>';
 }
 
 // Cuerpo del Anexo — siempre se renderiza como bloque independiente para forzar
@@ -1081,10 +1089,7 @@ function buildFormBodyHtml(nombre,rut,correo,telefono,direccion,comunaImp,region
 function anexoPageBodyHtml(){
   return '<style>'+bodyPdfCss()+'</style>'+
     secH('Anexo — Regulaciones para el Ingreso de Material Vegetal a Cuarentena Posentrada Absoluta')+
-    '<div style="margin-top:8px">'+anexo373BodyHtml()+'</div>'+
-    '<div class="footer-form">F-IIT-IMP-PA-002 · Red de Laboratorios SAG-ECA · Región Metropolitana<br>'+
-    'Servicio Agrícola y Ganadero | Departamento RED de Laboratorios SAG | Estación de Cuarentena Agrícola (ECA)<br>'+
-    'Desarrollado por EChW, 2026</div>';
+    '<div style="margin-top:8px;text-align:justify">'+anexo373BodyHtml()+'</div>';
 }
 
 // Renderiza un bloque de contenido (HTML con su propio <style>) en un contenedor
@@ -1176,21 +1181,41 @@ function drawHeaderOnPage(doc, pageNum, totalPages, margin, headerH){
   doc.setTextColor(0,0,0);
 }
 
-// Orquesta la generación del PDF real: renderiza el cuerpo de la solicitud y el
-// Anexo por separado (el Anexo siempre arranca en hoja nueva), calcula el total
-// de páginas real, y recién entonces dibuja el encabezado con el contador
-// correcto en cada una. Devuelve el PDF final en base64.
-async function generarPDFRealBase64(bodyFormHtml, bodyAnexoHtml){
+// Dibuja el pie de página institucional fijo al fondo de la hoja (no a
+// continuación del texto), reservando una franja constante (footerH) en la
+// parte inferior de cada página, igual en todas.
+function drawFooterOnPage(doc, margin, footerH){
+  const pageW = 210, pageH = 297;
+  const top = pageH - margin - footerH;
+  doc.setDrawColor(200,200,200);
+  doc.setLineWidth(0.2);
+  doc.line(margin, top, pageW - margin, top);
+  doc.setFont('helvetica','normal'); doc.setFontSize(6.6);
+  doc.setTextColor(102,102,102);
+  doc.text('F-IIT-IMP-PA-002 · Red de Laboratorios SAG-ECA · Región Metropolitana', pageW/2, top+4, {align:'center'});
+  doc.text('Servicio Agrícola y Ganadero | Estación de Cuarentena Agrícola (ECA) | Desarrollado por EChW, 2026', pageW/2, top+7.5, {align:'center'});
+  doc.setTextColor(0,0,0);
+}
+
+// Orquesta la generación del PDF real: renderiza el cuerpo de la solicitud en
+// dos bloques (Bloque 1: secciones 1-4; Bloque 2: secciones 5-6, siempre en
+// hoja nueva) más el Anexo (también siempre en hoja nueva), calcula el total
+// de páginas real, y recién entonces dibuja encabezado y pie de página con el
+// contador correcto en cada una. Devuelve el PDF final en base64.
+async function generarPDFRealBase64(bodyFormPart1Html, bodyFormPart2Html, bodyAnexoHtml){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
 
-  const MARGIN = 10, HEADER_H = 28, GAP = 4;
+  const MARGIN = 10, HEADER_H = 28, FOOTER_H = 14, GAP = 4;
   const CONTENT_W = 210 - 2*MARGIN;
-  const CONTENT_H = 297 - 2*MARGIN - HEADER_H - GAP;
+  const CONTENT_H = 297 - 2*MARGIN - HEADER_H - FOOTER_H - GAP;
 
-  const pagesForm  = await renderBodyToPageImages(bodyFormHtml, CONTENT_W, CONTENT_H);
+  const pagesPart1 = await renderBodyToPageImages(bodyFormPart1Html, CONTENT_W, CONTENT_H);
+  const pagesPart2 = await renderBodyToPageImages(bodyFormPart2Html, CONTENT_W, CONTENT_H);
   const pagesAnexo = await renderBodyToPageImages(bodyAnexoHtml, CONTENT_W, CONTENT_H);
-  const allPages = pagesForm.concat(pagesAnexo); // el Anexo siempre inicia como página nueva
+  // Cada bloque se concatena como páginas ya independientes: Part2 y Anexo
+  // siempre inician como página nueva, sin importar cuánto ocupó lo anterior.
+  const allPages = pagesPart1.concat(pagesPart2).concat(pagesAnexo);
   const totalPages = allPages.length;
 
   allPages.forEach(function(pg, idx){
@@ -1201,6 +1226,7 @@ async function generarPDFRealBase64(bodyFormHtml, bodyAnexoHtml){
   for (let i = 1; i <= totalPages; i++){
     doc.setPage(i);
     drawHeaderOnPage(doc, i, totalPages, MARGIN, HEADER_H);
+    drawFooterOnPage(doc, MARGIN, FOOTER_H);
   }
 
   const b64 = doc.output('datauristring').split(',')[1];
@@ -1370,15 +1396,16 @@ async function construirYAbrirPDF(timestampServidor, folioDisplay){
     return null;
   }
 
-  const bodyFormHtml = buildFormBodyHtml(
+  const bodyFormPart1Html = buildFormBodyPart1Html(
     nombre, rut, correo, telefono, direccion, comunaImp, regionImp,
     repImp, repNombre, repRut, cpImpN, cpImpC, cpImpT, cpTerrN, cpTerrC, cpTerrT,
     provVal, ciudProv, origenVal, usoFinalPdf, viveroVal, ptoIng, mesDisplay,
-    sustVal, comparte, compResN, requiereFrio, horasFVal, filasHTML, tsDisplay, fechaHoy, folioDisplay||''
+    sustVal, comparte, compResN, requiereFrio, horasFVal, tsDisplay, fechaHoy, folioDisplay||''
   );
+  const bodyFormPart2Html = buildFormBodyPart2Html(nombre, rut, repNombre, repRut, filasHTML, tsDisplay);
   const bodyAnexoHtml = anexoPageBodyHtml();
 
-  return await generarPDFRealBase64(bodyFormHtml, bodyAnexoHtml);
+  return await generarPDFRealBase64(bodyFormPart1Html, bodyFormPart2Html, bodyAnexoHtml);
 }
 
 function esc(str){
