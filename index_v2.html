@@ -5553,12 +5553,23 @@ async function aprobarSolicitud() {
         const correoAprob = _lastLoadedRow ? (_lastLoadedRow['Email Importacion']||_lastLoadedRow['Correo']||'') : '';
         const nombreAprob = _lastLoadedRow ? (_lastLoadedRow['Importador']||'') : '';
         try{
-          await fetch(_PORTAL_ENDPOINT,{method:'POST',
+          const respCorreo = await fetch(_PORTAL_ENDPOINT,{method:'POST',
             body:JSON.stringify({action:'aprobarSolicitud',adminToken:_ADMIN_TOKEN,
               folio:nSol, correo:correoAprob, nombre:nombreAprob})});
-          await _registrarCorreoHistorial(nSol, '', nombreAprob, 'Solicitud Aprobada', true);
-        }catch(mailErr){ await _registrarCorreoHistorial(nSol, '', nombreAprob, 'Solicitud Aprobada', false); }
-        setS(`Solicitud N° ${nSol} aprobada. Importador notificado.`,'ok');
+          const dataCorreo = await respCorreo.json();
+          console.log('Respuesta aprobarSolicitud (correo):', dataCorreo);
+          if(dataCorreo.ok){
+            await _registrarCorreoHistorial(nSol, '', nombreAprob, 'Solicitud Aprobada', true);
+            setS(`Solicitud N° ${nSol} aprobada. Importador notificado.`,'ok');
+          } else {
+            await _registrarCorreoHistorial(nSol, '', nombreAprob, 'Solicitud Aprobada', false);
+            setS(`Solicitud N° ${nSol} aprobada, pero el correo NO se envió: ${dataCorreo.error||'error desconocido'}`,'warn');
+          }
+        }catch(mailErr){
+          console.error('Error de red al notificar aprobación:', mailErr);
+          await _registrarCorreoHistorial(nSol, '', nombreAprob, 'Solicitud Aprobada', false);
+          setS(`Solicitud N° ${nSol} aprobada, pero falló la conexión al notificar por correo.`,'warn');
+        }
         actualizarTimbreAprob(_ST_APROBADA);
         if(_lastLoadedRow) _lastLoadedRow['Status']=_ST_APROBADA;
         recargar();
@@ -5594,12 +5605,23 @@ async function rechazarSolicitud() {
         const correo = _lastLoadedRow ? (_lastLoadedRow['Email Importacion']||_lastLoadedRow['Correo']||'') : '';
         const nombre = _lastLoadedRow ? (_lastLoadedRow['Importador']||'') : '';
         try{
-          await fetch(_PORTAL_ENDPOINT,{method:'POST',
+          const respCorreo = await fetch(_PORTAL_ENDPOINT,{method:'POST',
             body:JSON.stringify({action:'rechazarSolicitud',adminToken:_ADMIN_TOKEN,
               folio:nSol, correo:correo, nombre:nombre, motivo:motivoTxt})});
-          await _registrarCorreoHistorial(nSol, '', nombre, 'Solicitud Rechazada', true);
-        }catch(mailErr){ await _registrarCorreoHistorial(nSol, '', nombre, 'Solicitud Rechazada', false); }
-        setS(`Solicitud N° ${nSol} rechazada. Importador notificado.`,'ok');
+          const dataCorreo = await respCorreo.json();
+          console.log('Respuesta rechazarSolicitud (correo):', dataCorreo);
+          if(dataCorreo.ok){
+            await _registrarCorreoHistorial(nSol, '', nombre, 'Solicitud Rechazada', true);
+            setS(`Solicitud N° ${nSol} rechazada. Importador notificado.`,'ok');
+          } else {
+            await _registrarCorreoHistorial(nSol, '', nombre, 'Solicitud Rechazada', false);
+            setS(`Solicitud N° ${nSol} rechazada, pero el correo NO se envió: ${dataCorreo.error||'error desconocido'}`,'warn');
+          }
+        }catch(mailErr){
+          console.error('Error de red al notificar rechazo:', mailErr);
+          await _registrarCorreoHistorial(nSol, '', nombre, 'Solicitud Rechazada', false);
+          setS(`Solicitud N° ${nSol} rechazada, pero falló la conexión al notificar por correo.`,'warn');
+        }
         actualizarTimbreAprob(_ST_RECHAZADA);
         if(_lastLoadedRow){ _lastLoadedRow['Status']=_ST_RECHAZADA; _lastLoadedRow['Obs.']=motivoTxt; }
         recargar();
@@ -5644,12 +5666,23 @@ async function anularSolicitud() {
         const correo = _lastLoadedRow ? (_lastLoadedRow['Email Importacion']||_lastLoadedRow['Correo']||'') : '';
         const nombre = _lastLoadedRow ? (_lastLoadedRow['Importador']||'') : '';
         try{
-          await fetch(_PORTAL_ENDPOINT,{method:'POST',
+          const respCorreo = await fetch(_PORTAL_ENDPOINT,{method:'POST',
             body:JSON.stringify({action:'anularSolicitud',adminToken:_ADMIN_TOKEN,
               folio:nSol, correo:correo, nombre:nombre, motivo:motivoTxt})});
-          await _registrarCorreoHistorial(nSol, '', nombre, 'Solicitud Anulada', true);
-        }catch(mailErr){ await _registrarCorreoHistorial(nSol, '', nombre, 'Solicitud Anulada', false); }
-        setS(`Solicitud N° ${nSol} anulada. Importador notificado.`,'ok');
+          const dataCorreo = await respCorreo.json();
+          console.log('Respuesta anularSolicitud (correo):', dataCorreo);
+          if(dataCorreo.ok){
+            await _registrarCorreoHistorial(nSol, '', nombre, 'Solicitud Anulada', true);
+            setS(`Solicitud N° ${nSol} anulada. Importador notificado.`,'ok');
+          } else {
+            await _registrarCorreoHistorial(nSol, '', nombre, 'Solicitud Anulada', false);
+            setS(`Solicitud N° ${nSol} anulada, pero el correo NO se envió: ${dataCorreo.error||'error desconocido'}`,'warn');
+          }
+        }catch(mailErr){
+          console.error('Error de red al notificar anulación:', mailErr);
+          await _registrarCorreoHistorial(nSol, '', nombre, 'Solicitud Anulada', false);
+          setS(`Solicitud N° ${nSol} anulada, pero falló la conexión al notificar por correo.`,'warn');
+        }
         actualizarTimbreAprob(_ST_ANULADA);
         if(_lastLoadedRow){ _lastLoadedRow['Status']=_ST_ANULADA; _lastLoadedRow['Obs.']=motivoTxt; }
         recargar();
@@ -5671,12 +5704,20 @@ async function notificarEnvioFirma(nsol, correo, nombre) {
     return;
   }
   try{
-    await fetch(_PORTAL_ENDPOINT,{method:'POST',
+    const respCorreo = await fetch(_PORTAL_ENDPOINT,{method:'POST',
       body:JSON.stringify({action:'notificarEnvioFirma',adminToken:_ADMIN_TOKEN,
         folio:nsol, correo:correo, nombre:nombre})});
-    setS(`Correo de notificación (Enviada a Firma) enviado a ${correo}.`,'ok');
-    await _registrarCorreoHistorial(nsol, '', nombre, 'Enviada a Firma Res. Ingreso', true);
+    const dataCorreo = await respCorreo.json();
+    console.log('Respuesta notificarEnvioFirma (correo):', dataCorreo);
+    if(dataCorreo.ok){
+      setS(`Correo de notificación (Enviada a Firma) enviado a ${correo}.`,'ok');
+      await _registrarCorreoHistorial(nsol, '', nombre, 'Enviada a Firma Res. Ingreso', true);
+    } else {
+      setS(`Guardado OK, pero el correo NO se envió: ${dataCorreo.error||'error desconocido'}`,'warn');
+      await _registrarCorreoHistorial(nsol, '', nombre, 'Enviada a Firma Res. Ingreso', false);
+    }
   }catch(mailErr){
+    console.error('Error de red al notificar envío a firma:', mailErr);
     setS(`Guardado OK, pero falló el envío del correo de notificación a ${correo}.`,'warn');
     await _registrarCorreoHistorial(nsol, '', nombre, 'Enviada a Firma Res. Ingreso', false);
   }
