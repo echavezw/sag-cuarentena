@@ -795,6 +795,8 @@ input.field-blocked, select.field-blocked {
 .timbre-rojo::before{content:'\2715'}
 .timbre-gris{color:#5a6472;border-color:#8a94a2;background:rgba(90,100,114,.06)}
 .timbre-gris::before{content:'\29D6'}
+.timbre-anulada{color:#5a3a7a;border-color:#5a3a7a;background:rgba(90,58,122,.06)}
+.timbre-anulada::before{content:'\2298'}
 .timbre-alto{padding-top:15px;padding-bottom:15px;font-size:1.1rem}
 .timbre-wrap{margin:6px 0 10px}
 .hl { background:#fff9c4; padding:0 2px; border-radius:2px; } /* highlight borrador resolución */
@@ -806,6 +808,10 @@ input.field-blocked, select.field-blocked {
 .btn-rechazar{background:#fff;color:#7a1c1c;border:2px solid #7a1c1c;padding:9px 24px;border-radius:5px;
   font-weight:600;font-size:.95rem;cursor:pointer;letter-spacing:.3px;transition:background .15s}
 .btn-rechazar:hover{background:rgba(122,28,28,.06)}
+.btn-anular{background:#fff;color:#5a3a7a;border:2px solid #5a3a7a;padding:9px 24px;border-radius:5px;
+  font-weight:600;font-size:.95rem;cursor:pointer;letter-spacing:.3px;transition:background .15s}
+.btn-anular:hover{background:rgba(90,58,122,.06)}
+.anular-actions{display:flex;gap:12px;margin:12px 0 4px}
 .card{background:var(--wh);border:1px solid #C9C1AE;border-radius:8px;padding:24px;margin-bottom:24px;box-shadow:0 4px 14px rgba(10,22,40,.10)}
 .card [style*="border-bottom:2px solid var(--gd)"]{font-size:19px!important;margin-bottom:16px!important;padding-bottom:10px!important;letter-spacing:.01em}
 .card:last-child{margin-bottom:0}
@@ -1163,6 +1169,9 @@ input.field-blocked, select.field-blocked {
   <div class="aprob-actions" id="f1-aprob-actions" style="display:none">
     <button type="button" class="btn-aprobar" onclick="aprobarSolicitud()">&#10003; Aprobar solicitud</button>
     <button type="button" class="btn-rechazar" onclick="rechazarSolicitud()">&#10007; Rechazar solicitud</button>
+  </div>
+  <div class="anular-actions" id="f1-anular-wrap" style="display:none">
+    <button type="button" class="btn-anular" onclick="anularSolicitud()">&#8855; Anular solicitud</button>
   </div>
   <div style="margin-top:10px;padding:0 2px">
     <button type="button" class="btn btn-gh btn-sm" onclick="generarBorradorResolucion()" title="Genera borrador Word de Resolución de Internación">📄 Generar Borrador Res.</button>
@@ -5444,6 +5453,7 @@ function navegarReg(dir) {
 const _ST_PEND_APROB = 'Sol. Recibida Pend. Aprobación';
 const _ST_APROBADA   = 'Aprobada';
 const _ST_RECHAZADA  = 'Rechazada';
+const _ST_ANULADA    = 'Anulada';
 
 // Actualiza timbre + visibilidad de botones según el Status del registro cargado
 function actualizarTimbreAprob(status) {
@@ -5451,12 +5461,14 @@ function actualizarTimbreAprob(status) {
   const wrap = document.getElementById('f1-timbre-wrap');
   const timbre = document.getElementById('f1-timbre');
   const actions = document.getElementById('f1-aprob-actions');
+  const anularWrap = document.getElementById('f1-anular-wrap');
   if(!wrap||!timbre||!actions) return;
 
   // Reset
   timbre.className = 'timbre-aprob';
   wrap.style.display = 'none';
   actions.style.display = 'none';
+  if(anularWrap) anularWrap.style.display = 'none';
 
   if(st === _ST_PEND_APROB) {
     timbre.classList.add('timbre-gris');
@@ -5471,8 +5483,17 @@ function actualizarTimbreAprob(status) {
     timbre.classList.add('timbre-rojo');
     timbre.textContent = 'Rechazada';
     wrap.style.display = '';
+  } else if(st === _ST_ANULADA) {
+    timbre.classList.add('timbre-anulada');
+    timbre.textContent = 'Anulada';
+    wrap.style.display = '';
   }
-  // Cualquier otro estado: sin timbre, sin botones (no aplica aprobación de Etapa I)
+  // Anular disponible sobre cualquiera de los tres estados de Etapa I ya
+  // notificados al importador (pendiente, aprobada o rechazada). Una vez
+  // anulada, no se puede volver a anular ni reaprobar desde este botón.
+  if(anularWrap && (st===_ST_PEND_APROB || st===_ST_APROBADA || st===_ST_RECHAZADA)) {
+    anularWrap.style.display = 'flex';
+  }
 }
 
 // Localiza la fila (1-based) en Detalle para el N° Solicitud dado, leyendo fresco
@@ -5590,6 +5611,55 @@ async function rechazarSolicitud() {
 }
 
 
+// Anula una solicitud ya recibida (pendiente, aprobada o rechazada) — cubre el
+// caso de un error detectado días después del envío. No borra el registro ni
+// el PDF original en Drive (quedan como respaldo); solo cambia el Status a
+// "Anulada", guarda el motivo en Obs. y notifica al importador para que envíe
+// una solicitud nueva y corregida si corresponde.
+async function anularSolicitud() {
+  const nSol = (document.getElementById('f1-nsol')?.value||'').trim();
+  if(!nSol){ setS('No hay solicitud cargada.','warn'); return; }
+  const stActual = (_lastLoadedRow && _lastLoadedRow['Status']) || '';
+  if(String(stActual).trim()===_ST_ANULADA){ setS('Esta solicitud ya está anulada.','warn'); return; }
+
+  const motivo = window.prompt('Motivo de la anulación (se enviará al importador y se guardará en Obs.):','');
+  if(motivo===null) return;           // canceló
+  const motivoTxt = String(motivo).trim();
+  if(!motivoTxt){ setS('Debe indicar un motivo para anular.','warn'); return; }
+
+  showModal('Anular Solicitud',
+    `¿Confirma la ANULACIÓN de la Solicitud N° ${nSol} (estado actual: "${stActual||'—'}")? Se notificará al importador por correo con el motivo indicado. Esta acción no se puede deshacer desde este botón.`,
+    async ()=>{
+      closeModal();
+      try{
+        await ensureToken();
+        const fila = await _filaDetallePorSolicitud(nSol);
+        if(!fila){ setS('No se encontró la fila de la solicitud.','err'); return; }
+        await _escribirCeldaDetalle(fila, 'Status', _ST_ANULADA);
+        await _escribirCeldaDetalle(fila, 'Obs.', motivoTxt);
+        await _escribirCeldaDetalle(fila, 'Fecha Último Evento SAG', _nowStrSAG());
+        await _escribirCeldaDetalle(fila, 'Tipo Último Evento SAG', _ST_ANULADA);
+        registrarEventoHistorial(nSol, '', (_lastLoadedRow&&_lastLoadedRow['Importador'])||'', _ST_ANULADA, 'SAG interno');
+        // Correo al importador vía Apps Script (mismo patrón que rechazarSolicitud)
+        const correo = _lastLoadedRow ? (_lastLoadedRow['Email Importacion']||_lastLoadedRow['Correo']||'') : '';
+        const nombre = _lastLoadedRow ? (_lastLoadedRow['Importador']||'') : '';
+        try{
+          await fetch(_PORTAL_ENDPOINT,{method:'POST',
+            body:JSON.stringify({action:'anularSolicitud',adminToken:_ADMIN_TOKEN,
+              folio:nSol, correo:correo, nombre:nombre, motivo:motivoTxt})});
+          _registrarCorreoHistorial(nSol, '', nombre, 'Solicitud Anulada', true);
+        }catch(mailErr){ _registrarCorreoHistorial(nSol, '', nombre, 'Solicitud Anulada', false); }
+        setS(`Solicitud N° ${nSol} anulada. Importador notificado.`,'ok');
+        actualizarTimbreAprob(_ST_ANULADA);
+        if(_lastLoadedRow){ _lastLoadedRow['Status']=_ST_ANULADA; _lastLoadedRow['Obs.']=motivoTxt; }
+        recargar();
+      }catch(e){
+        if(/401/.test(e.message)){ accessToken=null; setS('Token expirado, intente nuevamente.','err'); }
+        else setS('Error al anular: '+e.message,'err');
+      }
+    },'Anular','btn-err');
+}
+
 // Notifica al importador que su solicitud fue enviada a firma de la Resolución
 // de Ingreso (mismo patrón best-effort que aprobarSolicitud/rechazarSolicitud:
 // el cambio de Estado Res. ya quedó guardado en el Sheet vía guardarTodo(),
@@ -5629,6 +5699,7 @@ function badgeEstadoEntrada(status, res) {
   if(st==='Enviada a Firma Res. Ingreso' && !tieneRes) return {label:'Enviada a Firma Res. Ingreso', cls:'badge-gd'};
   if(st==='Rechazada')                 return {label:'Rechazada',          cls:'badge-err'};
   if(st==='Cancelada')                 return {label:'Cancelada',          cls:'badge-nv'};
+  if(st==='Anulada')                   return {label:'Anulada',            cls:'badge-nv'};
   return null;
 }
 
