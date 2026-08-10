@@ -1192,8 +1192,8 @@ function drawFooterOnPage(doc, margin, footerH){
   doc.line(margin, top, pageW - margin, top);
   doc.setFont('helvetica','normal'); doc.setFontSize(6.6);
   doc.setTextColor(102,102,102);
-  doc.text('F-IIT-IMP-PA-002 · Red de Laboratorios SAG-ECA · Región Metropolitana', pageW/2, top+4, {align:'center'});
-  doc.text('Servicio Agrícola y Ganadero | Estación de Cuarentena Agrícola (ECA) | Desarrollado por EChW, 2026', pageW/2, top+7.5, {align:'center'});
+  doc.text('F-IIT-IMP-PA-002 · Red de Laboratorios SAG-ECA · Región Metropolitana', pageW/2, top+5.5, {align:'center'});
+  doc.text('Servicio Agrícola y Ganadero | Estación de Cuarentena Agrícola (ECA) | Desarrollado por EChW, 2026', pageW/2, top+9.5, {align:'center'});
   doc.setTextColor(0,0,0);
 }
 
@@ -1206,9 +1206,12 @@ async function generarPDFRealBase64(bodyFormPart1Html, bodyFormPart2Html, bodyAn
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
 
-  const MARGIN = 10, HEADER_H = 28, FOOTER_H = 14, GAP = 4;
+  // BOTTOM_GAP: colchón extra entre el final del contenido y el pie de página,
+  // para que nunca se toquen ni se superpongan (evita que se "pierda" texto
+  // en el corte entre páginas, especialmente notorio en el Anexo).
+  const MARGIN = 10, HEADER_H = 28, FOOTER_H = 18, GAP = 4, BOTTOM_GAP = 6;
   const CONTENT_W = 210 - 2*MARGIN;
-  const CONTENT_H = 297 - 2*MARGIN - HEADER_H - FOOTER_H - GAP;
+  const CONTENT_H = 297 - 2*MARGIN - HEADER_H - FOOTER_H - GAP - BOTTOM_GAP;
 
   const pagesPart1 = await renderBodyToPageImages(bodyFormPart1Html, CONTENT_W, CONTENT_H);
   const pagesPart2 = await renderBodyToPageImages(bodyFormPart2Html, CONTENT_W, CONTENT_H);
