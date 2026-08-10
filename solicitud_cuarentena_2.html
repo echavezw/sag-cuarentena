@@ -832,6 +832,23 @@ function ocultarOverlayEnvio(){
 
 // ── buildPdfHtml: construye el HTML del formulario F-IIT-IMP-PA-002 ──
 // Sin escapes anidados — usa variables locales y helpers limpios.
+// Helpers de formato compartidos por buildPdfHtml (Vista Previa) y por el
+// cuerpo del PDF real (buildFormBodyHtml / anexoPageBodyHtml) — deben estar en
+// alcance global, no anidados, para que ambos flujos puedan usarlos.
+function fi(lbl,val){
+  return '<div style="margin-bottom:7px">'+
+    '<div style="font-size:7pt;font-weight:bold;color:#5a6a7a;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px">'+lbl+'</div>'+
+    '<div style="background:#f0f3f6;border-radius:3px;padding:4px 7px;font-size:9pt;color:#111;min-height:17px">'+
+    (val&&String(val).trim()!=='' ? val : '&nbsp;')+'</div></div>';
+}
+function secH(t){ return '<table style="width:100%;border-collapse:collapse;margin:0">'+
+  '<tr><td style="color:#006CB8;font-weight:bold;font-size:9.4pt;'+
+  'padding:5px 9px;border:1px solid #006CB8">'+t+'</td></tr></table>'; }
+function thm(t){ return '<th style="color:#006CB8;font-weight:bold;'+
+  'border:1px solid #7fa9cd;padding:4px 3px;text-align:center;font-size:7.4pt">'+t+'</th>'; }
+function r2(a,b){ return '<table class="lay"><tr><td style="width:50%">'+a+'</td><td style="width:50%">'+b+'</td></tr></table>'; }
+function r3(a,b,c){ return '<table class="lay"><tr><td style="width:33.33%">'+a+'</td><td style="width:33.33%">'+b+'</td><td style="width:33.34%">'+c+'</td></tr></table>'; }
+
 function buildPdfHtml(nombre,rut,correo,telefono,direccion,comunaImp,regionImp,
   repImp,repNombre,repRut,cpImpN,cpImpC,cpImpT,cpTerrN,cpTerrC,cpTerrT,
   provVal,ciudProv,origenVal,usoFinalPdf,viveroVal,ptoIng,mesDisplay,
@@ -841,19 +858,6 @@ function buildPdfHtml(nombre,rut,correo,telefono,direccion,comunaImp,regionImp,
   var frioStr = requiereFrio ? ('SÍ — ' + e(horasFVal) + ' horas') : 'NO';
   var viveroStr = e(_fmtVivero(viveroVal));
   var LOGO = LOGO_SAG_B64;
-  function fi(lbl,val){
-    return '<div style="margin-bottom:7px">'+
-      '<div style="font-size:7pt;font-weight:bold;color:#5a6a7a;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px">'+lbl+'</div>'+
-      '<div style="background:#f0f3f6;border-radius:3px;padding:4px 7px;font-size:9pt;color:#111;min-height:17px">'+
-      (val&&String(val).trim()!=='' ? val : '&nbsp;')+'</div></div>';
-  }
-  function secH(t){ return '<table style="width:100%;border-collapse:collapse;margin:0">'+
-    '<tr><td style="color:#006CB8;font-weight:bold;font-size:9.4pt;'+
-    'padding:5px 9px;border:1px solid #006CB8">'+t+'</td></tr></table>'; }
-  function thm(t){ return '<th style="color:#006CB8;font-weight:bold;'+
-    'border:1px solid #7fa9cd;padding:4px 3px;text-align:center;font-size:7.4pt">'+t+'</th>'; }
-  function r2(a,b){ return '<table class="lay"><tr><td style="width:50%">'+a+'</td><td style="width:50%">'+b+'</td></tr></table>'; }
-  function r3(a,b,c){ return '<table class="lay"><tr><td style="width:33.33%">'+a+'</td><td style="width:33.33%">'+b+'</td><td style="width:33.34%">'+c+'</td></tr></table>'; }
   function hdrDoc(pag){
     return '<div class="doc-frame"><table><tr>'+
       '<td class="logo-cell"><img src="data:image/png;base64,'+LOGO+'" alt="SAG"></td>'+
