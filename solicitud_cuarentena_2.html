@@ -1138,6 +1138,21 @@ async function renderBodyToPageImages(bodyHtml, contentWidthMM, contentHeightMM)
   container.innerHTML = bodyHtml;
   document.body.appendChild(container);
 
+  // Puntos de corte "seguros": el borde inferior de cada bloque (div/table/tr)
+  // del contenido, medido en px CSS relativos al contenedor, ANTES de capturar
+  // y de quitar el contenedor del DOM. Cortar la imagen exactamente en uno de
+  // estos bordes evita partir una línea de texto o un párrafo entre dos hojas
+  // (el problema de texto "comido" entre páginas).
+  const rectContainer = container.getBoundingClientRect();
+  const candidateEls = container.querySelectorAll('div, table, tr, thead, tbody, p');
+  const safeBoundariesCss = [];
+  candidateEls.forEach(function(el){
+    const r = el.getBoundingClientRect();
+    const bottom = r.bottom - rectContainer.top;
+    if (bottom > 0) safeBoundariesCss.push(bottom);
+  });
+  safeBoundariesCss.sort(function(a,b){ return a-b; });
+
   let canvas;
   try {
     canvas = await html2canvas(container, { scale: SCALE, backgroundColor: '#ffffff', useCORS: true });
@@ -1148,11 +1163,29 @@ async function renderBodyToPageImages(bodyHtml, contentWidthMM, contentHeightMM)
   const pxPerMmScaled = PX_PER_MM * SCALE;
   const pageHeightPx = Math.max(1, Math.round(contentHeightMM * pxPerMmScaled));
   const totalHeightPx = canvas.height;
+  const safeBoundariesPx = safeBoundariesCss
+    .map(function(b){ return Math.round(b * SCALE); })
+    .filter(function(b){ return b > 0 && b <= totalHeightPx; });
 
   const pages = [];
   let y = 0;
   while (y < totalHeightPx) {
-    const sliceH = Math.min(pageHeightPx, totalHeightPx - y);
+    const idealCut = Math.min(y + pageHeightPx, totalHeightPx);
+    let cut = idealCut;
+    if (idealCut < totalHeightPx) {
+      // Buscar el borde de bloque más cercano (el más grande) que no supere idealCut.
+      let best = -1;
+      for (let i = 0; i < safeBoundariesPx.length; i++) {
+        const b = safeBoundariesPx[i];
+        if (b > y && b <= idealCut) best = b;
+        if (b > idealCut) break;
+      }
+      // Solo usar el borde seguro si no desperdicia más de ~15mm de página
+      // (evita cortes prematuros cuando un bloque es inusualmente alto).
+      const minAceptable = idealCut - Math.round(15 * pxPerMmScaled);
+      if (best > minAceptable) cut = best;
+    }
+    const sliceH = cut - y;
     const pageCanvas = document.createElement('canvas');
     pageCanvas.width = canvas.width;
     pageCanvas.height = sliceH;
@@ -1165,7 +1198,7 @@ async function renderBodyToPageImages(bodyHtml, contentWidthMM, contentHeightMM)
     // visual es imperceptible pero el peso del PDF (y por tanto el POST al backend)
     // baja drásticamente, evitando fallos de red por payload demasiado grande.
     pages.push({ dataUrl: pageCanvas.toDataURL('image/jpeg', 0.85), heightMM: sliceH / pxPerMmScaled });
-    y += sliceH;
+    y = cut;
   }
   if (pages.length === 0) {
     pages.push({ dataUrl: canvas.toDataURL('image/jpeg', 0.85), heightMM: 1 });
@@ -1209,18 +1242,19 @@ function drawHeaderOnPage(doc, pageNum, totalPages, margin, headerH){
 }
 
 // Dibuja el pie de página institucional fijo al fondo de la hoja (no a
-// continuación del texto), reservando una franja constante (footerH) en la
-// parte inferior de cada página, igual en todas.
+// continuación del texto), lo más abajo posible dentro del margen inferior,
+// reservando una franja constante (footerH) igual en todas las páginas.
 function drawFooterOnPage(doc, margin, footerH){
   const pageW = 210, pageH = 297;
   const top = pageH - margin - footerH;
+  const bottomEdge = pageH - margin; // borde del margen inferior de la hoja
   doc.setDrawColor(200,200,200);
   doc.setLineWidth(0.2);
   doc.line(margin, top, pageW - margin, top);
   doc.setFont('helvetica','normal'); doc.setFontSize(6.6);
   doc.setTextColor(102,102,102);
-  doc.text('F-IIT-IMP-PA-002 · Red de Laboratorios SAG-ECA · Región Metropolitana', pageW/2, top+5.5, {align:'center'});
-  doc.text('Servicio Agrícola y Ganadero | Estación de Cuarentena Agrícola (ECA) | Desarrollado por EChW, 2026', pageW/2, top+9.5, {align:'center'});
+  doc.text('F-IIT-IMP-PA-002 · Red de Laboratorios SAG-ECA · Región Metropolitana', pageW/2, bottomEdge-6.5, {align:'center'});
+  doc.text('Servicio Agrícola y Ganadero | Estación de Cuarentena Agrícola (ECA) | Desarrollado por EChW, 2026', pageW/2, bottomEdge-3, {align:'center'});
   doc.setTextColor(0,0,0);
 }
 
