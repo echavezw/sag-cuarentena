@@ -1094,7 +1094,7 @@ function anexoPageBodyHtml(){
 // una página completa.
 async function renderBodyToPageImages(bodyHtml, contentWidthMM, contentHeightMM){
   const PX_PER_MM = 96 / 25.4;
-  const SCALE = 2; // resolución para nitidez del texto
+  const SCALE = 1.5; // resolución suficiente para nitidez sin inflar demasiado el peso del PDF
   const widthPx = Math.round(contentWidthMM * PX_PER_MM);
 
   const container = document.createElement('div');
@@ -1128,11 +1128,15 @@ async function renderBodyToPageImages(bodyHtml, contentWidthMM, contentHeightMM)
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
     ctx.drawImage(canvas, 0, y, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
-    pages.push({ dataUrl: pageCanvas.toDataURL('image/png'), heightMM: sliceH / pxPerMmScaled });
+    // JPEG en vez de PNG: para un documento mayormente blanco con texto, el PNG sin
+    // pérdida pesa varias veces más que un JPEG de buena calidad — la diferencia
+    // visual es imperceptible pero el peso del PDF (y por tanto el POST al backend)
+    // baja drásticamente, evitando fallos de red por payload demasiado grande.
+    pages.push({ dataUrl: pageCanvas.toDataURL('image/jpeg', 0.85), heightMM: sliceH / pxPerMmScaled });
     y += sliceH;
   }
   if (pages.length === 0) {
-    pages.push({ dataUrl: canvas.toDataURL('image/png'), heightMM: 1 });
+    pages.push({ dataUrl: canvas.toDataURL('image/jpeg', 0.85), heightMM: 1 });
   }
   return pages;
 }
@@ -1178,7 +1182,7 @@ function drawHeaderOnPage(doc, pageNum, totalPages, margin, headerH){
 // correcto en cada una. Devuelve el PDF final en base64.
 async function generarPDFRealBase64(bodyFormHtml, bodyAnexoHtml){
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
 
   const MARGIN = 10, HEADER_H = 28, GAP = 4;
   const CONTENT_W = 210 - 2*MARGIN;
@@ -1191,7 +1195,7 @@ async function generarPDFRealBase64(bodyFormHtml, bodyAnexoHtml){
 
   allPages.forEach(function(pg, idx){
     if (idx > 0) doc.addPage();
-    doc.addImage(pg.dataUrl, 'PNG', MARGIN, MARGIN + HEADER_H + GAP, CONTENT_W, pg.heightMM);
+    doc.addImage(pg.dataUrl, 'JPEG', MARGIN, MARGIN + HEADER_H + GAP, CONTENT_W, pg.heightMM);
   });
 
   for (let i = 1; i <= totalPages; i++){
@@ -1199,7 +1203,14 @@ async function generarPDFRealBase64(bodyFormHtml, bodyAnexoHtml){
     drawHeaderOnPage(doc, i, totalPages, MARGIN, HEADER_H);
   }
 
-  return doc.output('datauristring').split(',')[1];
+  const b64 = doc.output('datauristring').split(',')[1];
+  const approxBytes = Math.floor((b64.length * 3) / 4);
+  console.log('PDF generado: ' + totalPages + ' página(s), ~' + (approxBytes/1024/1024).toFixed(2) + ' MB');
+  if (approxBytes > 7.5 * 1024 * 1024) {
+    throw new Error('El PDF generado es demasiado grande (~' + (approxBytes/1024/1024).toFixed(1) +
+      ' MB). Reduzca el número de filas de material o contacte a SAG-ECA.');
+  }
+  return b64;
 }
 
 
