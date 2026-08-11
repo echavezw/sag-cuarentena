@@ -11010,6 +11010,11 @@ function regLabel(row) {
 }
 
 function isActive(row) {
+  // Estados de cierre negativo — el material ya no se sigue: no debe generar alertas
+  const statusRechazo = ['a destruir', 'destruida', 'perdida'];
+  const statusNorm = String(row['Status'] || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  if (statusRechazo.includes(statusNorm)) return false;
+
   // Entregada holds a date string when delivered
   // Active = not yet delivered OR delivered within last 15 days (grace period)
   const entStr = String(row['Entregada'] || '').trim();
