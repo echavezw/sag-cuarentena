@@ -1614,7 +1614,7 @@ input.field-blocked, select.field-blocked {
         <select id="f6-stat" onchange="updateStatusBadge();cacheField('f6-stat')" onchange="updateStatusBadge()">
           <option value="">—</option><option>A destruir</option><option>Destruida</option>
           <option>Entregada</option><option>Liberada</option><option>No Recibida</option>
-          <option>Perdida</option><option>Terminada</option>
+          <option>No Prosperó</option><option>Terminada</option>
         </select></div>
       <div class="ff c1">
         <label class="lbl">Status</label>
@@ -3222,7 +3222,7 @@ function calcStatusAuto(rows) {
 
   // 1. Estado manual final (Etapa VII) tiene prioridad absoluta si está seteado
   const statusManual = String(first['Status'] || '').trim();
-  const ESTADOS_FINALES = ['A destruir', 'Destruida', 'Entregada', 'Liberada', 'Perdida', 'Terminada'];
+  const ESTADOS_FINALES = ['A destruir', 'Destruida', 'Entregada', 'Liberada', 'No Prosperó', 'Perdida', 'Terminada'];
   if (ESTADOS_FINALES.includes(statusManual)) return statusManual;
 
   // 2. Sin Fecha de Ingreso → aún no llegó a la ECA
@@ -3318,7 +3318,7 @@ function calcBadgePriority(rows) {
 
   // ── 0. RECHAZO / DESTRUCCIÓN (override absoluto, decisión manual de SAG) ────
   const statusManual = norm(first['Status']);
-  const ESTADOS_RECHAZO = ['A destruir', 'Destruida', 'Perdida'];
+  const ESTADOS_RECHAZO = ['A destruir', 'Destruida', 'No Prosperó', 'Perdida'];
   if (ESTADOS_RECHAZO.includes(statusManual)) {
     // Caso especial: 'Destruida' es un Status genérico compartido por dos
     // escenarios distintos — material que llegó a ECA y se destruyó tras
@@ -9105,7 +9105,7 @@ function updateStatusBadge() {
   const badge=$('status-badge-display'); if(!badge) return;
   if(!stat){ badge.style.display='none'; return; }
   badge.style.display='inline-block';
-  const map={'Entregada':'badge-ok','No Recibida':'badge-err','A destruir':'badge-warn','Destruida':'badge-err','Perdida':'badge-err'};
+  const map={'Entregada':'badge-ok','No Recibida':'badge-err','A destruir':'badge-warn','Destruida':'badge-err','No Prosperó':'badge-err','Perdida':'badge-err'};
   badge.className='badge '+(map[stat]||'badge-nv');
   badge.textContent=stat;
 }
@@ -11011,7 +11011,7 @@ function regLabel(row) {
 
 function isActive(row) {
   // Estados de cierre negativo — el material ya no se sigue: no debe generar alertas
-  const statusRechazo = ['a destruir', 'destruida', 'perdida'];
+  const statusRechazo = ['a destruir', 'destruida', 'no prospero', 'perdida'];
   const statusNorm = String(row['Status'] || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
   if (statusRechazo.includes(statusNorm)) return false;
 
