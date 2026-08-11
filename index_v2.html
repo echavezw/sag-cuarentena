@@ -1338,6 +1338,7 @@ input.field-blocked, select.field-blocked {
         <select id="f3-estado" onchange="onS3Estado()">
           <option value="">—</option>
           <option>Injertada</option><option>No Recibida</option>
+          <option>No Recibida/Destruida en Punto de Ingreso</option>
           <option>Plantada</option><option>Recibida</option>
         </select></div>
     </div>
@@ -6597,8 +6598,17 @@ function calcLev() { const d=v('f3-finj'); if(d) sv('f3-flev',addDays(d,365)); }
 function onS3Estado() {
   const est=v('f3-estado');
   if(est==='No Recibida') selEl('f6-stat','No Recibida');
+  // "No Recibida/Destruida en Punto de Ingreso": rechazo fitosanitario en
+  // frontera (aeropuerto/paso), el material nunca ingresó a ECA y fue
+  // destruido/decomisado ahí mismo. Se diferencia de una "No Recibida"
+  // simple (aún puede llegar) y de una destrucción posterior a la
+  // recepción en ECA (positivo en análisis). Arrastra Status='Destruida'
+  // (estado terminal ya reconocido por calcBadgePriority/ESTADOS_RECHAZO,
+  // con prioridad absoluta sobre el badge de vigencia). El motivo/detalle
+  // se documenta aparte en el campo Observaciones (Etapa VII).
+  if(est==='No Recibida/Destruida en Punto de Ingreso') selEl('f6-stat','Destruida');
   if(est==='Recibida'||est==='Injertada'||est==='Plantada') selEl('f2-recibida','Si');
-  else if(est==='No Recibida') selEl('f2-recibida','No');
+  else if(est==='No Recibida'||est==='No Recibida/Destruida en Punto de Ingreso') selEl('f2-recibida','No');
 }
 
 // Internal store for the estab-mat table rows (survives re-renders)
