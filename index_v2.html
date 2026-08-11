@@ -994,21 +994,8 @@ input.field-blocked, select.field-blocked {
       <span style="font-size:9px;color:var(--g400);font-style:italic">Solo cuarentenas no entregadas · no liberadas · no terminadas</span>
     </div>
 
-    <!-- Chips de conteo -->
-    <div class="sb-alert-chips" id="sb-alert-chips" style="margin-bottom:18px;max-width:380px">
-      <div class="sb-chip sb-chip-r" onclick="document.getElementById('al-cards-container').scrollIntoView({behavior:'smooth'})">
-        <span class="sb-chip-count sc-r" id="al-count-r">0</span>
-        <span class="sb-chip-label sc-r">Vencido</span>
-      </div>
-      <div class="sb-chip sb-chip-o" onclick="document.getElementById('al-cards-container').scrollIntoView({behavior:'smooth'})">
-        <span class="sb-chip-count sc-o" id="al-count-o">0</span>
-        <span class="sb-chip-label sc-o">Próximo</span>
-      </div>
-      <div class="sb-chip sb-chip-b" onclick="document.getElementById('al-cards-container').scrollIntoView({behavior:'smooth'})">
-        <span class="sb-chip-count sc-b" id="al-count-b">0</span>
-        <span class="sb-chip-label sc-b">Pendiente</span>
-      </div>
-    </div>
+    <!-- Resumen ejecutivo — panel oscuro navy/gold -->
+    <div id="al-dark-summary" style="margin-bottom:18px"></div>
 
     <!-- Resumen de disponibilidad de cubículos -->
     <div id="al-disponibilidad-container" style="margin-bottom:16px"></div>
@@ -11460,6 +11447,8 @@ function renderAlertsStage() {
   const pend = fa.filter(a => a.severity === 'pendiente');
   const all  = [...venc, ...prox, ...pend];
 
+  renderAlertsDarkSummary(venc, prox, pend);
+
   const cc = document.getElementById('al-cards-container');
   if (!cc) return;
 
@@ -11474,6 +11463,89 @@ function renderAlertsStage() {
   renderInvernaderoGrid();
 
   renderIncoming();
+}
+
+// ── Panel oscuro navy/gold — resumen ejecutivo de alertas ──
+const AL_TAG_ICON = {
+  'MUESTREO':'🔬','CCAA':'🧪','ENVÍO LAB':'📦','INFORME':'📄',
+  'SPS ANÁLISIS':'💳','CORE':'💳','SPS ESTADÍA':'🧾','CORE ESTADÍA':'🧾','CORE BLOQ':'⛔',
+  'VIGENCIA':'📅','RES. TÉRMINO':'✍','RECEPCIÓN':'🚚','INJERTACIÓN':'🌱',
+  'LIBERACIÓN':'🔓','ENTREGA':'📬','RECUENTO':'🔢','CUARENTENA 12M':'⏳',
+  'FIRMA RES. INGRESO':'✍','FIRMA RES. TÉRMINO':'✍'
+};
+
+function renderAlertsDarkSummary(venc, prox, pend) {
+  const el = document.getElementById('al-dark-summary');
+  if (!el) return;
+
+  // "Al día": registros activos sin ninguna alerta
+  const activeKeys = new Set();
+  (gsData || []).forEach(row => { if (isActive(row)) activeKeys.add(regLabel(row)); });
+  const alertedKeys = new Set(_alerts.map(a => a.key));
+  const alDia = Math.max(0, activeKeys.size - alertedKeys.size);
+
+  const top = [...venc, ...prox, ...pend]
+    .sort((a, b) => {
+      const rank = s => s === 'vencido' ? 0 : s === 'proximo' ? 1 : 2;
+      if (rank(a.severity) !== rank(b.severity)) return rank(a.severity) - rank(b.severity);
+      const da = a.days === null ? 999 : a.days, db = b.days === null ? 999 : b.days;
+      return da - db;
+    })
+    .slice(0, 6);
+
+  const sevBadge = { vencido: ['#F09595','rgba(226,75,74,0.2)','Urgente'], proximo: ['#EF9F27','rgba(239,159,39,0.2)','Próxima'], pendiente: ['#B8975A','rgba(184,151,90,0.2)','Revisar'] };
+  const sevBorder = { vencido:'#D85A30', proximo:'#EF9F27', pendiente:'#B8975A' };
+
+  const itemsHtml = top.length ? top.map(a => {
+    const icon = AL_TAG_ICON[a.tag] || '⚠';
+    const [color, bg, label] = sevBadge[a.severity];
+    const daysTxt = a.monthsLeft != null ? `faltan ${a.monthsLeft} mes(es)`
+      : a.days === null ? ''
+      : a.days <= 0 ? `vencida hace ${Math.abs(a.days)} día(s)`
+      : `faltan ${a.days} día(s)`;
+    const keyEsc = String(a.key).replace(/'/g, "\\'");
+    const tagEsc = String(a.tag).replace(/'/g, "\\'");
+    return `<div onclick="goStageFromAlert('${keyEsc}','${tagEsc}')"
+        style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.03);border-left:3px solid ${sevBorder[a.severity]};border-radius:0 8px 8px 0;padding:10px 14px;cursor:pointer">
+      <span style="font-size:16px">${icon}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:500;color:#E8ECF2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.action}${daysTxt ? ' — ' + daysTxt : ''}</div>
+        <div style="font-size:11px;color:#E8ECF2;opacity:0.65;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.imp || '—'} · ${a.reg || ''}</div>
+      </div>
+      <span style="font-size:10px;background:${bg};color:${color};padding:3px 8px;border-radius:6px;flex-shrink:0">${label}</span>
+    </div>`;
+  }).join('') : `<div style="text-align:center;padding:20px;color:#E8ECF2;opacity:0.5;font-size:12px">Sin alertas activas ✓</div>`;
+
+  el.innerHTML = `
+  <div style="font-family:'Inter',sans-serif;background:#0A1628;border-radius:16px;padding:24px;color:#E8ECF2">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:#B8975A;font-weight:500">SAG Cuarentena · Alertas</div>
+      <div style="font-size:11px;color:#E8ECF2;opacity:0.6">${activeKeys.size} registro(s) activo(s)</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">
+      <div style="background:rgba(226,75,74,0.12);border:0.5px solid rgba(226,75,74,0.35);border-radius:10px;padding:10px 12px">
+        <div style="font-size:20px;font-weight:500;color:#F09595">${venc.length}</div>
+        <div style="font-size:11px;color:#E8ECF2;opacity:0.75">Vencidas</div>
+      </div>
+      <div style="background:rgba(239,159,39,0.12);border:0.5px solid rgba(239,159,39,0.35);border-radius:10px;padding:10px 12px">
+        <div style="font-size:20px;font-weight:500;color:#EF9F27">${prox.length}</div>
+        <div style="font-size:11px;color:#E8ECF2;opacity:0.75">Próximas</div>
+      </div>
+      <div style="background:rgba(184,151,90,0.12);border:0.5px solid rgba(184,151,90,0.35);border-radius:10px;padding:10px 12px">
+        <div style="font-size:20px;font-weight:500;color:#B8975A">${pend.length}</div>
+        <div style="font-size:11px;color:#E8ECF2;opacity:0.75">Pendientes</div>
+      </div>
+      <div style="background:rgba(29,158,117,0.12);border:0.5px solid rgba(29,158,117,0.35);border-radius:10px;padding:10px 12px">
+        <div style="font-size:20px;font-weight:500;color:#5DCAA5">${alDia}</div>
+        <div style="font-size:11px;color:#E8ECF2;opacity:0.75">Al día</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">${itemsHtml}</div>
+    ${(venc.length + prox.length + pend.length) > 6 ? `<div style="margin-top:16px">
+      <button onclick="document.getElementById('al-cards-container').scrollIntoView({behavior:'smooth'})"
+        style="width:100%;background:transparent;border:0.5px solid rgba(184,151,90,0.4);color:#B8975A;border-radius:8px;padding:8px;font-size:12px;cursor:pointer">Ver todas (${venc.length + prox.length + pend.length})</button>
+    </div>` : ''}
+  </div>`;
 }
 
 function scrollToGroup(id) {
