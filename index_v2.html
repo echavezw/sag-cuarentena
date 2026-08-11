@@ -3323,8 +3323,18 @@ function calcBadgePriority(rows) {
   // ── 0. RECHAZO / DESTRUCCIÓN (override absoluto, decisión manual de SAG) ────
   const statusManual = norm(first['Status']);
   const ESTADOS_RECHAZO = ['A destruir', 'Destruida', 'Perdida'];
-  if (ESTADOS_RECHAZO.includes(statusManual))
-    return {label: statusManual, cls:'badge-err', pendientes:[]};
+  if (ESTADOS_RECHAZO.includes(statusManual)) {
+    // Caso especial: 'Destruida' es un Status genérico compartido por dos
+    // escenarios distintos — material que llegó a ECA y se destruyó tras
+    // resultar positivo, vs. material rechazado en frontera que nunca
+    // ingresó (Estado='No Recibida/Destruida en Punto de Ingreso', Etapa
+    // III). El badge muestra la etiqueta completa en el segundo caso para
+    // no perder esa distinción, sin tocar el valor guardado en Status.
+    const label = (statusManual === 'Destruida' && norm(first['Estado']) === 'No Recibida/Destruida en Punto de Ingreso')
+      ? 'No Recibida/Destruida en Punto de Ingreso'
+      : statusManual;
+    return {label, cls:'badge-err', pendientes:[]};
+  }
 
   // Indicador secundario, NO bloqueante: hubo alguna muestra/variedad con resultado
   // positivo o no apta en algún momento del historial (aunque ya se haya eliminado
