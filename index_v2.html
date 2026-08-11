@@ -4131,6 +4131,27 @@ function safeAddDays(dateStr, n) {
   return `${yr}-${mo}-${dy}`;
 }
 
+// safeAddMonths: add n calendar months to any date string format, return YYYY-MM-DD
+function safeAddMonths(dateStr, n) {
+  const d = toSafeDate(dateStr);
+  if (!d) return '';
+  d.setMonth(d.getMonth() + n);
+  const yr  = d.getFullYear();
+  const mo  = String(d.getMonth()+1).padStart(2,'0');
+  const dy  = String(d.getDate()).padStart(2,'0');
+  return `${yr}-${mo}-${dy}`;
+}
+
+// monthsElapsed: whole calendar months between dateStr and today (null if invalid)
+function monthsElapsed(dateStr) {
+  const d = toSafeDate(dateStr);
+  if (!d) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  let months = (today.getFullYear() - d.getFullYear()) * 12 + (today.getMonth() - d.getMonth());
+  if (today.getDate() < d.getDate()) months--;
+  return Math.max(0, months);
+}
+
 // daysDiff: days from today to dateStr (negative=past, positive=future)
 function daysDiff(dateStr) {
   const d = toSafeDate(dateStr);
@@ -11282,6 +11303,33 @@ function buildAlerts() {
       }
     });
 
+    // ── R16: Cuarentena — cumplimiento 12 meses desde Fecha Injertación ──
+    // Cuenta regresiva: en meses mientras faltan más de 2 meses (antes del mes 10),
+    // y en días exactos desde que se cumplen 10 meses de injertada.
+    once('cuarentena12m', () => {
+      const fechaInj = String(row['Fecha Injertación'] || '').trim();
+      const liberada = String(row['Liberada'] || '').toLowerCase();
+      if (fechaInj && liberada !== 'si' && liberada !== 'sí') {
+        const fechaObjetivo = safeAddMonths(fechaInj, 12);
+        const d = daysDiff(fechaObjetivo);
+        const mElapsed = monthsElapsed(fechaInj);
+        if (d !== null && mElapsed !== null) {
+          if (d < 0) {
+            pushAlert('vencido', reg, imp, cub, esp, analysis,
+              `Cuarentena vencida — cumplió 12 meses hace ${Math.abs(d)} día(s)`, 'CUARENTENA 12M', d, key, cub2);
+          } else if (mElapsed >= 10) {
+            pushAlert('proximo', reg, imp, cub, esp, analysis,
+              `Cuarentena cumple 12 meses — faltan ${d} día(s)`, 'CUARENTENA 12M', d, key, cub2);
+          } else {
+            const mFaltan = 12 - mElapsed;
+            pushAlert('pendiente', reg, imp, cub, esp, analysis,
+              `Cuarentena en curso — faltan ${mFaltan} mes(es) para cumplir 12 meses`, 'CUARENTENA 12M', d, key, cub2);
+            _alerts[_alerts.length - 1].monthsLeft = mFaltan;
+          }
+        }
+      }
+    });
+
     } catch(e) { console.warn('buildAlerts row error:', e, row); }
   }); // end gsData.forEach
 
@@ -11494,6 +11542,7 @@ const ALERT_TAG_STAGE = {
   'LIBERACIÓN':  6,
   'ENTREGA':     6,
   'RECUENTO':    6,
+  'CUARENTENA 12M': 6,
 };
 
 function goStageFromAlert(key, tag) {
@@ -12155,9 +12204,12 @@ function renderInvernaderoGrid() {
             entry.alerts.forEach(a => {
               const ac = a.severity === 'vencido' ? 'cap-r' : a.severity === 'proximo' ? 'cap-o' : 'cap-b';
               // Positive days = overdue (vencido), negative = days remaining (próximo)
-              const dstr = a.days !== null
-                ? (a.days <= 0 ? `+${Math.abs(a.days)}d` : `-${a.days}d`)
-                : '';
+              // Cuarentena 12M antes del mes 10: cuenta regresiva en meses en vez de días
+              const dstr = (a.monthsLeft != null)
+                ? `-${a.monthsLeft}m`
+                : (a.days !== null
+                  ? (a.days <= 0 ? `+${Math.abs(a.days)}d` : `-${a.days}d`)
+                  : '');
               const blinkCls = (a.severity === 'vencido' && a.days !== null && Math.abs(a.days) > 30) ? ' pill-blink' : '';
               inner += `<div class="cub-alert-pill ${ac}${blinkCls}">
                 <span style="overflow:hidden;text-overflow:ellipsis">${a.tag}</span>
