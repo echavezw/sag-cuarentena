@@ -1763,6 +1763,12 @@ input.field-blocked, select.field-blocked {
       <button class="btn btn-gh btn-sm" onclick="limpiarBusqueda()">Limpiar</button>
       <button class="btn btn-gh btn-sm" onclick="exportarCSVBusqueda()" title="Exportar resultados a CSV/Excel">⬇ CSV</button>
       <button class="btn btn-danger btn-sm" onclick="confirmarEliminarSeleccionadosPanel()">🗑 Eliminar selec.</button>
+      <label style="font-size:10px;color:var(--g600);display:flex;align-items:center;gap:6px;margin-left:8px">
+        Vista por defecto desde año:
+        <input type="number" id="pb-year-filter" value="" placeholder="2023" min="2000" max="2099"
+          style="width:64px;font-family:var(--mono);font-size:12px;text-align:center;padding:4px 6px"
+          onchange="_panelYearFilter = this.value.trim() ? parseInt(this.value,10) : null; buscarPanelDefault();">
+      </label>
       <details style="font-size:11px;margin-left:auto">
         <summary style="cursor:pointer;color:var(--g400);font-size:11px;font-weight:600;padding:3px 8px;border:1px solid var(--g200);border-radius:4px">Columnas</summary>
         <div id="panel-col-toggle-wrap" style="position:absolute;z-index:20;background:var(--wh);border:1px solid var(--g200);border-radius:var(--r);padding:10px;margin-top:4px;box-shadow:var(--sh2);display:flex;flex-wrap:wrap;gap:5px;max-width:460px;max-height:320px;overflow:auto"></div>
@@ -4348,16 +4354,23 @@ function showPanelTab(idx) {
     if(pnl) pnl.classList.toggle('active', i===idx);
   });
   if(idx===0) { filterHist(); renderRecientes(); }
-  if(idx===1) { buscarPanelDefault(); }
+  if(idx===1) {
+    const yf = document.getElementById('pb-year-filter');
+    if(yf && !yf.value) yf.value = _panelYearFilter != null ? _panelYearFilter : (new Date().getFullYear() - 3);
+    buscarPanelDefault();
+  }
   if(idx===2) { initReportePMG(); }
 }
+
+let _panelYearFilter = null; // null = usa la ventana por defecto (últimos 4 años); si el usuario fija un año, se usa desde ahí sin límite superior
 
 function buscarPanelDefault() {
   if(!gsData.length) return;
   const thisYear = new Date().getFullYear();
-  const YEARS_BACK = 3; // ventana: thisYear y 3 años atrás (4 años en total)
-  const minYear = thisYear - YEARS_BACK;
-  const inRangeYr = y => y && (parseInt(y,10)>=minYear && parseInt(y,10)<=thisYear);
+  const YEARS_BACK = 3; // ventana por defecto: thisYear y 3 años atrás (4 años en total)
+  const minYear = _panelYearFilter != null ? _panelYearFilter : (thisYear - YEARS_BACK);
+  const maxYear = thisYear; // sin tope superior configurable — siempre hasta hoy
+  const inRangeYr = y => y && (parseInt(y,10)>=minYear && parseInt(y,10)<=maxYear);
 
   // Pre-index all rows by key so we can check ANY row of a record for year match
   const allByKey = {};
