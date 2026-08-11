@@ -903,6 +903,15 @@ input.field-blocked, select.field-blocked {
       <button onclick="toggleEdit()" id="btn-edit" style="font-size:11px;padding:3px 10px">Editar</button>
     </div>
   </div>
+  <div id="top-alert-bell" onclick="goStage('alerts')" title="Alertas activas"
+       style="position:relative;display:flex;align-items:center;justify-content:center;width:34px;height:34px;
+              border-radius:50%;background:rgba(255,255,255,.08);cursor:pointer;margin-right:6px;flex-shrink:0">
+    <span style="font-size:16px;line-height:1">&#128276;</span>
+    <span id="top-alert-badge" class="hidden"
+          style="position:absolute;top:-3px;right:-3px;background:var(--err);color:#fff;font-size:10px;
+                 font-weight:700;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;
+                 justify-content:center;padding:0 3px;line-height:1">0</span>
+  </div>
   <div id="gs-badge"><span class="dot" id="gs-dot"></span><span id="gs-txt">Sin conexion</span></div>
 </div>
 
@@ -11294,6 +11303,25 @@ function buildAlerts() {
       }
     });
 
+    // ── R17: Resolución de Ingreso enviada a firma, sin firmar ──
+    once('firma-res-ingreso', () => {
+      const estadoRes = String(row['Estado Res.'] || '').trim();
+      const nres      = String(row['Res.'] || '').trim();
+      if (estadoRes === 'Enviada a Firma Res. Ingreso' && !nres) {
+        pushAlert('pendiente', reg, imp, cub, esp, analysis, 'Enviada a firma — Resolución de Ingreso sin firmar', 'FIRMA RES. INGRESO', null, key, cub2);
+      }
+    });
+
+    // ── R18: Resolución de Término enviada a firma, sin firmar ──
+    once('firma-res-termino', () => {
+      const norm3 = s => String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      const aFirma = norm3(row['A Firma Res. Termino'] || '');
+      const resT   = String(row['Res. Término'] || '').trim();
+      if (aFirma === 'enviado a firma' && !resT) {
+        pushAlert('pendiente', reg, imp, cub, esp, analysis, 'Enviada a firma — Resolución de Término sin firmar', 'FIRMA RES. TÉRMINO', null, key, cub2);
+      }
+    });
+
     // ── R15: Recuento final ──
     once('recuento', () => {
       const liberada    = String(row['Liberada'] || '').toLowerCase();
@@ -11345,6 +11373,9 @@ function buildAlerts() {
 
   const badge = document.getElementById('sb-alerts-badge');
   if(badge) { badge.textContent = total; badge.classList.toggle('hidden', total === 0); }
+
+  const topBadge = document.getElementById('top-alert-badge');
+  if(topBadge) { topBadge.textContent = total > 99 ? '99+' : total; topBadge.classList.toggle('hidden', total === 0); }
 
   const lbl = document.getElementById('sb-alerts-count-label');
   if(lbl) lbl.textContent = total > 0 ? `Vigilancia (${total})` : 'Vigilancia';
@@ -11543,6 +11574,8 @@ const ALERT_TAG_STAGE = {
   'ENTREGA':     6,
   'RECUENTO':    6,
   'CUARENTENA 12M': 6,
+  'FIRMA RES. INGRESO': 2,
+  'FIRMA RES. TÉRMINO': 7,
 };
 
 function goStageFromAlert(key, tag) {
