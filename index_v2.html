@@ -7091,32 +7091,23 @@ function sugerirFechasMuestreo() {
   const inj = new Date(finjStr + 'T12:00:00');
   const lev = flevStr ? new Date(flevStr + 'T12:00:00') : new Date(inj.getTime() + 365*24*60*60*1000);
 
-  // Detectar si es cítrico (sin pausa invernal)
+  // Detectar si es cítrico (sin pausa invernal, secuencia correlativa)
   const especies = (typeof getEspecies === 'function' ? getEspecies() : []).map(e => (e.especie||'').toLowerCase());
   const esCitrico = especies.some(e => /citrus|fortunella|poncirus|citric/i.test(e));
 
-  // Tipos de análisis presentes en esta ficha (en el orden correcto de secuencia)
+  // Tipos de análisis presentes en esta ficha (orden secuencial)
   const ORDEN = ['V','H','B','F','E'];
   const tiposPresentes = ORDEN.filter(k => (anRows[k]||[]).length > 0);
-
   if (!tiposPresentes.length) { alert('No hay análisis cargados. Use "Auto-cargar plagas" primero.'); return; }
 
+  const tieneFito  = tiposPresentes.includes('F');
+  const tieneHongo = tiposPresentes.includes('H');
+  const tieneBact  = tiposPresentes.includes('B');
+  const tieneEnto  = tiposPresentes.includes('E');
+
   // ── Helpers ──────────────────────────────────────────────────────
-  // Suma días a una fecha (devuelve nuevo Date)
   const addD = (d, n) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
 
-  // ¿Cae en receso invernal? (mayo=4 a agosto=7, base 0)
-  const enReceso = d => { const m = d.getMonth(); return m >= 4 && m <= 7; };
-
-  // Si la fecha cae en receso (y no es cítrico) → mover al 15 de septiembre
-  const evitarReceso = (d) => {
-    if (esCitrico || !enReceso(d)) return d;
-    const r = new Date(d);
-    r.setMonth(8); r.setDate(15); // septiembre 15
-    return r;
-  };
-
-  // Formatear fecha como YYYY-MM-DD para el input type=date
   const fmtISO = d => {
     const y = d.getFullYear();
     const m = String(d.getMonth()+1).padStart(2,'0');
@@ -7124,87 +7115,173 @@ function sugerirFechasMuestreo() {
     return `${y}-${m}-${day}`;
   };
 
-  // ── Calcular fecha del primer análisis ───────────────────────────
-  // Para cítricos: injertación + 60 días
-  // Para el resto:
-  //   - Inyertación enero–julio → primer análisis V u H: 15 octubre del mismo año de cuarentena
-  //   - Injertación agosto–diciembre → injertación + 60 días, evitando receso
-  const mesInj = inj.getMonth(); // 0=ene, 11=dic
+  // Receso invernal: 16 abril – 31 agosto (meses 3=abr desde día 16, hasta 7=ago)
+  // Límite de cierre de temporada activa: 15 de abril de cada año
+  const enReceso = d => {
+    const m = d.getMonth(); // 0=ene
+    const dia = d.getDate();
+    if (m >= 5 && m <= 7) return true;          // mayo–agosto completos
+    if (m === 4) return true;                    // mayo completo
+    if (m === 3 && dia >= 16) return true;       // segunda quincena de abril
+    return false;
+  };
+
+  // Límite de la temporada activa: 15 abril
+  const LIMITE_RECESO_MES = 3;  // abril (0-based)
+  const LIMITE_RECESO_DIA = 15;
+
+  // Si la fecha supera el 15 de abril → mover al 15 de septiembre del mismo año (o siguiente si ya pasó)
+  const evitarReceso = (d) => {
+    if (esCitrico) return d;
+    if (!enReceso(d)) return d;
+    // Mover al 15 de septiembre
+    const r = new Date(d);
+    r.setMonth(8); r.setDate(15);
+    return r;
+  };
+
+  // ¿La fecha cae en enero o febrero? (solo relevante para virus)
+  const enVerano = d => d.getMonth() <= 1; // ene=0, feb=1
+
+  // ── Fecha del primer análisis ─────────────────────────────────────
+  const mesInj = inj.getMonth(); // 0=ene … 11=dic
 
   let fechaPrimerAnalisis;
   if (esCitrico) {
+    // Cítricos: correlativo desde llegada a Hilton (~injertación) + 60 días
     fechaPrimerAnalisis = addD(inj, 60);
   } else if (mesInj <= 6) {
-    // enero–julio: fijar al 15 de octubre del año siguiente a la injertación
-    // (dentro del período de cuarentena de 12 meses)
-    const anioOct = inj.getFullYear() + (mesInj < 9 ? 0 : 1);
-    fechaPrimerAnalisis = new Date(anioOct, 9, 15, 12, 0, 0); // octubre=9
-    // Si por algún motivo queda antes de inj+60, empujar
+    // Enero–julio: primer análisis fijo al 15 de octubre (temporada activa post-invierno)
+    const anioOct = inj.getFullYear(); // la cuarentena de 12 meses cubre ese octubre
+    let candidato = new Date(anioOct, 9, 15, 12, 0, 0); // oct=9
     const minFecha = addD(inj, 60);
-    if (fechaPrimerAnalisis < minFecha) fechaPrimerAnalisis = new Date(anioOct + 1, 9, 15, 12, 0, 0);
+    if (candidato < minFecha) candidato = new Date(anioOct + 1, 9, 15, 12, 0, 0);
+    fechaPrimerAnalisis = candidato;
   } else {
-    // agosto–diciembre: injertación + 60 días, respetando receso
+    // Agosto–diciembre: injertación + 60 días, respetando receso
     fechaPrimerAnalisis = evitarReceso(addD(inj, 60));
   }
 
-  // ── Calcular cascada de fechas por tipo ──────────────────────────
-  // Usa TDM real si existe, luego FEM existente, luego la calculada
-  // para encadenar el siguiente análisis.
-  const fechasCalc = {}; // tipo -> fecha Date calculada
-  let baseAnterior = null; // fecha base del análisis anterior para encadenar
+  // ── Caso sin fitoplasma: postergar H y B lo más posible ──────────
+  // H debe tener ≥30 días de condiciones antes del límite 15-abril
+  // B debe tener ≥30 días de condiciones después de H (o 30 días post-V si no hay H)
+  //   y también debe quedar antes del 15 de abril.
+  // Si ambas caen en rango válido → tomar la fecha más tardía posible.
+  const calcFechaSinFito = (base) => {
+    // Año de cuarentena: calcular en qué año/ciclo estamos
+    // El levantamiento marca el fin. Queremos la última temporada activa
+    // antes del levantamiento donde H y B quepan con ≥30 días c/u.
+    // Temporada activa: 1-sep al 15-abr del siguiente año.
+    // Tomamos el año del levantamiento para fijar el límite de cierre.
+    const anioLev = lev.getFullYear();
+    const cierreTemporada = new Date(anioLev, 3, 15, 12, 0, 0); // 15 abril del año del lev
 
-  // Entomología siempre se calcula desde el levantamiento, no desde la cascada
+    // ¿Ese 15-abr está dentro del período de cuarentena?
+    const limiteB = cierreTemporada < lev ? cierreTemporada : addD(lev, -10);
+
+    let fechaB, fechaH;
+    if (tieneBact && tieneHongo) {
+      // B debe terminar antes de limiteB; H = B − 30 días
+      // Además H ≥ base (primer análisis ya calculado)
+      fechaB = addD(limiteB, -5);  // margen de 5 días antes del cierre
+      fechaH = addD(fechaB, -30);
+      // H no puede ser antes de la base calculada
+      if (fechaH < base) fechaH = new Date(base);
+      // Recalcular B: H + 30
+      fechaB = addD(fechaH, 30);
+      // Si B cruza el límite, forzar ambas al máximo posible
+      if (fechaB > limiteB) { fechaB = new Date(limiteB); fechaH = addD(fechaB, -30); }
+    } else if (tieneHongo) {
+      fechaH = addD(limiteB, -5);
+      if (fechaH < base) fechaH = new Date(base);
+      fechaB = null;
+    } else if (tieneBact) {
+      fechaB = addD(limiteB, -5);
+      if (fechaB < base) fechaB = new Date(base);
+      fechaH = null;
+    }
+    return { fechaH, fechaB };
+  };
+
+  // ── Calcular cascada ──────────────────────────────────────────────
+  const fechasCalc = {};
+  let baseAnterior = null;
+
+  // Secuencia sin entomología (se calcula aparte desde el levantamiento)
   const tiposSecuencia = tiposPresentes.filter(k => k !== 'E');
-  const tieneEnto = tiposPresentes.includes('E');
 
   tiposSecuencia.forEach((tipo, idx) => {
     let fecha;
+
     if (idx === 0) {
+      // Primer análisis de la secuencia
       fecha = new Date(fechaPrimerAnalisis);
+
+      // Virológico: adicionalmente evitar enero–febrero (demasiado calor)
+      if (tipo === 'V' && !esCitrico && enVerano(fecha)) {
+        // Mover al 1 de marzo del mismo año, si no supera el levantamiento
+        const marzo = new Date(fecha.getFullYear(), 2, 1, 12, 0, 0);
+        if (marzo < lev) fecha = marzo;
+      }
+
     } else {
-      // Intervalo desde la base anterior
-      const intervalo = (tipo === 'B' && !tiposPresentes.includes('H')) ? 30
-                      : (tipo === 'B') ? 15   // 15 días después de hongos
-                      : (tipo === 'H') ? 30   // 30 días después de virus
-                      : (tipo === 'F') ? 30   // 30 días después de bacterias
-                      : 30;
-      fecha = addD(baseAnterior, intervalo);
-      // Si no es cítrico, aplicar pausa invernal
-      fecha = evitarReceso(fecha);
+      // Sin fitoplasma: H y B se calculan con lógica de postergación máxima
+      if (!tieneFito && (tipo === 'H' || tipo === 'B')) {
+        const { fechaH, fechaB } = calcFechaSinFito(new Date(baseAnterior));
+        if (tipo === 'H' && fechaH) fecha = fechaH;
+        else if (tipo === 'B' && fechaB) fecha = fechaB;
+        else if (tipo === 'B' && !fechaB && fechaH) fecha = addD(fechaH, 30);
+        else fecha = addD(baseAnterior, 30);
+      } else {
+        // Intervalos estándar
+        const intervalo = (tipo === 'B' && tieneHongo)  ? 15   // 15 días post-H
+                        : (tipo === 'B' && !tieneHongo) ? 30   // 30 días post-V si no hay H
+                        : (tipo === 'H')                ? 30   // 30 días post-V
+                        : (tipo === 'F')                ? 30   // 30 días post-B
+                        : 30;
+        fecha = addD(baseAnterior, intervalo);
+        fecha = evitarReceso(fecha);
+      }
     }
+
+    // Fitoplasma: debe tener resultado antes del levantamiento.
+    // El análisis demora ~45 días → debe tomarse al menos 45 días antes del lev.
+    // Además no puede caer en receso.
+    if (tipo === 'F') {
+      const maxFito = addD(lev, -45);
+      if (fecha > maxFito) fecha = new Date(maxFito);
+      fecha = evitarReceso(fecha);
+      // Si evitar receso lo empuja más allá del lev−45, quedarse en lev−45
+      if (fecha > maxFito) fecha = new Date(maxFito);
+    }
+
     fechasCalc[tipo] = fecha;
 
-    // La base para el siguiente es: TDM real > FEM existente > calculada
+    // Base para encadenar: TDM real > FEM existente > calculada
     const rows = anRows[tipo] || [];
-    const tdmReal = rows.length ? (rows[0].tdm || '') : '';
+    const tdmReal  = rows.length ? (rows[0].tdm     || '') : '';
     const femExist = rows.length ? (rows[0].tdm_est || '') : '';
-    if (tdmReal) {
-      baseAnterior = new Date(tdmReal + 'T12:00:00');
-    } else if (femExist) {
-      baseAnterior = new Date(femExist + 'T12:00:00');
-    } else {
-      baseAnterior = fecha;
-    }
+    if (tdmReal)  baseAnterior = new Date(tdmReal  + 'T12:00:00');
+    else if (femExist) baseAnterior = new Date(femExist + 'T12:00:00');
+    else          baseAnterior = fecha;
   });
 
-  // Entomología: levantamiento − 20 días
+  // Entomología: levantamiento − 20 días (independiente de la cascada)
   if (tieneEnto) {
     fechasCalc['E'] = addD(lev, -20);
   }
 
   // ── Aplicar a anRows y DOM ────────────────────────────────────────
   let aplicados = 0;
-  const AN_KEYS_IDX = {V:0, H:1, B:2, F:3, E:4, N:5};
 
   Object.entries(fechasCalc).forEach(([tipo, fecha]) => {
     const rows = anRows[tipo] || [];
-    if (!rows.length) return;
+    if (!rows.length || !fecha) return;
     const fechaISO = fmtISO(fecha);
     rows.forEach((row, i) => {
-      if (row.tdm_est) return; // ya tiene FEM, no sobreescribir
+      if (row.tdm_est) return; // no sobreescribir FEM ya definida
       row.tdm_est = fechaISO;
       aplicados++;
-      // Actualizar DOM si el input ya existe
       const el = document.getElementById(`ae-tdm-est-${tipo}-${i}`);
       if (el) el.value = fechaISO;
     });
@@ -7215,15 +7292,17 @@ function sugerirFechasMuestreo() {
   if (aplicados === 0) {
     setS('Todas las fechas estimadas ya estaban completadas. No se modificó nada.', 'ok');
   } else {
-    // Redibujar para que las celdas muestren los valores
     renderAnalisisTabs();
+    const nombres = {V:'Virológico', H:'Hongos', B:'Bacterias', F:'Fitoplasma', E:'Entomología', N:'Nematológico'};
     const resumen = Object.entries(fechasCalc)
-      .filter(([k]) => tiposPresentes.includes(k))
-      .map(([k, d]) => {
-        const nombres = {V:'Virológico', H:'Hongos', B:'Bacterias', F:'Fitoplasma', E:'Entomología', N:'Nematológico'};
-        return `${nombres[k]||k}: ${fmtISO(d)}`;
-      }).join(' | ');
-    setS(`Fechas sugeridas aplicadas (${aplicados} filas). ${esCitrico ? '(Cítrico — sin pausa invernal)' : ''} ${resumen}`, 'ok');
+      .filter(([k, d]) => tiposPresentes.includes(k) && d)
+      .map(([k, d]) => `${nombres[k]||k}: ${fmtISO(d)}`)
+      .join(' | ');
+    const notas = [
+      esCitrico ? 'Cítrico: secuencia correlativa sin pausa' : 'Pausa invernal: 16 abr – 31 ago',
+      !tieneFito && (tieneHongo || tieneBact) ? 'H/B postergadas al máximo (sin Fitoplasma)' : ''
+    ].filter(Boolean).join(' · ');
+    setS(`Fechas sugeridas (${aplicados} filas). ${notas} — ${resumen}`, 'ok');
   }
 }
 
