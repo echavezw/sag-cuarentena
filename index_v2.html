@@ -1424,6 +1424,7 @@ input.field-blocked, select.field-blocked {
     </div>
     <div class="sec-actions">
       <button class="btn btn-gh btn-sm" onclick="limpiarEtapa(4)">Limpiar</button>
+      <button class="btn btn-gh btn-sm" onclick="sugerirFechasMuestreo()" title="Calcula y completa fechas estimadas de muestreo vacías según lógica estacional">📅 Sugerir fechas</button>
       <button class="btn btn-nv btn-sm" onclick="autoCargarAnalisis()">Auto-cargar plagas</button>
     </div>
   </div>
@@ -7075,6 +7076,155 @@ let _lastLoadedRow = {}; // fallback for fields not rendered when saving
 
 function initAnRows() {
   anRows={V:[],H:[],B:[],F:[],E:[],N:[]}; _anRowsModified=false;
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  SUGERENCIA DE FECHAS ESTIMADAS DE MUESTREO
+//  Calcula FEM para filas vacías según lógica estacional ECA.
+//  Solo completa campos vacíos; nunca sobreescribe TDM Est. existente.
+// ══════════════════════════════════════════════════════════════════
+function sugerirFechasMuestreo() {
+  const finjStr = v('f3-finj');
+  const flevStr = v('f3-flev');
+  if (!finjStr) { alert('Ingrese primero la Fecha de Injertación (Etapa III).'); return; }
+
+  const inj = new Date(finjStr + 'T12:00:00');
+  const lev = flevStr ? new Date(flevStr + 'T12:00:00') : new Date(inj.getTime() + 365*24*60*60*1000);
+
+  // Detectar si es cítrico (sin pausa invernal)
+  const especies = (typeof getEspecies === 'function' ? getEspecies() : []).map(e => (e.especie||'').toLowerCase());
+  const esCitrico = especies.some(e => /citrus|fortunella|poncirus|citric/i.test(e));
+
+  // Tipos de análisis presentes en esta ficha (en el orden correcto de secuencia)
+  const ORDEN = ['V','H','B','F','E'];
+  const tiposPresentes = ORDEN.filter(k => (anRows[k]||[]).length > 0);
+
+  if (!tiposPresentes.length) { alert('No hay análisis cargados. Use "Auto-cargar plagas" primero.'); return; }
+
+  // ── Helpers ──────────────────────────────────────────────────────
+  // Suma días a una fecha (devuelve nuevo Date)
+  const addD = (d, n) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
+
+  // ¿Cae en receso invernal? (mayo=4 a agosto=7, base 0)
+  const enReceso = d => { const m = d.getMonth(); return m >= 4 && m <= 7; };
+
+  // Si la fecha cae en receso (y no es cítrico) → mover al 15 de septiembre
+  const evitarReceso = (d) => {
+    if (esCitrico || !enReceso(d)) return d;
+    const r = new Date(d);
+    r.setMonth(8); r.setDate(15); // septiembre 15
+    return r;
+  };
+
+  // Formatear fecha como YYYY-MM-DD para el input type=date
+  const fmtISO = d => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  };
+
+  // ── Calcular fecha del primer análisis ───────────────────────────
+  // Para cítricos: injertación + 60 días
+  // Para el resto:
+  //   - Inyertación enero–julio → primer análisis V u H: 15 octubre del mismo año de cuarentena
+  //   - Injertación agosto–diciembre → injertación + 60 días, evitando receso
+  const mesInj = inj.getMonth(); // 0=ene, 11=dic
+
+  let fechaPrimerAnalisis;
+  if (esCitrico) {
+    fechaPrimerAnalisis = addD(inj, 60);
+  } else if (mesInj <= 6) {
+    // enero–julio: fijar al 15 de octubre del año siguiente a la injertación
+    // (dentro del período de cuarentena de 12 meses)
+    const anioOct = inj.getFullYear() + (mesInj < 9 ? 0 : 1);
+    fechaPrimerAnalisis = new Date(anioOct, 9, 15, 12, 0, 0); // octubre=9
+    // Si por algún motivo queda antes de inj+60, empujar
+    const minFecha = addD(inj, 60);
+    if (fechaPrimerAnalisis < minFecha) fechaPrimerAnalisis = new Date(anioOct + 1, 9, 15, 12, 0, 0);
+  } else {
+    // agosto–diciembre: injertación + 60 días, respetando receso
+    fechaPrimerAnalisis = evitarReceso(addD(inj, 60));
+  }
+
+  // ── Calcular cascada de fechas por tipo ──────────────────────────
+  // Usa TDM real si existe, luego FEM existente, luego la calculada
+  // para encadenar el siguiente análisis.
+  const fechasCalc = {}; // tipo -> fecha Date calculada
+  let baseAnterior = null; // fecha base del análisis anterior para encadenar
+
+  // Entomología siempre se calcula desde el levantamiento, no desde la cascada
+  const tiposSecuencia = tiposPresentes.filter(k => k !== 'E');
+  const tieneEnto = tiposPresentes.includes('E');
+
+  tiposSecuencia.forEach((tipo, idx) => {
+    let fecha;
+    if (idx === 0) {
+      fecha = new Date(fechaPrimerAnalisis);
+    } else {
+      // Intervalo desde la base anterior
+      const intervalo = (tipo === 'B' && !tiposPresentes.includes('H')) ? 30
+                      : (tipo === 'B') ? 15   // 15 días después de hongos
+                      : (tipo === 'H') ? 30   // 30 días después de virus
+                      : (tipo === 'F') ? 30   // 30 días después de bacterias
+                      : 30;
+      fecha = addD(baseAnterior, intervalo);
+      // Si no es cítrico, aplicar pausa invernal
+      fecha = evitarReceso(fecha);
+    }
+    fechasCalc[tipo] = fecha;
+
+    // La base para el siguiente es: TDM real > FEM existente > calculada
+    const rows = anRows[tipo] || [];
+    const tdmReal = rows.length ? (rows[0].tdm || '') : '';
+    const femExist = rows.length ? (rows[0].tdm_est || '') : '';
+    if (tdmReal) {
+      baseAnterior = new Date(tdmReal + 'T12:00:00');
+    } else if (femExist) {
+      baseAnterior = new Date(femExist + 'T12:00:00');
+    } else {
+      baseAnterior = fecha;
+    }
+  });
+
+  // Entomología: levantamiento − 20 días
+  if (tieneEnto) {
+    fechasCalc['E'] = addD(lev, -20);
+  }
+
+  // ── Aplicar a anRows y DOM ────────────────────────────────────────
+  let aplicados = 0;
+  const AN_KEYS_IDX = {V:0, H:1, B:2, F:3, E:4, N:5};
+
+  Object.entries(fechasCalc).forEach(([tipo, fecha]) => {
+    const rows = anRows[tipo] || [];
+    if (!rows.length) return;
+    const fechaISO = fmtISO(fecha);
+    rows.forEach((row, i) => {
+      if (row.tdm_est) return; // ya tiene FEM, no sobreescribir
+      row.tdm_est = fechaISO;
+      aplicados++;
+      // Actualizar DOM si el input ya existe
+      const el = document.getElementById(`ae-tdm-est-${tipo}-${i}`);
+      if (el) el.value = fechaISO;
+    });
+  });
+
+  _anRowsModified = true;
+
+  if (aplicados === 0) {
+    setS('Todas las fechas estimadas ya estaban completadas. No se modificó nada.', 'ok');
+  } else {
+    // Redibujar para que las celdas muestren los valores
+    renderAnalisisTabs();
+    const resumen = Object.entries(fechasCalc)
+      .filter(([k]) => tiposPresentes.includes(k))
+      .map(([k, d]) => {
+        const nombres = {V:'Virológico', H:'Hongos', B:'Bacterias', F:'Fitoplasma', E:'Entomología', N:'Nematológico'};
+        return `${nombres[k]||k}: ${fmtISO(d)}`;
+      }).join(' | ');
+    setS(`Fechas sugeridas aplicadas (${aplicados} filas). ${esCitrico ? '(Cítrico — sin pausa invernal)' : ''} ${resumen}`, 'ok');
+  }
 }
 
 function renderAnalisisTabs() {
