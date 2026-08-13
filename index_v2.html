@@ -7347,51 +7347,65 @@ function sugerirFechasMuestreo() {
   const anclaE = addD(lev, -20);
   if (tieneEnto) fechasCalc['E'] = anclaE;
 
-  // ── Caso cítrico: cascada correlativa desde inj+60 ───────────────
-  if (esCitrico) {
-    let base = addD(inj, 60);
-    const intervalos = {V:0, H:30, B:15, F:30, N:30};
-    tiposPresentes.filter(k => k !== 'E').forEach(tipo => {
-      const inter = tipo === tiposPresentes.filter(k=>k!=='E')[0] ? 0 : (intervalos[tipo]||30);
-      const fecha = inter === 0 ? new Date(base) : addD(base, inter);
-      fechasCalc[tipo] = fecha;
-      base = fecha;
-    });
-
-  // ── Caso con Virológico: V es ancla de inicio ────────────────────
-  } else if (tieneV) {
-    const mesInj = inj.getMonth();
+  // ── Caso con Virológico (cítrico o no): V es ancla de inicio ───────
+  // Cítricos: anclaV = inj+60 (sin restricción estacional)
+  // Resto: anclaV = 15-oct (o inj+60 si ago-dic)
+  // En ambos casos los intermedios se distribuyen UNIFORMEMENTE entre
+  // anclaV y anclaFin, usando todo el espacio disponible hasta E.
+  if (tieneV) {
     let anclaV;
-    if (mesInj <= 6) {
-      let oct = new Date(inj.getFullYear(), 9, 15, 12, 0, 0);
-      if (oct < addD(inj, 60)) oct = new Date(inj.getFullYear()+1, 9, 15, 12, 0, 0);
-      anclaV = oct;
+    if (esCitrico) {
+      anclaV = addD(inj, 60);
     } else {
-      anclaV = evitarReceso(addD(inj, 60));
-      if (anclaV.getMonth() <= 1) {
-        const marzo = new Date(anclaV.getFullYear(), 2, 1, 12, 0, 0);
-        if (marzo < lev) anclaV = marzo;
+      const mesInj = inj.getMonth();
+      if (mesInj <= 6) {
+        let oct = new Date(inj.getFullYear(), 9, 15, 12, 0, 0);
+        if (oct < addD(inj, 60)) oct = new Date(inj.getFullYear()+1, 9, 15, 12, 0, 0);
+        anclaV = oct;
+      } else {
+        anclaV = evitarReceso(addD(inj, 60));
+        if (anclaV.getMonth() <= 1) {
+          const marzo = new Date(anclaV.getFullYear(), 2, 1, 12, 0, 0);
+          if (marzo < lev) anclaV = marzo;
+        }
       }
     }
     fechasCalc['V'] = anclaV;
 
     const intermedios = tiposPresentes.filter(k => k !== 'V' && k !== 'E');
     if (intermedios.length > 0) {
+      // anclaFin: usa todo el espacio hasta E (o hasta lev−45 si hay Fito).
+      // Para no-cítricos sin Fito: respeta el cierre estacional (10-abr)
+      // solo si ese cierre cae ANTES que E−30 (no lo usa si queda espacio posterior).
       let anclaFin;
       if (tieneFito) {
+        // Fito necesita resultado antes del lev: tomarlo ≥45 días antes
         anclaFin = addD(lev, -45);
-        if (enReceso(anclaFin)) anclaFin = new Date(anclaFin.getFullYear(), 3, 10, 12, 0, 0);
+        if (!esCitrico && enReceso(anclaFin)) {
+          anclaFin = new Date(anclaFin.getFullYear(), 3, 10, 12, 0, 0);
+        }
+      } else if (esCitrico) {
+        // Cítrico sin Fito: usar todo el espacio hasta E−30
+        anclaFin = addD(anclaE, -30);
       } else {
+        // No-cítrico sin Fito: si el cierre estacional (10-abr) queda antes
+        // de E−30, úsalo para no dejar análisis en verano. Si el lev es
+        // antes de abril, usar lev−30 directamente.
         const cierre = new Date(lev.getFullYear(), 3, 10, 12, 0, 0);
-        anclaFin = cierre < lev ? cierre : addD(lev, -30);
+        const eMin30 = addD(anclaE, -30);
+        anclaFin = cierre < eMin30 ? cierre : eMin30;
+        if (anclaFin < anclaV) anclaFin = eMin30; // fallback
       }
+
       const totalDias = Math.max((anclaFin - anclaV) / 86400000, intermedios.length * 20);
       const paso = Math.floor(totalDias / (intermedios.length + 1));
       intermedios.forEach((tipo, i) => {
-        let fecha = evitarReceso(addD(anclaV, paso * (i+1)));
+        let fecha = esCitrico ? addD(anclaV, paso * (i+1))
+                              : evitarReceso(addD(anclaV, paso * (i+1)));
         if (tipo === 'F') {
           const maxFito = addD(lev, -45);
-          if (fecha > maxFito) fecha = evitarReceso(new Date(maxFito));
+          if (fecha > maxFito) fecha = esCitrico ? new Date(maxFito)
+                                                 : evitarReceso(new Date(maxFito));
         }
         fechasCalc[tipo] = fecha;
       });
