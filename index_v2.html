@@ -7141,46 +7141,115 @@ function initAnRows() {
 // acaba de registrar, tanto las vacías como las que ya tenían fecha estimada
 // previa (siempre que no tengan TDM real propio — ese ya es dato confirmado).
 // No toca las FEM de análisis anteriores al editado.
+// ── Helpers compartidos para FEM y CCAA ──────────────────────────────────────
+function _anAddD(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
+function _anFmtISO(d) {
+  return d.getFullYear() + '-' +
+    String(d.getMonth()+1).padStart(2,'0') + '-' +
+    String(d.getDate()).padStart(2,'0');
+}
+function _anEnReceso(d) {
+  const m = d.getMonth(), dia = d.getDate();
+  return (m >= 4 && m <= 7) || (m === 3 && dia >= 16);
+}
+function _anEvitarReceso(d) {
+  if (!_anEnReceso(d)) return d;
+  const r = new Date(d); r.setMonth(8); r.setDate(15); return r;
+}
+
+// Escribe CCAA Est en anRows y DOM para todas las filas de un tipo.
+// Solo sobreescribe si no hay CCAA real (ccaa_real) — ese es dato confirmado.
+function _setCCAAEst(tipo, fechaISO) {
+  const rows = anRows[tipo] || [];
+  rows.forEach((row, i) => {
+    if (row.ccaa_real) return; // no tocar si ya hay CCAA real
+    row.ccaa_est = fechaISO;
+    const el = document.getElementById(`ae-ccaa-est-${tipo}-${i}`);
+    if (el) el.value = fechaISO;
+  });
+}
+
+// Calcula la CCAA Est de cada tipo según las reglas operacionales:
+//   V  → FEM_V − 60 días (el material entra a condiciones ambientales 2 meses antes)
+//   H  → FEM_V (el cambio a condiciones hongos ocurre al tomar la muestra de virus)
+//   B  → FEM_H (o FEM_V si no hay H)
+//   F  → FEM_B (o FEM_H si no hay B, o FEM_V si no hay H ni B)
+//   E  → FEM_F (si hay F); si no hay F → FEM_B; si no hay B → vacío
+//        (entomología comparte condiciones con el análisis anterior)
+// Donde FEM_X = TDM real de X si existe, si no FEM estimada de X.
+// Solo escribe los campos que estén vacíos de CCAA real.
+function _calcularTodasCCAA() {
+  const ORDEN = ['V','H','B','F','E','N'];
+  const tp = ORDEN.filter(k => (anRows[k]||[]).length > 0);
+
+  // Obtener la fecha efectiva (TDM real > FEM estimada) de cada tipo
+  const getFecha = tipo => {
+    const rows = anRows[tipo] || [];
+    if (!rows.length) return null;
+    const s = rows[0].tdm || rows[0].tdm_est || '';
+    return s ? new Date(s + 'T12:00:00') : null;
+  };
+
+  const fV = getFecha('V');
+  const fH = getFecha('H');
+  const fB = getFecha('B');
+  const fF = getFecha('F');
+
+  // V: CCAA = FEM_V − 60 días
+  if (tp.includes('V') && fV) {
+    _setCCAAEst('V', _anFmtISO(_anAddD(fV, -60)));
+  }
+
+  // H: CCAA = FEM_V (momento en que cambian condiciones al tomar muestra de virus)
+  if (tp.includes('H') && fV) {
+    _setCCAAEst('H', _anFmtISO(fV));
+  }
+
+  // B: CCAA = FEM_H (o FEM_V si no hay H)
+  if (tp.includes('B')) {
+    const base = fH || fV;
+    if (base) _setCCAAEst('B', _anFmtISO(base));
+  }
+
+  // F: CCAA = FEM_B (o FH, o FV)
+  if (tp.includes('F')) {
+    const base = fB || fH || fV;
+    if (base) _setCCAAEst('F', _anFmtISO(base));
+  }
+
+  // E: CCAA = FEM_F si hay F; si no, FEM_B; si no hay ninguno → vacío
+  // Entomología no necesita CCAA propio si hubo fitoplasma (comparte condiciones)
+  if (tp.includes('E')) {
+    if (tp.includes('F') && fF) {
+      // No se rellena — comparte condiciones con fitoplasma
+    } else {
+      const base = fB || fH || fV;
+      if (base) _setCCAAEst('E', _anFmtISO(base));
+    }
+  }
+}
+
 function autoAjustarFemSiguientes(tipoEditado, tdmValor) {
   if (!tdmValor) return;
 
   const flevStr = v('f3-flev');
   const lev = flevStr ? new Date(flevStr + 'T12:00:00') : null;
 
-  const addD = (d, n) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
-  const fmtISO = d => {
-    const y = d.getFullYear();
-    const m = String(d.getMonth()+1).padStart(2,'0');
-    const day = String(d.getDate()).padStart(2,'0');
-    return `${y}-${m}-${day}`;
-  };
-  const enReceso = d => {
-    const m = d.getMonth(), dia = d.getDate();
-    if (m >= 4 && m <= 7) return true;
-    if (m === 3 && dia >= 16) return true;
-    return false;
-  };
-  const evitarReceso = d => {
-    if (enReceso(d)) { const r = new Date(d); r.setMonth(8); r.setDate(15); return r; }
-    return d;
-  };
-
   const ORDEN = ['V','H','B','F','E','N'];
   const tiposPresentes = ORDEN.filter(k => (anRows[k]||[]).length > 0);
   const idxEditado = tiposPresentes.indexOf(tipoEditado);
   if (idxEditado < 0) return;
 
+  // Sincronizar el valor editado en anRows antes de calcular CCAA
+  const rowsEditadas = anRows[tipoEditado] || [];
+  rowsEditadas.forEach(row => { row.tdm = tdmValor; });
+
   // Tipos POSTERIORES al editado
   const tiposSiguientes = tiposPresentes.slice(idxEditado + 1);
-  if (!tiposSiguientes.length) return;
-
-  const tieneFito = tiposPresentes.includes('F');
-  let baseDate = new Date(tdmValor + 'T12:00:00');
   let modificados = 0;
+  let baseDate = new Date(tdmValor + 'T12:00:00');
 
   tiposSiguientes.forEach(tipo => {
-    // Si este tipo ya tiene TDM real, lo usamos como base para el siguiente
-    // pero no modificamos su FEM
     const rows = anRows[tipo] || [];
     const tdmReal = rows.length ? (rows[0].tdm || '') : '';
     if (tdmReal) {
@@ -7190,29 +7259,21 @@ function autoAjustarFemSiguientes(tipoEditado, tdmValor) {
 
     let nuevaFem;
     if (tipo === 'E') {
-      // Entomología: siempre lev − 20, no depende de la cascada
       if (!lev) return;
-      nuevaFem = addD(lev, -20);
+      nuevaFem = _anAddD(lev, -20);
     } else {
-      // Intervalos desde la base anterior
       const tieneHongo = tiposPresentes.includes('H');
       const intervalo = (tipo === 'B' && tieneHongo)  ? 15
                       : (tipo === 'B' && !tieneHongo) ? 30
-                      : (tipo === 'H')                ? 30
-                      : (tipo === 'F')                ? 30
-                      : (tipo === 'N')                ? 30
                       : 30;
-      nuevaFem = evitarReceso(addD(baseDate, intervalo));
-
-      // Fitoplasma: no superar lev−45
+      nuevaFem = _anEvitarReceso(_anAddD(baseDate, intervalo));
       if (tipo === 'F' && lev) {
-        const maxFito = addD(lev, -45);
-        if (nuevaFem > maxFito) nuevaFem = evitarReceso(new Date(maxFito));
+        const maxFito = _anAddD(lev, -45);
+        if (nuevaFem > maxFito) nuevaFem = _anEvitarReceso(new Date(maxFito));
       }
     }
 
-    const fechaISO = fmtISO(nuevaFem);
-    // Actualizar anRows y DOM (todas las filas del tipo, que comparten la misma FEM)
+    const fechaISO = _anFmtISO(nuevaFem);
     rows.forEach((row, i) => {
       row.tdm_est = fechaISO;
       const el = document.getElementById(`ae-tdm-est-${tipo}-${i}`);
@@ -7222,10 +7283,13 @@ function autoAjustarFemSiguientes(tipoEditado, tdmValor) {
     modificados++;
   });
 
-  if (modificados > 0) {
+  // Recalcular todas las CCAA Est después de actualizar las FEM
+  _calcularTodasCCAA();
+
+  if (modificados > 0 || true) {
     _anRowsModified = true;
     const nombres = {V:'Virológico', H:'Hongos', B:'Bacterias', F:'Fitoplasma', E:'Entomología', N:'Nematológico'};
-    setS(`FEM ajustadas desde ${nombres[tipoEditado]||tipoEditado} (${modificados} análisis siguientes recalculados).`, 'ok');
+    setS(`FEM y CCAA ajustadas desde ${nombres[tipoEditado]||tipoEditado} (${modificados} análisis siguientes recalculados).`, 'ok');
   }
 }
 
@@ -7390,6 +7454,9 @@ function sugerirFechasMuestreo() {
       if (el) el.value = fechaISO;
     });
   });
+
+  // Calcular CCAA Est para todos los tipos a partir de las FEM recién asignadas
+  _calcularTodasCCAA();
 
   _anRowsModified = true;
 
