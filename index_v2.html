@@ -7195,9 +7195,17 @@ function _calcularTodasCCAA() {
   const fB = getFecha('B');
   const fF = getFecha('F');
 
-  // V: CCAA = FEM_V − 60 días
+  // V: CCAA = FEM_V − 60 días, pero nunca antes de injertación + 45 días
+  // (las plantas necesitan al menos 1–2 meses para establecerse tras el injerto,
+  // incluso en hoja persistente / cítricos donde no hay pausa invernal)
   if (tp.includes('V') && fV) {
-    _setCCAAEst('V', _anFmtISO(_anAddD(fV, -60)));
+    let ccaaV = _anAddD(fV, -60);
+    const finjStr = v('f3-finj');
+    if (finjStr) {
+      const minCCAA = _anAddD(new Date(finjStr + 'T12:00:00'), 45);
+      if (ccaaV < minCCAA) ccaaV = minCCAA;
+    }
+    _setCCAAEst('V', _anFmtISO(ccaaV));
   }
 
   // H: CCAA = FEM_V (momento en que cambian condiciones al tomar muestra de virus)
