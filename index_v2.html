@@ -1169,6 +1169,9 @@ input.field-blocked, select.field-blocked {
   <div class="anular-actions" id="f1-anular-wrap" style="display:none">
     <button type="button" class="btn-anular" onclick="anularSolicitud()">&#8855; Anular solicitud</button>
   </div>
+  <div style="margin-top:8px;padding:0 2px">
+    <button type="button" class="btn btn-gh btn-sm" onclick="anularSolicitudDirecto()" title="Marca como Anulada en el registro (solo cambia el Status, sin correo al importador)">⊗ Anular registro</button>
+  </div>
   <div style="margin-top:10px;padding:0 2px">
     <button type="button" class="btn btn-gh btn-sm" onclick="generarBorradorResolucion()" title="Genera borrador Word de Resolución de Internación">📄 Generar Borrador Res.</button>
     <button type="button" class="btn btn-gh btn-sm" onclick="generarTimbreRecepcion()" title="Genera un PDF de timbre de recepción con la fecha de recepción, anexo a la solicitud">🏷️ Generar Timbre Recepción</button>
@@ -5773,6 +5776,55 @@ async function anularSolicitud() {
     },'Anular','btn-err');
 }
 
+// ── Anulación directa de registro (sin correo) ───────────────────────────────
+// Botón permanente en Etapa I. Solo cambia Status → "Anulada" en Detalle y
+// registra en HistorialEventos. No envía correo. Útil para solicitudes que no
+// continuaron o fueron reemplazadas, independientemente de su estado actual.
+async function anularSolicitudDirecto() {
+  const nSol = (document.getElementById('f1-nsol')?.value||'').trim();
+  if(!nSol){ setS('No hay solicitud o resolución cargada.','warn'); return; }
+  const stActual = (_lastLoadedRow && _lastLoadedRow['Status']) || '';
+  if(String(stActual).trim() === _ST_ANULADA){
+    setS('Este registro ya está marcado como Anulada.','warn'); return;
+  }
+  const nRes = (document.getElementById('f1-nres')?.value||'').trim();
+  const etiqueta = nRes ? `Res. N° ${nRes}` : `Solicitud N° ${nSol}`;
+  showModal('Anular registro',
+    `¿Confirma que desea marcar ${etiqueta} como ANULADA en el registro? Solo se cambia el Status (sin correo al importador). Esta acción queda en el historial.`,
+    async () => {
+      closeModal();
+      try {
+        await ensureToken();
+        // Buscar fila: primero por Res., luego por Solicitud sin Res.
+        let fila = null;
+        if(nRes){
+          const rows = await fetchAllRows();
+          const hdr = rows[0]||[];
+          const iRes = hdr.indexOf('Res.');
+          if(iRes >= 0){
+            for(let i=1;i<rows.length;i++){
+              if(String(rows[i][iRes]||'').trim()===nRes){ fila = i+1; break; }
+            }
+          }
+        }
+        if(!fila) fila = await _filaDetallePorSolicitud(nSol);
+        if(!fila){ setS('No se encontró la fila del registro.','err'); return; }
+        await _escribirCeldaDetalle(fila, 'Status', _ST_ANULADA);
+        await _escribirCeldaDetalle(fila, 'Fecha Último Evento SAG', _nowStrSAG());
+        await _escribirCeldaDetalle(fila, 'Tipo Último Evento SAG', _ST_ANULADA);
+        const nombre = _lastLoadedRow ? (_lastLoadedRow['Importador']||'') : '';
+        await registrarEventoHistorial(nSol, nRes||'', nombre, _ST_ANULADA + ' (registro directo)', 'SAG interno');
+        actualizarTimbreAprob(_ST_ANULADA);
+        if(_lastLoadedRow) _lastLoadedRow['Status'] = _ST_ANULADA;
+        setS(`${etiqueta} marcada como Anulada en el registro.`,'ok');
+        recargar();
+      } catch(e) {
+        if(/401/.test(e.message)){ accessToken=null; setS('Token expirado, intente nuevamente.','err'); }
+        else setS('Error al anular: '+e.message,'err');
+      }
+    }, 'Anular', 'btn-err');
+}
+
 // Notifica al importador que su solicitud fue enviada a firma de la Resolución
 // de Ingreso (mismo patrón best-effort que aprobarSolicitud/rechazarSolicitud:
 // el cambio de Estado Res. ya quedó guardado en el Sheet vía guardarTodo(),
@@ -7083,6 +7135,100 @@ function initAnRows() {
 //  Calcula FEM para filas vacías según lógica estacional ECA.
 //  Solo completa campos vacíos; nunca sobreescribe TDM Est. existente.
 // ══════════════════════════════════════════════════════════════════
+// ── Autoajuste de FEM al registrar TDM real ──────────────────────────────────
+// Se dispara al salir (onblur) del campo TDM real de la fila 0 de cada tipo.
+// Recalcula en cascada las FEM de todos los análisis POSTERIORES al que se
+// acaba de registrar, tanto las vacías como las que ya tenían fecha estimada
+// previa (siempre que no tengan TDM real propio — ese ya es dato confirmado).
+// No toca las FEM de análisis anteriores al editado.
+function autoAjustarFemSiguientes(tipoEditado, tdmValor) {
+  if (!tdmValor) return;
+
+  const flevStr = v('f3-flev');
+  const lev = flevStr ? new Date(flevStr + 'T12:00:00') : null;
+
+  const addD = (d, n) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
+  const fmtISO = d => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  };
+  const enReceso = d => {
+    const m = d.getMonth(), dia = d.getDate();
+    if (m >= 4 && m <= 7) return true;
+    if (m === 3 && dia >= 16) return true;
+    return false;
+  };
+  const evitarReceso = d => {
+    if (enReceso(d)) { const r = new Date(d); r.setMonth(8); r.setDate(15); return r; }
+    return d;
+  };
+
+  const ORDEN = ['V','H','B','F','E','N'];
+  const tiposPresentes = ORDEN.filter(k => (anRows[k]||[]).length > 0);
+  const idxEditado = tiposPresentes.indexOf(tipoEditado);
+  if (idxEditado < 0) return;
+
+  // Tipos POSTERIORES al editado
+  const tiposSiguientes = tiposPresentes.slice(idxEditado + 1);
+  if (!tiposSiguientes.length) return;
+
+  const tieneFito = tiposPresentes.includes('F');
+  let baseDate = new Date(tdmValor + 'T12:00:00');
+  let modificados = 0;
+
+  tiposSiguientes.forEach(tipo => {
+    // Si este tipo ya tiene TDM real, lo usamos como base para el siguiente
+    // pero no modificamos su FEM
+    const rows = anRows[tipo] || [];
+    const tdmReal = rows.length ? (rows[0].tdm || '') : '';
+    if (tdmReal) {
+      baseDate = new Date(tdmReal + 'T12:00:00');
+      return;
+    }
+
+    let nuevaFem;
+    if (tipo === 'E') {
+      // Entomología: siempre lev − 20, no depende de la cascada
+      if (!lev) return;
+      nuevaFem = addD(lev, -20);
+    } else {
+      // Intervalos desde la base anterior
+      const tieneHongo = tiposPresentes.includes('H');
+      const intervalo = (tipo === 'B' && tieneHongo)  ? 15
+                      : (tipo === 'B' && !tieneHongo) ? 30
+                      : (tipo === 'H')                ? 30
+                      : (tipo === 'F')                ? 30
+                      : (tipo === 'N')                ? 30
+                      : 30;
+      nuevaFem = evitarReceso(addD(baseDate, intervalo));
+
+      // Fitoplasma: no superar lev−45
+      if (tipo === 'F' && lev) {
+        const maxFito = addD(lev, -45);
+        if (nuevaFem > maxFito) nuevaFem = evitarReceso(new Date(maxFito));
+      }
+    }
+
+    const fechaISO = fmtISO(nuevaFem);
+    // Actualizar anRows y DOM (todas las filas del tipo, que comparten la misma FEM)
+    rows.forEach((row, i) => {
+      row.tdm_est = fechaISO;
+      const el = document.getElementById(`ae-tdm-est-${tipo}-${i}`);
+      if (el) el.value = fechaISO;
+    });
+    baseDate = nuevaFem;
+    modificados++;
+  });
+
+  if (modificados > 0) {
+    _anRowsModified = true;
+    const nombres = {V:'Virológico', H:'Hongos', B:'Bacterias', F:'Fitoplasma', E:'Entomología', N:'Nematológico'};
+    setS(`FEM ajustadas desde ${nombres[tipoEditado]||tipoEditado} (${modificados} análisis siguientes recalculados).`, 'ok');
+  }
+}
+
 function sugerirFechasMuestreo() {
   const finjStr = v('f3-finj');
   const flevStr = v('f3-flev');
@@ -7403,7 +7549,7 @@ function makeAnRow(key,i,r,tecnica) {
     <td style="text-align:center"><input type="date" id="ae-ccaa-est-${key}-${i}" value="${r.ccaa_est||''}" style="text-align:center" ${i===0?`oninput="replicarFila0An('${key}','ccaa-est',this.value)"`:''}>  </td>
     <td style="text-align:center"><input type="date" id="ae-ccaa-real-${key}-${i}" value="${r.ccaa_real||''}" style="text-align:center" ${i===0?`oninput="replicarFila0An('${key}','ccaa-real',this.value)"`:''}>  </td>
     <td style="text-align:center"><input type="date" id="ae-tdm-est-${key}-${i}" value="${r.tdm_est||''}" style="text-align:center" ${i===0?`oninput="replicarFila0An('${key}','tdm-est',this.value)"`:''}>  </td>
-    <td style="text-align:center"><input type="date" id="ae-tdm-${key}-${i}" value="${r.tdm||''}" style="text-align:center" ${i===0?`oninput="replicarFila0An('${key}','tdm',this.value)"`:''}>  </td>
+    <td style="text-align:center"><input type="date" id="ae-tdm-${key}-${i}" value="${r.tdm||''}" style="text-align:center" ${i===0?`oninput="replicarFila0An('${key}','tdm',this.value)" onblur="autoAjustarFemSiguientes('${key}',this.value)"`:''}>  </td>
     <td style="text-align:center"><input type="text" inputmode="numeric" id="ae-folio-${key}-${i}" value="${r.folio||''}" style="font-family:var(--mono);text-align:center;min-width:36px;width:auto" oninput="autoEstadoFolio('${key}',${i});autoFitInput(this);${i===0?`replicarFila0An('${key}','folio',this.value)`:''}"  ></td>
     <td style="text-align:center"><input type="text" inputmode="numeric" id="ae-cd-${key}-${i}" value="${r.corr_desde||''}" style="font-family:var(--mono);text-align:center;min-width:36px;width:auto" oninput="autoFillCorrHasta('${key}',${i});calcNM('${key}',${i});autoFitInput(this);${i===0?`replicarFila0An('${key}','cd',this.value)`:''}"  ></td>
     <td style="text-align:center"><input type="text" inputmode="numeric" id="ae-ch-${key}-${i}" value="${r.corr_hasta||''}" style="font-family:var(--mono);text-align:center;min-width:36px;width:auto" oninput="calcNM('${key}',${i});autoFitInput(this);${i===0?`replicarFila0An('${key}','ch',this.value)`:''}"  ></td>
