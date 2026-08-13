@@ -808,6 +808,9 @@ input.field-blocked, select.field-blocked {
 .btn-rechazar{background:#fff;color:#7a1c1c;border:2px solid #7a1c1c;padding:9px 24px;border-radius:5px;
   font-weight:600;font-size:.95rem;cursor:pointer;letter-spacing:.3px;transition:background .15s}
 .btn-rechazar:hover{background:rgba(122,28,28,.06)}
+.al-discard-btn{position:absolute;top:6px;right:6px;background:none;border:none;color:#999;font-size:13px;cursor:pointer;padding:2px 5px;border-radius:3px;line-height:1;z-index:2}
+.al-discard-btn:hover{background:rgba(0,0,0,.08);color:#333}
+.al-card{position:relative}
 .btn-anular{background:#fff;color:#5a3a7a;border:2px solid #5a3a7a;padding:9px 24px;border-radius:5px;
   font-weight:600;font-size:.95rem;cursor:pointer;letter-spacing:.3px;transition:background .15s}
 .btn-anular:hover{background:rgba(90,58,122,.06)}
@@ -979,6 +982,7 @@ input.field-blocked, select.field-blocked {
     </div>
     <div class="sec-actions">
       <button class="btn btn-gh btn-sm" onclick="buildAlerts();renderAlertsStage()">Actualizar</button>
+      <button class="btn btn-gh btn-sm" onclick="restaurarAlertas()" title="Vuelve a mostrar todas las alertas que habías descartado con ✕">↩ Restaurar descartadas</button>
     </div>
   </div>
   <div class="tab-body" style="border-radius:0 0 var(--r) var(--r);padding:14px">
@@ -11458,8 +11462,40 @@ function getAnalysisLabel(row) {
   return AN_TYPE_LABEL[tipo] || tipo || '—';
 }
 
+// ── Alertas descartadas — persisten en localStorage ─────────────────────────
+// La clave de descarte es: key||tag||analysis (identifica una alerta concreta).
+// Se guardan en localStorage['sag_alertas_descartadas'] como array JSON.
+const _ALERTS_LS_KEY = 'sag_alertas_descartadas';
+
+function _getDescartadas() {
+  try { return JSON.parse(localStorage.getItem(_ALERTS_LS_KEY) || '[]'); }
+  catch(e) { return []; }
+}
+function _setDescartadas(arr) {
+  try { localStorage.setItem(_ALERTS_LS_KEY, JSON.stringify(arr)); } catch(e) {}
+}
+function _alertDiscardKey(a) {
+  return (a.key||'') + '||' + (a.tag||'') + '||' + (a.analysis||'');
+}
+function descartarAlerta(discardKey) {
+  const arr = _getDescartadas();
+  if (!arr.includes(discardKey)) { arr.push(discardKey); _setDescartadas(arr); }
+  buildAlerts();
+  renderAlertsStage();
+}
+function restaurarAlertas() {
+  _setDescartadas([]);
+  buildAlerts();
+  renderAlertsStage();
+  setS('Todas las alertas descartadas han sido restauradas.', 'ok');
+}
+
 function pushAlert(severity, reg, imp, cub, esp, analysis, action, tag, days, key, cub2) {
-  _alerts.push({ severity, reg, imp, cub, cub2: cub2||'', esp, analysis, action, tag, days, key });
+  const a = { severity, reg, imp, cub, cub2: cub2||'', esp, analysis, action, tag, days, key };
+  // Filtrar alertas descartadas
+  const descartadas = _getDescartadas();
+  if (descartadas.includes(_alertDiscardKey(a))) return;
+  _alerts.push(a);
 }
 
 function buildAlerts() {
@@ -11819,10 +11855,12 @@ function renderAlertsSidebar() {
       const bPat    = (a.blockerPat||'').replace(/'/g,"\'");
       const aReg    = (a.reg||'').replace(/'/g,"\'");
       const aImp    = (a.imp||'').replace(/'/g,"\'");
+      const aDiscardKey = encodeURIComponent((a.key||'') + '||' + (a.tag||'') + '||' + (a.analysis||''));
       g += `<div class="al-card ${cls}" onclick="goStageFromAlert('${a.key}')">
         <div class="al-row1">
           <span class="al-reg">${a.reg}</span>
           <span class="al-days ${dcls}">${daysStr}</span>
+          <button class="al-discard-btn" title="Descartar esta alerta" onclick="event.stopPropagation();descartarAlerta(decodeURIComponent('${aDiscardKey}'))">✕</button>
         </div>
         <div class="al-analysis">${a.analysis}</div>
         <div class="al-action">${a.action}</div>
