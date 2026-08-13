@@ -7205,16 +7205,26 @@ function _calcularTodasCCAA() {
     _setCCAAEst('H', _anFmtISO(fV));
   }
 
-  // B: CCAA = FEM_H (o FEM_V si no hay H)
+  // B: CCAA = FEM_H (o FEM_V si no hay H).
+  // Si no hay ningún análisis previo: CCAA = FEM_B − 52 días (punto medio 45–60)
   if (tp.includes('B')) {
     const base = fH || fV;
-    if (base) _setCCAAEst('B', _anFmtISO(base));
+    if (base) {
+      _setCCAAEst('B', _anFmtISO(base));
+    } else if (fB) {
+      _setCCAAEst('B', _anFmtISO(_anAddD(fB, -52)));
+    }
   }
 
-  // F: CCAA = FEM_B (o FH, o FV)
+  // F: CCAA = FEM_B (o FH, o FV).
+  // Si no hay predecesores: CCAA = FEM_F − 52 días
   if (tp.includes('F')) {
     const base = fB || fH || fV;
-    if (base) _setCCAAEst('F', _anFmtISO(base));
+    if (base) {
+      _setCCAAEst('F', _anFmtISO(base));
+    } else if (fF) {
+      _setCCAAEst('F', _anFmtISO(_anAddD(fF, -52)));
+    }
   }
 
   // E: CCAA = FEM_F si hay F; si no, FEM_B; si no hay ninguno → vacío
@@ -7301,153 +7311,132 @@ function sugerirFechasMuestreo() {
   const inj = new Date(finjStr + 'T12:00:00');
   const lev = flevStr ? new Date(flevStr + 'T12:00:00') : new Date(inj.getTime() + 365*24*60*60*1000);
 
-  // Detectar si es cítrico (sin pausa invernal, secuencia correlativa)
+  // Detectar si es cítrico (sin pausa invernal)
   const especies = (typeof getEspecies === 'function' ? getEspecies() : []).map(e => (e.especie||'').toLowerCase());
   const esCitrico = especies.some(e => /citrus|fortunella|poncirus|citric/i.test(e));
 
-  // Tipos de análisis presentes (orden secuencial). N (nematológico) sigue la misma cascada.
   const ORDEN = ['V','H','B','F','E','N'];
   const tiposPresentes = ORDEN.filter(k => (anRows[k]||[]).length > 0);
   if (!tiposPresentes.length) { alert('No hay análisis cargados. Use "Auto-cargar plagas" primero.'); return; }
 
-  const tieneFito  = tiposPresentes.includes('F');
-  const tieneHongo = tiposPresentes.includes('H');
-  const tieneBact  = tiposPresentes.includes('B');
-  const tieneEnto  = tiposPresentes.includes('E');
+  const tieneV    = tiposPresentes.includes('V');
+  const tieneFito = tiposPresentes.includes('F');
+  const tieneHongo= tiposPresentes.includes('H');
+  const tieneBact = tiposPresentes.includes('B');
+  const tieneEnto = tiposPresentes.includes('E');
 
-  // ── Helpers ──────────────────────────────────────────────────────
-  const addD = (d, n) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
-  const fmtISO = d => {
-    const y = d.getFullYear();
-    const m = String(d.getMonth()+1).padStart(2,'0');
-    const day = String(d.getDate()).padStart(2,'0');
-    return `${y}-${m}-${day}`;
-  };
-
-  // Receso: segunda quincena de abril (día≥16) + mayo–agosto completos
-  const enReceso = d => {
-    const m = d.getMonth(), dia = d.getDate();
-    if (m >= 4 && m <= 7) return true;       // mayo–agosto
-    if (m === 3 && dia >= 16) return true;   // 16–30 abril
-    return false;
-  };
+  const addD = _anAddD;
+  const fmtISO = _anFmtISO;
+  const enReceso = _anEnReceso;
   const evitarReceso = d => {
     if (esCitrico || !enReceso(d)) return d;
-    const r = new Date(d); r.setMonth(8); r.setDate(15); return r; // → 15-sep
+    const r = new Date(d); r.setMonth(8); r.setDate(15); return r;
   };
 
-  // ── Ancla de Virológico (primer análisis no-cítrico) ─────────────
-  const mesInj = inj.getMonth();
-  let anclaV;
-  if (esCitrico) {
-    anclaV = addD(inj, 60);
-  } else if (mesInj <= 6) {
-    // Ene–jul: fijar al 15 oct dentro del período de cuarentena
-    let oct = new Date(inj.getFullYear(), 9, 15, 12, 0, 0);
-    if (oct < addD(inj, 60)) oct = new Date(inj.getFullYear() + 1, 9, 15, 12, 0, 0);
-    anclaV = oct;
-  } else {
-    // Ago–dic: inj+60 respetando receso; si cae ene–feb mover a 1-mar (calor)
-    anclaV = evitarReceso(addD(inj, 60));
-    if (!esCitrico && anclaV.getMonth() <= 1) {
-      const marzo = new Date(anclaV.getFullYear(), 2, 1, 12, 0, 0);
-      if (marzo < lev) anclaV = marzo;
-    }
-  }
-
-  // ── Ancla de Entomología ─────────────────────────────────────────
-  const anclaE = addD(lev, -20);
-
-  // ── Distribución de los análisis intermedios ─────────────────────
-  // Estrategia: los tipos entre V y E se distribuyen UNIFORMEMENTE
-  // en el espacio disponible entre anclaV y anclaE (o anclaE−45 si hay Fito,
-  // para que Fito tenga resultado antes del levantamiento).
-  // Si no hay Fito: H y B se distribuyen entre anclaV y cierre temporada (15-abr),
-  // con al menos 30 días de margen para cada uno.
   const fechasCalc = {};
 
-  // Tipos intermedios (entre V y E, sin incluir ninguno de los dos)
-  const ORDEN_SEC = ['V','H','B','F','E','N'];
-  const tiposSec = tiposPresentes.filter(k => k !== 'E'); // V + intermedios
+  // ── Entomología: ancla fija siempre ──────────────────────────────
+  const anclaE = addD(lev, -20);
+  if (tieneEnto) fechasCalc['E'] = anclaE;
 
+  // ── Caso cítrico: cascada correlativa desde inj+60 ───────────────
   if (esCitrico) {
-    // Cítrico: cascada simple desde anclaV, intervalos fijos mínimos
-    const intervalos = { V:0, H:30, B:15, F:30, N:30 };
-    let base = anclaV;
-    tiposSec.forEach(tipo => {
-      const inter = tipo === 'V' ? 0 : (intervalos[tipo] || 30);
+    let base = addD(inj, 60);
+    const intervalos = {V:0, H:30, B:15, F:30, N:30};
+    tiposPresentes.filter(k => k !== 'E').forEach(tipo => {
+      const inter = tipo === tiposPresentes.filter(k=>k!=='E')[0] ? 0 : (intervalos[tipo]||30);
       const fecha = inter === 0 ? new Date(base) : addD(base, inter);
       fechasCalc[tipo] = fecha;
       base = fecha;
     });
-    if (tieneEnto) fechasCalc['E'] = anclaE;
-  } else {
-    // Calcular ancla final de la secuencia de intermedios
-    // Si hay Fito: ancla final = lev−45 (para tener resultado a tiempo)
-    // Si no hay Fito: ancla final = 15-abr del año del levantamiento (cierre temporada)
-    let anclaFin;
-    if (tieneFito) {
-      anclaFin = addD(lev, -45);
-      // Si anclaFin cae en receso, retrasar a antes del receso (15-abr del año anterior)
-      if (enReceso(anclaFin)) {
-        const anio = anclaFin.getFullYear();
-        anclaFin = new Date(anio, 3, 10, 12, 0, 0); // 10-abr como margen
+
+  // ── Caso con Virológico: V es ancla de inicio ────────────────────
+  } else if (tieneV) {
+    const mesInj = inj.getMonth();
+    let anclaV;
+    if (mesInj <= 6) {
+      let oct = new Date(inj.getFullYear(), 9, 15, 12, 0, 0);
+      if (oct < addD(inj, 60)) oct = new Date(inj.getFullYear()+1, 9, 15, 12, 0, 0);
+      anclaV = oct;
+    } else {
+      anclaV = evitarReceso(addD(inj, 60));
+      if (anclaV.getMonth() <= 1) {
+        const marzo = new Date(anclaV.getFullYear(), 2, 1, 12, 0, 0);
+        if (marzo < lev) anclaV = marzo;
       }
-    } else {
-      // Sin Fito: cierre = 15-abr del año siguiente a la injertación (dentro de cuarentena)
-      const anioLev = lev.getFullYear();
-      const cierreCandidata = new Date(anioLev, 3, 10, 12, 0, 0); // 10-abr con margen
-      anclaFin = cierreCandidata < lev ? cierreCandidata : addD(lev, -30);
     }
+    fechasCalc['V'] = anclaV;
 
-    // Tipos intermedios (sin V ni E)
-    const intermedios = tiposSec.filter(k => k !== 'V');
-
-    if (intermedios.length === 0) {
-      // Solo virus en la secuencia
-      fechasCalc['V'] = anclaV;
-    } else {
-      // Distribuir uniformemente entre anclaV y anclaFin
+    const intermedios = tiposPresentes.filter(k => k !== 'V' && k !== 'E');
+    if (intermedios.length > 0) {
+      let anclaFin;
+      if (tieneFito) {
+        anclaFin = addD(lev, -45);
+        if (enReceso(anclaFin)) anclaFin = new Date(anclaFin.getFullYear(), 3, 10, 12, 0, 0);
+      } else {
+        const cierre = new Date(lev.getFullYear(), 3, 10, 12, 0, 0);
+        anclaFin = cierre < lev ? cierre : addD(lev, -30);
+      }
       const totalDias = Math.max((anclaFin - anclaV) / 86400000, intermedios.length * 20);
       const paso = Math.floor(totalDias / (intermedios.length + 1));
-      // V = anclaV (ancla fija)
-      fechasCalc['V'] = anclaV;
-      // Intermedios equidistantes
       intermedios.forEach((tipo, i) => {
-        let fecha = addD(anclaV, paso * (i + 1));
-        fecha = evitarReceso(fecha);
-        // Fito: no superar lev−45
+        let fecha = evitarReceso(addD(anclaV, paso * (i+1)));
         if (tipo === 'F') {
           const maxFito = addD(lev, -45);
-          if (fecha > maxFito) fecha = new Date(maxFito);
-          fecha = evitarReceso(fecha);
+          if (fecha > maxFito) fecha = evitarReceso(new Date(maxFito));
         }
         fechasCalc[tipo] = fecha;
       });
     }
 
-    if (tieneEnto) fechasCalc['E'] = anclaE;
+  // ── Caso SIN Virológico: posicionar el primer análisis lo más ────
+  // tardío posible, retrocediendo desde E con los espacios necesarios.
+  // Cada análisis necesita 30 días antes del siguiente.
+  // El primero de la secuencia (no-E) necesita además 45–60 días
+  // de CCAA antes de su FEM → se reservan 52 días.
+  } else {
+    // Secuencia sin V ni E, de derecha a izquierda
+    const secSinVE = tiposPresentes.filter(k => k !== 'E');
+    // Punto de partida: E − 30 días (el último análisis previo a E)
+    // Límite de cierre de temporada para no caer en receso
+    const cierreTemp = new Date(lev.getFullYear(), 3, 10, 12, 0, 0); // 10-abr
+    let anclaFin = tieneEnto ? addD(anclaE, -30) : (cierreTemp < lev ? cierreTemp : addD(lev, -50));
+    if (enReceso(anclaFin)) anclaFin = new Date(lev.getFullYear()-1 >= inj.getFullYear() ? lev.getFullYear() : inj.getFullYear(), 3, 10, 12, 0, 0);
+
+    if (secSinVE.length === 1) {
+      // Un solo análisis: va en anclaFin directamente
+      let fecha = evitarReceso(new Date(anclaFin));
+      if (tieneFito && secSinVE[0]==='F') {
+        const maxFito = addD(lev, -45);
+        if (fecha > maxFito) fecha = evitarReceso(new Date(maxFito));
+      }
+      fechasCalc[secSinVE[0]] = fecha;
+    } else {
+      // Varios análisis sin V: distribuir uniformemente hacia la derecha
+      // desde inj+60 (mínimo) hasta anclaFin
+      const minInicio = evitarReceso(addD(inj, 60));
+      const totalDias = Math.max((anclaFin - minInicio) / 86400000, secSinVE.length * 20);
+      const paso = Math.floor(totalDias / secSinVE.length);
+      secSinVE.forEach((tipo, i) => {
+        let fecha = evitarReceso(addD(minInicio, paso * i));
+        if (tipo === 'F') {
+          const maxFito = addD(lev, -45);
+          if (fecha > maxFito) fecha = evitarReceso(new Date(maxFito));
+        }
+        fechasCalc[tipo] = fecha;
+      });
+    }
   }
 
-  // Respetar TDM/FEM existentes como base para encadenar si ya están definidos
-  // (no sobreescribe, pero sí ajusta intermedios vacíos relativos a los que tienen dato)
-  tiposSec.forEach(tipo => {
-    const rows = anRows[tipo] || [];
-    const tdmReal  = rows.length ? (rows[0].tdm     || '') : '';
-    const femExist = rows.length ? (rows[0].tdm_est || '') : '';
-    if ((tdmReal || femExist) && !fechasCalc[tipo]) {
-      fechasCalc[tipo] = new Date((tdmReal || femExist) + 'T12:00:00');
-    }
-  });
-
-  // ── Aplicar a anRows y DOM ────────────────────────────────────────
+  // ── Aplicar a anRows y DOM (solo campos vacíos) ───────────────────
   let aplicados = 0;
-  Object.entries(fechasCalc).forEach(([tipo, fecha]) => {
+  ORDEN.forEach(tipo => {
+    const fecha = fechasCalc[tipo];
     const rows = anRows[tipo] || [];
     if (!rows.length || !fecha) return;
     const fechaISO = fmtISO(fecha);
     rows.forEach((row, i) => {
-      if (row.tdm_est) return; // no sobreescribir FEM ya definida
+      if (row.tdm_est) return;
       row.tdm_est = fechaISO;
       aplicados++;
       const el = document.getElementById(`ae-tdm-est-${tipo}-${i}`);
@@ -7455,9 +7444,8 @@ function sugerirFechasMuestreo() {
     });
   });
 
-  // Calcular CCAA Est para todos los tipos a partir de las FEM recién asignadas
+  // Calcular CCAA Est para todos los tipos
   _calcularTodasCCAA();
-
   _anRowsModified = true;
 
   if (aplicados === 0) {
@@ -7467,13 +7455,14 @@ function sugerirFechasMuestreo() {
     const nombres = {V:'Virológico', H:'Hongos', B:'Bacterias', F:'Fitoplasma', E:'Entomología', N:'Nematológico'};
     const resumen = ORDEN.filter(k => fechasCalc[k]).map(k => `${nombres[k]}: ${fmtISO(fechasCalc[k])}`).join(' | ');
     const notas = [
-      esCitrico ? 'Cítrico: correlativo sin pausa' : 'Distribución uniforme en temporada activa',
-      !tieneFito && (tieneHongo || tieneBact) ? 'H/B postergadas al cierre de temporada' : '',
+      esCitrico ? 'Cítrico: correlativo sin pausa' :
+        tieneV ? 'Distribución uniforme desde Virológico' : 'Sin Virológico: posicionado hacia el final',
       tieneFito ? 'Fitoplasma ≥45 días antes del levantamiento' : ''
     ].filter(Boolean).join(' · ');
     setS(`Fechas sugeridas (${aplicados} filas). ${notas} — ${resumen}`, 'ok');
   }
 }
+
 
 function renderAnalisisTabs() {
   Object.entries(AN_TYPES).forEach(([idx,{key,label,tecnica}])=>{
