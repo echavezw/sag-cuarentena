@@ -11953,14 +11953,18 @@ function renderAlertsDarkSummary(venc, prox, pend) {
       : `faltan ${a.days} día(s)`;
     const keyEsc = String(a.key).replace(/'/g, "\\'");
     const tagEsc = String(a.tag).replace(/'/g, "\\'");
-    return `<div onclick="goStageFromAlert('${keyEsc}','${tagEsc}')"
-        style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.03);border-left:3px solid ${sevBorder[a.severity]};border-radius:0 8px 8px 0;padding:10px 14px;cursor:pointer">
+    const dkEnc  = encodeURIComponent((a.key||'') + '||' + (a.tag||'') + '||' + (a.analysis||''));
+    return `<div style="position:relative;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.03);border-left:3px solid ${sevBorder[a.severity]};border-radius:0 8px 8px 0;padding:10px 14px;padding-right:36px;cursor:pointer" onclick="goStageFromAlert('${keyEsc}','${tagEsc}')">
       <span style="font-size:16px">${icon}</span>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:500;color:#E8ECF2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.action}${daysTxt ? ' — ' + daysTxt : ''}</div>
         <div style="font-size:11px;color:#E8ECF2;opacity:0.65;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.imp || '—'} · ${a.reg || ''}</div>
       </div>
       <span style="font-size:10px;background:${bg};color:${color};padding:3px 8px;border-radius:6px;flex-shrink:0">${label}</span>
+      <button onclick="event.stopPropagation();descartarAlerta(decodeURIComponent('${dkEnc}'))" title="Descartar esta alerta"
+        style="position:absolute;top:6px;right:6px;background:none;border:none;color:rgba(232,236,242,0.4);font-size:14px;cursor:pointer;padding:2px 5px;border-radius:3px;line-height:1"
+        onmouseover="this.style.color='#E8ECF2';this.style.background='rgba(255,255,255,0.1)'"
+        onmouseout="this.style.color='rgba(232,236,242,0.4)';this.style.background='none'">✕</button>
     </div>`;
   }).join('') : `<div style="text-align:center;padding:20px;color:#E8ECF2;opacity:0.5;font-size:12px">Sin alertas activas ✓</div>`;
 
