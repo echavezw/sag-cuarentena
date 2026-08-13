@@ -7397,15 +7397,37 @@ function sugerirFechasMuestreo() {
         if (anclaFin < anclaV) anclaFin = eMin30; // fallback
       }
 
-      const totalDias = Math.max((anclaFin - anclaV) / 86400000, intermedios.length * 20);
-      const paso = Math.floor(totalDias / (intermedios.length + 1));
+      // Elegir modo de distribución según espacio disponible:
+      // - Espacio amplio (>60d × n+2 intermedios): sesgo al último 60% —
+      //   deja holgura inicial entre V y el primer intermedio, acerca los
+      //   intermedios al final del período donde las condiciones ambientales
+      //   son más estables y hay más flexibilidad.
+      // - Espacio ajustado: distribución uniforme entre anclaV y anclaFin.
+      const espacioTotal = (anclaFin - anclaV) / 86400000;
+      const umbralAmplio = 60 * (intermedios.length + 2);
+      let paso, zonaInicio;
+
+      if (espacioTotal > umbralAmplio) {
+        // Sesgo al último 60%: zona activa empieza al 35% del espacio
+        zonaInicio = addD(anclaV, Math.floor(espacioTotal * 0.35));
+        const zonaFin = addD(anclaFin, 0);
+        const zonaDias = Math.max((zonaFin - zonaInicio) / 86400000, intermedios.length * 30);
+        paso = Math.floor(zonaDias / (intermedios.length + 1));
+      } else {
+        // Uniforme: divide todo el espacio disponible
+        zonaInicio = anclaV;
+        const totalDias = Math.max(espacioTotal, intermedios.length * 20);
+        paso = Math.floor(totalDias / (intermedios.length + 1));
+      }
+
       intermedios.forEach((tipo, i) => {
-        let fecha = esCitrico ? addD(anclaV, paso * (i+1))
-                              : evitarReceso(addD(anclaV, paso * (i+1)));
+        let fecha = addD(zonaInicio, paso * (i+1));
+        if (!esCitrico) fecha = evitarReceso(fecha);
         if (tipo === 'F') {
           const maxFito = addD(lev, -45);
-          if (fecha > maxFito) fecha = esCitrico ? new Date(maxFito)
-                                                 : evitarReceso(new Date(maxFito));
+          if (fecha > maxFito) {
+            fecha = esCitrico ? new Date(maxFito) : evitarReceso(new Date(maxFito));
+          }
         }
         fechasCalc[tipo] = fecha;
       });
