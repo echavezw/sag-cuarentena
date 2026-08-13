@@ -7442,6 +7442,37 @@ function renderAnalisisTabs() {
   Object.entries(AN_TYPES).forEach(([idx,{key,label,tecnica}])=>{
     renderAnTable(key,idx,label,tecnica);
   });
+  _advertirNematSinRaiz();
+}
+
+// Muestra (o limpia) una advertencia en Etapa IV cuando hay filas nematológicas
+// cargadas pero el tipo de material registrado en Etapa I no tiene raíz.
+function _advertirNematSinRaiz() {
+  const WARN_ID = 'warn-nemat-sinraiz';
+  let warn = document.getElementById(WARN_ID);
+
+  const tieneNematRows = (anRows['N'] || []).length > 0;
+  if (!tieneNematRows) { if (warn) warn.remove(); return; }
+
+  const normStr = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+  const tipoMat = normStr(v('f1-tipo-mat') || '');
+  const sinRaiz = tipoMat && !tipoMat.includes('raiz') && !tipoMat.includes('raíz') && !tipoMat.includes('a raiz');
+  if (!sinRaiz) { if (warn) warn.remove(); return; }
+
+  // Si ya existe la advertencia, no duplicar
+  if (warn) return;
+
+  // Insertar la advertencia en el encabezado del panel de Nematológico (tab 5)
+  const bodyNemat = document.getElementById('an-body-5');
+  if (!bodyNemat) return;
+
+  warn = document.createElement('div');
+  warn.id = WARN_ID;
+  warn.style.cssText = 'background:#fff3cd;border:1.5px solid #f0a500;border-radius:6px;padding:10px 14px;margin-bottom:10px;font-size:13px;color:#7a5200;display:flex;align-items:center;gap:10px';
+  warn.innerHTML = '<span style="font-size:18px">⚠️</span><span><strong>Advertencia:</strong> Hay análisis nematológicos cargados, pero el tipo de material registrado en Etapa I (<strong>' +
+    (v('f1-tipo-mat')||'no especificado') +
+    '</strong>) no corresponde a material con raíz. El análisis nematológico solo aplica a Plantas, Estacas con raíz, Esquejes con raíz, Plantines o Plántulas In Vitro. Verifique y elimine las filas nematológicas si no corresponden.</span>';
+  bodyNemat.insertBefore(warn, bodyNemat.firstChild);
 }
 
 function renderAnTable(key,idx,label,tecnica) {
