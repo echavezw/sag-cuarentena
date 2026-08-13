@@ -11938,8 +11938,7 @@ function renderAlertsDarkSummary(venc, prox, pend) {
       if (rank(a.severity) !== rank(b.severity)) return rank(a.severity) - rank(b.severity);
       const da = a.days === null ? 999 : a.days, db = b.days === null ? 999 : b.days;
       return da - db;
-    })
-    .slice(0, 6);
+    });
 
   const sevBadge = { vencido: ['#F09595','rgba(226,75,74,0.2)','Urgente'], proximo: ['#EF9F27','rgba(239,159,39,0.2)','Próxima'], pendiente: ['#B8975A','rgba(184,151,90,0.2)','Revisar'] };
   const sevBorder = { vencido:'#D85A30', proximo:'#EF9F27', pendiente:'#B8975A' };
@@ -11992,11 +11991,8 @@ function renderAlertsDarkSummary(venc, prox, pend) {
         <div style="font-size:11px;color:#E8ECF2;opacity:0.75">Al día</div>
       </div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:8px">${itemsHtml}</div>
-    ${(venc.length + prox.length + pend.length) > 6 ? `<div style="margin-top:16px">
-      <button onclick="document.getElementById('al-cards-container').scrollIntoView({behavior:'smooth'})"
-        style="width:100%;background:transparent;border:0.5px solid rgba(184,151,90,0.4);color:#B8975A;border-radius:8px;padding:8px;font-size:12px;cursor:pointer">Ver todas (${venc.length + prox.length + pend.length})</button>
-    </div>` : ''}
+    <div style="display:flex;flex-direction:column;gap:8px;max-height:480px;overflow-y:auto;padding-right:4px;scrollbar-width:thin;scrollbar-color:#B8975A #0A1628">${itemsHtml}</div>
+    ${top.length > 0 ? `<div style="margin-top:8px;text-align:right;font-size:11px;color:#E8ECF2;opacity:0.45">${top.length} alerta(s) — usa ✕ para descartar</div>` : ''}
   </div>`;
 }
 
