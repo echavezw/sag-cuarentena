@@ -4204,20 +4204,25 @@ const fmtD = v => {
 };
 
 // ── FECHA + HORA de la solicitud (columna nueva junto a "Año Sol.") ───────────
-// "Fecha Solicitud" suele venir como texto tipo Date.toString() de JS
-// ("Thu Sep 29 2016 00:00:45 GMT-0300 (...)"), que el constructor Date() nativo
-// sí sabe parsear directo (a diferencia de dd-mm-yyyy). Si eso falla, cae a
-// fmtD() (solo fecha, sin hora real disponible).
+// "Fecha Solicitud" es DD-MM-YYYY. IMPORTANTE: no usar new Date(s) directo como
+// primer intento — el constructor nativo de JS interpreta "11-06-2026" como
+// MM-DD-YYYY (6 de noviembre) en vez de DD-MM-YYYY (11 de junio), y como el
+// parseo "funciona" (no da NaN), nunca caía al fallback correcto. fmtD() sí
+// interpreta DD-MM-YYYY explícitamente, así que se prueba primero. Solo si
+// fmtD() no logra extraer una fecha válida se intenta new Date(s) nativo como
+// último recurso (cubre formatos que fmtD no anticipa, p.ej. Date.toString()
+// de JS: "Thu Sep 29 2016 00:00:45 GMT-0300 (...)" en registros antiguos).
 function _parseFechaHoraSol(v) {
   if(!v) return null;
   const s = String(v).trim();
   if(!s) return null;
-  let d = new Date(s);
-  if(isNaN(d.getTime())) {
-    const iso = fmtD(s);
-    d = iso ? new Date(iso + 'T00:00:00') : null;
+  const iso = fmtD(s);
+  if(iso && /^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+    const d = new Date(iso + 'T00:00:00');
+    if(!isNaN(d.getTime())) return d;
   }
-  return (d && !isNaN(d.getTime())) ? d : null;
+  const d2 = new Date(s);
+  return isNaN(d2.getTime()) ? null : d2;
 }
 // Parsea el formato 'DD-MM-YYYY HH:MM[:SS]' usado por las columnas de traza del
 // portal (Fecha Hora Envío / Fecha Reserva) — a diferencia de _parseFechaHoraSol,
