@@ -25,6 +25,24 @@
   --sh:0 2px 12px rgba(0,0,0,.07);--sh2:0 4px 20px rgba(0,0,0,.10);
   --r:10px;--rs:6px;
 }
+.bit-chip{display:inline-flex;align-items:center;padding:6px 13px;border-radius:20px;
+  border:1px solid var(--g200);background:var(--wh);color:var(--g600);font-size:12px;
+  cursor:pointer;user-select:none}
+.bit-chip.sel{border-color:var(--gd);color:var(--gd);background:var(--gds)}
+.bit-tipo-btn{display:flex;align-items:center;gap:8px;padding:11px 12px;border-radius:var(--rs);
+  border:1px solid var(--g200);background:var(--g50);cursor:pointer;font-size:12.5px;color:var(--g600)}
+.bit-tipo-btn.sel{border-color:var(--gd);color:var(--gd);background:var(--gds)}
+.bit-card{background:var(--g50);border:1px solid var(--g200);border-radius:var(--r);padding:14px 16px}
+.bit-card .lbl2{font-size:10px;color:var(--g400);letter-spacing:.06em;text-transform:uppercase}
+.bit-card .val{font-family:var(--serif);font-size:22px;font-weight:600;color:var(--gd);margin-top:4px}
+.bit-card .sub{font-size:10px;color:var(--g400);margin-top:2px}
+.bit-entry{display:flex;gap:12px;background:var(--wh);border:1px solid var(--g200);
+  border-radius:var(--rs);padding:12px 14px;margin-bottom:7px}
+.bit-dot{width:9px;height:9px;border-radius:50%;margin-top:5px;flex-shrink:0}
+#bit-drawer-overlay{position:fixed;inset:0;background:rgba(10,22,40,.6);z-index:200;
+  display:none;align-items:flex-end;justify-content:center}
+#bit-drawer{background:var(--wh);border-radius:var(--r) var(--r) 0 0;width:100%;max-width:820px;
+  padding:20px 0 24px;max-height:88vh;overflow-y:auto;box-shadow:var(--sh2)}
 html{font-size:14px;-webkit-font-smoothing:antialiased}
 body{font-family:var(--font);font-weight:300;background:var(--bg);color:var(--ink);min-height:100vh;line-height:1.6}
 ::-webkit-scrollbar{width:5px;height:5px}
@@ -933,6 +951,7 @@ input.field-blocked, select.field-blocked {
   <div class="sb-sec">Consultar</div>
   <div class="sb-item" id="nav-hist" onclick="goStage('hist')"><span class="sb-num">H</span><span class="sb-lbl">Panel / Búsqueda</span></div>
   <div class="sb-item" id="nav-alerts" onclick="goStage('alerts');buildAlerts();renderAlertsStage()"><span class="sb-num">A</span>Alertas<span class="sb-dot empty" id="dot-alerts"></span></div>
+  <div class="sb-item" id="nav-bitacora" onclick="goStage('bitacora')"><span class="sb-num">B</span>Bitácora<span class="sb-dot empty" id="dot-bitacora"></span></div>
   <hr class="sb-divider">
   <div class="sb-sec">Registro</div>
   <div class="sb-item" id="nav-1" onclick="goStage(1)"><span class="sb-num">I</span>Solicitud<span class="sb-dot empty" id="dot-1"></span></div>
@@ -1007,6 +1026,69 @@ input.field-blocked, select.field-blocked {
     <!-- Tarjetas agrupadas por severidad -->
     <div id="al-cards-container"></div>
     <div id="al-incoming-container" style="margin-top:16px"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+     BITÁCORA DE MANEJO
+════════════════════════════════════ -->
+<div class="stage" id="stage-bitacora">
+  <div class="sec-h">
+    <div class="sec-n">B</div>
+    <div>
+      <div class="sec-t">Bitácora de Manejo</div>
+      <div class="sec-s" id="bit-subt">Seleccione una cuarentena activa</div>
+    </div>
+    <div class="sec-actions">
+      <button class="btn btn-gh btn-sm" onclick="cargarBitacora(true)">Actualizar</button>
+      <button class="btn btn-gd btn-sm" onclick="abrirDrawerBitacora()">+ Registrar Actividad</button>
+    </div>
+  </div>
+  <div class="tab-body" style="border-radius:0 0 var(--r) var(--r);padding:14px">
+
+    <div id="bit-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px"></div>
+
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap" id="bit-filtros">
+      <span class="bit-chip sel" data-tipo="" onclick="filtrarBitacora(this)">Todos</span>
+      <span class="bit-chip" data-tipo="Riego" onclick="filtrarBitacora(this)">Riego</span>
+      <span class="bit-chip" data-tipo="Pesticida" onclick="filtrarBitacora(this)">Pesticida</span>
+      <span class="bit-chip" data-tipo="Injertación" onclick="filtrarBitacora(this)">Injertación</span>
+      <span class="bit-chip" data-tipo="Muestreo" onclick="filtrarBitacora(this)">Muestreo</span>
+      <span class="bit-chip" data-tipo="Observación" onclick="filtrarBitacora(this)">Observación</span>
+      <span class="bit-chip" data-tipo="Traslado" onclick="filtrarBitacora(this)">Traslado</span>
+    </div>
+
+    <div id="bit-timeline"><div style="padding:20px;text-align:center;color:var(--g400)">Sin actividades registradas todavía.</div></div>
+  </div>
+</div>
+
+<div id="bit-drawer-overlay" onclick="if(event.target===this)cerrarDrawerBitacora()">
+  <div id="bit-drawer">
+    <div style="width:40px;height:4px;border-radius:2px;background:var(--g200);margin:0 auto 16px"></div>
+    <div style="font-family:var(--serif);font-size:19px;font-weight:600;color:var(--gd);padding:0 22px;margin-bottom:16px" id="bit-drawer-title">Registrar Actividad</div>
+
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 22px;margin-bottom:14px" id="bit-tipo-grid">
+      <div class="bit-tipo-btn sel" data-tipo="Riego" onclick="selectBitTipo(this)">💧 Riego</div>
+      <div class="bit-tipo-btn" data-tipo="Pesticida" onclick="selectBitTipo(this)">🧪 Pesticida</div>
+      <div class="bit-tipo-btn" data-tipo="Injertación" onclick="selectBitTipo(this)">🌱 Injertación</div>
+      <div class="bit-tipo-btn" data-tipo="Muestreo" onclick="selectBitTipo(this)">🔬 Muestreo</div>
+      <div class="bit-tipo-btn" data-tipo="Observación" onclick="selectBitTipo(this)">📝 Observación</div>
+      <div class="bit-tipo-btn" data-tipo="Traslado" onclick="selectBitTipo(this)">🚚 Traslado</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 22px">
+      <div><label class="lbl">Fecha</label><input type="date" id="bit-fecha" style="width:100%"></div>
+      <div><label class="lbl">Hora</label><input type="time" id="bit-hora" style="width:100%"></div>
+      <div><label class="lbl">Responsable</label><input type="text" id="bit-resp" style="width:100%" placeholder="Nombre del técnico/profesional"></div>
+      <div><label class="lbl">Duración (min)</label><input type="number" id="bit-dur" style="width:100%" placeholder="ej. 15"></div>
+      <div style="grid-column:1/-1"><label class="lbl">Descripción</label><textarea id="bit-desc" style="width:100%;min-height:70px" placeholder="Detalle de la actividad realizada…"></textarea></div>
+      <div style="grid-column:1/-1"><label class="lbl">Etiquetas adicionales (opcional)</label><input type="text" id="bit-tags" style="width:100%" placeholder="ej. Babygold, clorosis, 3 plantas…"></div>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;gap:10px;padding:18px 22px 0">
+      <button class="btn btn-gh btn-sm" onclick="cerrarDrawerBitacora()">Cancelar</button>
+      <button class="btn btn-gd btn-sm" id="bit-btn-guardar" onclick="guardarActividadBitacora()">Guardar actividad</button>
+    </div>
   </div>
 </div>
 
@@ -5147,6 +5229,7 @@ function goStage(n) {
   if(n==='panel') { n='hist'; setTimeout(()=>{ showPanelTab(1); }, 50); }
   if(n==='alerts') { setTimeout(()=>{ buildAlerts(); renderAlertsStage(); }, 80); }
   if(n==='usuarios') { setTimeout(recargarUsuarios, 80); }
+  if(n==='bitacora') { setTimeout(()=>{ renderBitacoraStage(); }, 60); }
   if(n===6) setTimeout(()=>{ renderCierreTabs(); }, 50);
   const stEl=$('stage-'+n); if(stEl) stEl.classList.add('active');
   const navEl=$('nav-'+n); if(navEl) navEl.classList.add('active');
@@ -11466,6 +11549,209 @@ function isActive(row) {
 function getAnalysisLabel(row) {
   const tipo = String(row['Análisis'] || row['Analisis'] || '').toUpperCase().trim();
   return AN_TYPE_LABEL[tipo] || tipo || '—';
+}
+
+// ── Bitácora de Manejo — pestaña Bitacora en el Sheet, append-only ──────────
+// Cada actividad (riego, pesticida, injertación, muestreo, observación,
+// traslado) queda como fila nueva; nunca se edita una fila existente. Se
+// indexa por Solicitud y, si ya existe, también por Res. — el mismo criterio
+// dual que usa buildRecordIndex()/getRowsForKey() para el resto del sistema.
+// Auditoría: cada fila guarda Usuario (cuenta OAuth que registró la actividad)
+// y Fecha Hora Registro (timestamp real de guardado), visibles en la UI —
+// distintos de Responsable (quien ejecutó la actividad en terreno) y de
+// Fecha/Hora (cuándo ocurrió la actividad, editable por el usuario).
+const SHEET_BITACORA = 'Bitacora';
+const BITACORA_HEADERS = ['ID','Solicitud','Res.','Importador','Cubículo','Fecha','Hora','Tipo','Descripción','Responsable','Duración (min)','Etiquetas','Fecha Hora Registro','Usuario'];
+let _bitacoraTabAsegurada = false;
+let _bitacoraRows = [];
+let _bitacoraFiltroTipo = '';
+
+async function _asegurarTabBitacora() {
+  if (_bitacoraTabAsegurada) return;
+  try {
+    const meta = await fetch(`${BASE_URL}/${GS.sheetId}?fields=sheets.properties&key=${GS.apiKey}`);
+    const metaJson = await meta.json();
+    const existe = (metaJson.sheets||[]).some(s=>s.properties?.title===SHEET_BITACORA);
+    if (!existe) {
+      await ensureToken();
+      await fetch(`${BASE_URL}/${GS.sheetId}:batchUpdate`,
+        {method:'POST',
+         headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+         body:JSON.stringify({requests:[{addSheet:{properties:{title:SHEET_BITACORA}}}]})});
+      await fetch(
+        `${BASE_URL}/${GS.sheetId}/values/${SHEET_BITACORA}!A1?valueInputOption=USER_ENTERED`,
+        {method:'PUT',
+         headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+         body:JSON.stringify({values:[BITACORA_HEADERS]})});
+    }
+    _bitacoraTabAsegurada = true;
+  } catch(e) { console.error('No se pudo asegurar la pestaña Bitacora:', e); }
+}
+
+// Datos del registro activo (mismo _activeRes que usa el resto del sistema —
+// Etapas I-VII, Alertas).
+function _bitacoraRegistroActivo() {
+  if (!_activeRes) return null;
+  const {res, sol} = parseRecordKey(_activeRes);
+  const rows = getRowsForKey(_activeRes);
+  if (!rows.length) return null;
+  return {
+    res: res || '',
+    sol: rows[0]['Solicitud'] || sol || '',
+    importador: rows[0]['Importador'] || '',
+    cubiculo: rows[0]['Cubículo'] || '',
+    especie: rows[0]['Especie'] || ''
+  };
+}
+
+async function cargarBitacora(force) {
+  const reg = _bitacoraRegistroActivo();
+  const subt = $('bit-subt');
+  if (!reg) {
+    if (subt) subt.textContent = 'Seleccione una cuarentena activa (Panel/Búsqueda) antes de abrir la Bitácora.';
+    $('bit-timeline').innerHTML = '<div style="padding:20px;text-align:center;color:var(--g400)">Sin cuarentena seleccionada.</div>';
+    $('bit-stats').innerHTML = '';
+    return;
+  }
+  if (subt) subt.textContent = `${reg.res ? 'Res. '+reg.res : 'Sol. '+reg.sol} — ${reg.importador}${reg.cubiculo?' · Cubículo '+reg.cubiculo:''}`;
+
+  try {
+    await _asegurarTabBitacora();
+    const rows = await fetchRawSheet(SHEET_BITACORA);
+    if (rows && rows.length >= 2) {
+      const hdr = rows[0];
+      _bitacoraRows = rows.slice(1).map(r=>{
+        const o={}; hdr.forEach((h,i)=>o[h]=r[i]||''); return o;
+      }).filter(o=>{
+        if (reg.res && String(o['Res.']||'').trim()===String(reg.res).trim()) return true;
+        return !reg.res && String(o['Solicitud']||'').trim()===String(reg.sol).trim();
+      });
+    } else {
+      _bitacoraRows = [];
+    }
+  } catch(e) {
+    console.error('No se pudo cargar Bitacora:', e);
+    _bitacoraRows = [];
+  }
+  renderBitacoraStats();
+  renderBitacoraTimeline();
+}
+
+function renderBitacoraStats() {
+  const el = $('bit-stats');
+  if (!el) return;
+  const total = _bitacoraRows.length;
+  const hace7 = new Date(); hace7.setDate(hace7.getDate()-7);
+  const semana = _bitacoraRows.filter(r=>{
+    const f = fmtD(r['Fecha']||''); if(!f) return false;
+    return new Date(f) >= hace7;
+  }).length;
+  const porFecha = (a,b)=>(b['Fecha']+b['Hora']).localeCompare(a['Fecha']+a['Hora']);
+  const ultimoRiego = _bitacoraRows.filter(r=>r['Tipo']==='Riego').sort(porFecha)[0];
+  const ultimoPest  = _bitacoraRows.filter(r=>r['Tipo']==='Pesticida').sort(porFecha)[0];
+  const card = (label,val,sub)=>`<div class="bit-card"><div class="lbl2">${label}</div><div class="val">${val}</div><div class="sub">${sub||''}</div></div>`;
+  el.innerHTML =
+    card('Total Registros', total, 'desde ingreso') +
+    card('Esta Semana', semana, 'actividades') +
+    card('Último Riego', ultimoRiego?ultimoRiego['Fecha']:'—', ultimoRiego?ultimoRiego['Hora']+' hrs':'') +
+    card('Último Pesticida', ultimoPest?ultimoPest['Fecha']:'—', ultimoPest?(ultimoPest['Descripción']||'').substring(0,28):'');
+}
+
+const BIT_DOT_COLOR = {Riego:'#3b9bd9',Pesticida:'#ef3f44',Injertación:'#B8975A',Muestreo:'#16a34a',Observación:'#7a5fd9',Traslado:'#b45309'};
+
+function renderBitacoraTimeline() {
+  const el = $('bit-timeline');
+  if (!el) return;
+  let rows = _bitacoraRows.slice();
+  if (_bitacoraFiltroTipo) rows = rows.filter(r=>r['Tipo']===_bitacoraFiltroTipo);
+  rows.sort((a,b)=>(b['Fecha']+b['Hora']).localeCompare(a['Fecha']+a['Hora']));
+  if (!rows.length) { el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--g400)">Sin actividades registradas todavía.</div>'; return; }
+
+  const porDia = {};
+  rows.forEach(r=>{ (porDia[r['Fecha']||'—']=porDia[r['Fecha']||'—']||[]).push(r); });
+
+  let html = '';
+  Object.keys(porDia).forEach(dia=>{
+    html += `<div style="font-size:10px;color:var(--g400);letter-spacing:.06em;text-transform:uppercase;margin:14px 0 8px">${dia}</div>`;
+    porDia[dia].forEach(r=>{
+      const dot = BIT_DOT_COLOR[r['Tipo']]||'#999';
+      html += `<div class="bit-entry">
+        <div class="bit-dot" style="background:${dot}"></div>
+        <div style="flex:1">
+          <div style="display:flex;justify-content:space-between"><span style="font-size:13px;font-weight:600">${r['Tipo']}</span><span style="font-size:11px;color:var(--g400)">${r['Hora']||''}</span></div>
+          <div style="font-size:12px;color:var(--g600);margin-top:3px">${(r['Descripción']||'').replace(/</g,'&lt;')}</div>
+          ${r['Etiquetas']?`<div style="font-size:10px;color:var(--g400);margin-top:3px">${r['Etiquetas']}</div>`:''}
+          <div style="font-size:11px;color:var(--gd);margin-top:5px">${r['Responsable']||''}</div>
+          <div style="font-size:9.5px;color:var(--g400);margin-top:4px;font-style:italic">Registrado por ${r['Usuario']||'—'} · ${r['Fecha Hora Registro']||''}</div>
+        </div></div>`;
+    });
+  });
+  el.innerHTML = html;
+}
+
+function filtrarBitacora(el) {
+  document.querySelectorAll('#bit-filtros .bit-chip').forEach(c=>c.classList.remove('sel'));
+  el.classList.add('sel');
+  _bitacoraFiltroTipo = el.dataset.tipo || '';
+  renderBitacoraTimeline();
+}
+
+function renderBitacoraStage() { cargarBitacora(false); }
+
+function abrirDrawerBitacora() {
+  const reg = _bitacoraRegistroActivo();
+  if (!reg) { setS('Seleccione una cuarentena activa antes de registrar una actividad.', 'warn'); return; }
+  $('bit-drawer-title').textContent = `Registrar Actividad — ${reg.res?'Res. '+reg.res:'Sol. '+reg.sol}`;
+  const hoy = new Date();
+  $('bit-fecha').value = hoy.toISOString().split('T')[0];
+  $('bit-hora').value = `${String(hoy.getHours()).padStart(2,'0')}:${String(hoy.getMinutes()).padStart(2,'0')}`;
+  $('bit-resp').value = ''; $('bit-dur').value = ''; $('bit-desc').value = ''; $('bit-tags').value = '';
+  document.querySelectorAll('.bit-tipo-btn').forEach(b=>b.classList.remove('sel'));
+  document.querySelector('.bit-tipo-btn[data-tipo="Riego"]').classList.add('sel');
+  $('bit-drawer-overlay').style.display = 'flex';
+}
+function cerrarDrawerBitacora() { $('bit-drawer-overlay').style.display = 'none'; }
+function selectBitTipo(el) {
+  document.querySelectorAll('.bit-tipo-btn').forEach(b=>b.classList.remove('sel'));
+  el.classList.add('sel');
+}
+
+async function guardarActividadBitacora() {
+  const reg = _bitacoraRegistroActivo();
+  if (!reg) { setS('Sin cuarentena activa.', 'warn'); return; }
+  const tipoBtn = document.querySelector('.bit-tipo-btn.sel');
+  const tipo = tipoBtn ? tipoBtn.dataset.tipo : 'Observación';
+  const fecha = $('bit-fecha').value, hora = $('bit-hora').value;
+  const desc = $('bit-desc').value.trim();
+  if (!fecha || !desc) { setS('Fecha y descripción son obligatorias.', 'warn'); return; }
+
+  const btn = $('bit-btn-guardar');
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+  try {
+    await ensureToken();
+    await _asegurarTabBitacora();
+    const usuario = (typeof _obtenerUsuarioActual === 'function') ? await _obtenerUsuarioActual() : '';
+    const id = Date.now();
+    const fila = [
+      id, reg.sol||'', reg.res||'', reg.importador||'', reg.cubiculo||'',
+      fecha, hora||'', tipo, desc, $('bit-resp').value.trim(),
+      $('bit-dur').value||'', $('bit-tags').value.trim(),
+      _nowStrSAG(), usuario||''
+    ];
+    await fetch(
+      `${BASE_URL}/${GS.sheetId}/values/${SHEET_BITACORA}!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+      {method:'POST',
+       headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+       body:JSON.stringify({values:[fila]})});
+    setS('Actividad registrada en la Bitácora.', 'ok');
+    cerrarDrawerBitacora();
+    cargarBitacora(true);
+  } catch(e) {
+    console.error('No se pudo guardar la actividad de Bitácora:', e);
+    setS('No se pudo guardar la actividad. Intente nuevamente.', 'err');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Guardar actividad'; }
+  }
 }
 
 // ── Alertas descartadas — persisten en el Sheet (pestaña AlertasDescartadas) ─
