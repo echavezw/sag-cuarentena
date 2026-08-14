@@ -10250,7 +10250,7 @@ async function guardarTodo() {
 function buildRows(nsol,imp) {
   const esp=getEspecies(); const base={
     'Solicitud':       String(nsol),
-    'Fecha Solicitud': _lastLoadedRow['Fecha Solicitud']||'',
+    'Fecha Solicitud': fmtDisplay(_lastLoadedRow['Fecha Solicitud']||''),
     'Res.':            v('f2-nres')||_lastLoadedRow['Res.']||'',
     'Fecha Res.':      fmtDisplay(v('f2-fres'))||_lastLoadedRow['Fecha Res.']||'',
     'Importador':      imp,
