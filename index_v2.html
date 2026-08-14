@@ -5387,6 +5387,7 @@ async function recargar() {
       });
       updateTimeline(_res,_yr,_rows.length?_rows:[_r0]);
     }
+    await _cargarAlertasDescartadasSheet();
     buildAlerts();
     // Reload anRows from fresh gsData for the active record — keeps analysis in sync after save
     if(_activeRes && _lastLoadedRow && Object.keys(_lastLoadedRow).length) {
@@ -11467,10 +11468,23 @@ function getAnalysisLabel(row) {
   return AN_TYPE_LABEL[tipo] || tipo || '—';
 }
 
-// ── Alertas descartadas — persisten en localStorage ─────────────────────────
+// ── Alertas descartadas — persisten en el Sheet (pestaña AlertasDescartadas) ─
 // La clave de descarte es: key||tag||analysis (identifica una alerta concreta).
-// Se guardan en localStorage['sag_alertas_descartadas'] como array JSON.
+// localStorage['sag_alertas_descartadas'] se mantiene solo como caché local
+// instantánea (descartes permanentes, legado) para que la UI responda sin
+// esperar la ida y vuelta a la API; la fuente de verdad real y lo que hace
+// que un descarte sobreviva a cambiar de navegador/dispositivo/URL (GitHub
+// Pages vs Cloudflare) es la pestaña del Sheet, sincronizada para todos.
+//
+// Cada fila en AlertasDescartadas: DiscardKey | FechaDescarte | SnoozeHasta | Usuario
+// SnoozeHasta vacío = descarte permanente. Con fecha (DD-MM-YYYY, como texto
+// forzado con apóstrofe para no repetir el bug de auto-conversión a serial) =
+// la alerta reaparece automáticamente cuando esa fecha ya pasó.
 const _ALERTS_LS_KEY = 'sag_alertas_descartadas';
+const SHEET_ALERTAS_DESC = 'AlertasDescartadas';
+const ALERTAS_DESC_HEADERS = ['DiscardKey','FechaDescarte','SnoozeHasta','Usuario'];
+let _alertasDescTabAsegurada = false;
+let _alertasDescSheetCache = null; // Map: discardKey -> snoozeHasta ('' = permanente)
 
 function _getDescartadas() {
   try { return JSON.parse(localStorage.getItem(_ALERTS_LS_KEY) || '[]'); }
@@ -11482,24 +11496,123 @@ function _setDescartadas(arr) {
 function _alertDiscardKey(a) {
   return (a.key||'') + '||' + (a.tag||'') + '||' + (a.analysis||'');
 }
-function descartarAlerta(discardKey) {
-  const arr = _getDescartadas();
-  if (!arr.includes(discardKey)) { arr.push(discardKey); _setDescartadas(arr); }
+function _addDiasDDMMYYYY(dias) {
+  const d = new Date(); d.setDate(d.getDate()+dias);
+  return `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
+}
+// true mientras el snooze siga vigente (hoy <= SnoozeHasta); si SnoozeHasta
+// está vacío el descarte es permanente y esta función no se usa para eso.
+function _snoozeVigente(snoozeHastaStr) {
+  if (!snoozeHastaStr) return false;
+  const iso = fmtD(snoozeHastaStr);
+  if (!iso) return false;
+  return iso >= new Date().toISOString().split('T')[0];
+}
+
+async function _asegurarTabAlertasDescartadas() {
+  if (_alertasDescTabAsegurada) return;
+  try {
+    const meta = await fetch(`${BASE_URL}/${GS.sheetId}?fields=sheets.properties&key=${GS.apiKey}`);
+    const metaJson = await meta.json();
+    const existe = (metaJson.sheets||[]).some(s=>s.properties?.title===SHEET_ALERTAS_DESC);
+    if (!existe) {
+      await ensureToken();
+      await fetch(`${BASE_URL}/${GS.sheetId}:batchUpdate`,
+        {method:'POST',
+         headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+         body:JSON.stringify({requests:[{addSheet:{properties:{title:SHEET_ALERTAS_DESC}}}]})});
+      await fetch(
+        `${BASE_URL}/${GS.sheetId}/values/${SHEET_ALERTAS_DESC}!A1?valueInputOption=USER_ENTERED`,
+        {method:'PUT',
+         headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+         body:JSON.stringify({values:[ALERTAS_DESC_HEADERS]})});
+    }
+    _alertasDescTabAsegurada = true;
+  } catch(e) { console.error('No se pudo asegurar la pestaña AlertasDescartadas:', e); }
+}
+
+// Carga (con caché de 5 min) los descartes guardados en el Sheet. Se llama
+// desde recargar() antes de buildAlerts() para que el filtrado sea síncrono.
+async function _cargarAlertasDescartadasSheet(force) {
+  if (_alertasDescSheetCache && !force) return _alertasDescSheetCache;
+  const mapa = new Map();
+  try {
+    await _asegurarTabAlertasDescartadas();
+    const rows = await fetchRawSheet(SHEET_ALERTAS_DESC);
+    if (rows && rows.length >= 2) {
+      const hdr = rows[0];
+      const iKey = hdr.indexOf('DiscardKey'), iSnooze = hdr.indexOf('SnoozeHasta');
+      // last-write-wins: si el mismo DiscardKey se descartó más de una vez
+      // (ej. primero permanente y luego con snooze), manda la fila más reciente.
+      rows.slice(1).forEach(r => {
+        const k = (r[iKey]||'').trim();
+        if (k) mapa.set(k, iSnooze>=0 ? (r[iSnooze]||'') : '');
+      });
+    }
+  } catch(e) { console.error('No se pudo cargar AlertasDescartadas del Sheet:', e); }
+  _alertasDescSheetCache = mapa;
+  return mapa;
+}
+
+function _alertaEstaOculta(discardKey) {
+  // localStorage: descartes permanentes legado / respaldo instantáneo
+  if (_getDescartadas().includes(discardKey)) return true;
+  // Sheet: fuente de verdad compartida entre dispositivos/navegadores/URLs
+  const mapa = _alertasDescSheetCache;
+  if (mapa && mapa.has(discardKey)) {
+    const snoozeHasta = mapa.get(discardKey);
+    if (!snoozeHasta) return true;           // descarte permanente
+    return _snoozeVigente(snoozeHasta);       // oculto solo mientras dure el snooze
+  }
+  return false;
+}
+
+// dias=0 (o ausente) → descarte permanente. dias>0 → snooze (reaparece sola
+// cuando pasen esos días). Actualiza la UI de inmediato con la caché en
+// memoria y persiste en el Sheet en segundo plano.
+async function descartarAlerta(discardKey, dias) {
+  dias = dias || 0;
+  const snoozeHasta = dias > 0 ? _addDiasDDMMYYYY(dias) : '';
+
+  if (!dias) {
+    const arr = _getDescartadas();
+    if (!arr.includes(discardKey)) { arr.push(discardKey); _setDescartadas(arr); }
+  }
+  _alertasDescSheetCache = _alertasDescSheetCache || new Map();
+  _alertasDescSheetCache.set(discardKey, snoozeHasta);
   buildAlerts();
   renderAlertsStage();
+
+  try {
+    await ensureToken();
+    await _asegurarTabAlertasDescartadas();
+    const usuario = (typeof _obtenerUsuarioActual === 'function') ? await _obtenerUsuarioActual() : '';
+    const fila = [discardKey, _nowStrSAG(), snoozeHasta ? ("'"+snoozeHasta) : '', usuario||''];
+    await fetch(
+      `${BASE_URL}/${GS.sheetId}/values/${SHEET_ALERTAS_DESC}!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+      {method:'POST',
+       headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+       body:JSON.stringify({values:[fila]})});
+  } catch(e) { console.error('No se pudo persistir el descarte de alerta en el Sheet:', e); }
 }
-function restaurarAlertas() {
+
+async function restaurarAlertas() {
   _setDescartadas([]);
+  _alertasDescSheetCache = new Map();
   buildAlerts();
   renderAlertsStage();
   setS('Todas las alertas descartadas han sido restauradas.', 'ok');
+  try {
+    await ensureToken();
+    await _asegurarTabAlertasDescartadas();
+    await fetch(`${BASE_URL}/${GS.sheetId}/values/${SHEET_ALERTAS_DESC}!A2:D10000:clear`,
+      {method:'POST', headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'}});
+  } catch(e) { console.error('No se pudo limpiar AlertasDescartadas en el Sheet:', e); }
 }
 
 function pushAlert(severity, reg, imp, cub, esp, analysis, action, tag, days, key, cub2) {
   const a = { severity, reg, imp, cub, cub2: cub2||'', esp, analysis, action, tag, days, key };
-  // Filtrar alertas descartadas
-  const descartadas = _getDescartadas();
-  if (descartadas.includes(_alertDiscardKey(a))) return;
+  if (_alertaEstaOculta(_alertDiscardKey(a))) return;
   _alerts.push(a);
 }
 
@@ -11865,7 +11978,8 @@ function renderAlertsSidebar() {
         <div class="al-row1">
           <span class="al-reg">${a.reg}</span>
           <span class="al-days ${dcls}">${daysStr}</span>
-          <button class="al-discard-btn" title="Descartar esta alerta" onclick="event.stopPropagation();descartarAlerta(decodeURIComponent('${aDiscardKey}'))">✕</button>
+          <button class="al-discard-btn" title="Ocultar 7 días" onclick="event.stopPropagation();descartarAlerta(decodeURIComponent('${aDiscardKey}'),7)" style="margin-right:2px">⏰</button>
+          <button class="al-discard-btn" title="Descartar permanentemente" onclick="event.stopPropagation();descartarAlerta(decodeURIComponent('${aDiscardKey}'))">✕</button>
         </div>
         <div class="al-analysis">${a.analysis}</div>
         <div class="al-action">${a.action}</div>
@@ -11965,7 +12079,11 @@ function renderAlertsDarkSummary(venc, prox, pend) {
         <div style="font-size:11px;color:#E8ECF2;opacity:0.65;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.imp || '—'} · ${a.reg || ''}</div>
       </div>
       <span style="font-size:10px;background:${bg};color:${color};padding:3px 8px;border-radius:6px;flex-shrink:0">${label}</span>
-      <button onclick="event.stopPropagation();descartarAlerta(decodeURIComponent('${dkEnc}'))" title="Descartar esta alerta"
+      <button onclick="event.stopPropagation();descartarAlerta(decodeURIComponent('${dkEnc}'),7)" title="Ocultar 7 días"
+        style="position:absolute;top:6px;right:24px;background:none;border:none;color:rgba(232,236,242,0.4);font-size:12px;cursor:pointer;padding:2px 5px;border-radius:3px;line-height:1"
+        onmouseover="this.style.color='#E8ECF2';this.style.background='rgba(255,255,255,0.1)'"
+        onmouseout="this.style.color='rgba(232,236,242,0.4)';this.style.background='none'">⏰</button>
+      <button onclick="event.stopPropagation();descartarAlerta(decodeURIComponent('${dkEnc}'))" title="Descartar permanentemente"
         style="position:absolute;top:6px;right:6px;background:none;border:none;color:rgba(232,236,242,0.4);font-size:14px;cursor:pointer;padding:2px 5px;border-radius:3px;line-height:1"
         onmouseover="this.style.color='#E8ECF2';this.style.background='rgba(255,255,255,0.1)'"
         onmouseout="this.style.color='rgba(232,236,242,0.4)';this.style.background='none'">✕</button>
