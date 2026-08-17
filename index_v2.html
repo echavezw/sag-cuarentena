@@ -13511,7 +13511,11 @@ function _buscarResolucionesFitosanitarias(especiesArr, paisOrigen) {
           const completa = (r['Resolución Completa']||'').trim();
           if (completa && !vistos.has(completa)) {
             vistos.add(completa);
-            lista.push({ numero:r['N° Resolución']||'', anio:r['Año']||'', completa, vigenciaDesde:(r['Vigencia Desde']||'').trim() });
+            lista.push({
+              numero:r['N° Resolución']||'', anio:r['Año']||'', completa,
+              vigenciaDesde:(r['Vigencia Desde']||'').trim(),
+              vigenciaHasta:(r['Vigencia Hasta']||'').trim()
+            });
           }
         }
       });
@@ -13526,17 +13530,29 @@ function _buscarResolucionesFitosanitarias(especiesArr, paisOrigen) {
     viaGenero = lista.length > 0;
   }
 
-  out.lista = lista;
-  out.encontrado = lista.length > 0;
+  // ── Filtro automático por fecha ──────────────────────────────────────────
+  // Cuando una especie+país tiene más de una resolución cargada (norma vigente
+  // + norma nueva ya publicada pero que aún no rige, o norma antigua ya
+  // reemplazada), solo se cita la que esté EFECTIVAMENTE vigente hoy, según
+  // 'Vigencia Desde' (inicio, inclusive) y 'Vigencia Hasta' (fin, inclusive).
+  // Ambas columnas son opcionales: sin fecha = sin restricción por ese lado.
+  const hoyISO = new Date().toISOString().substring(0,10);
+  const esVigenteHoy = x => {
+    const desdeOk = !x.vigenciaDesde || fmtD(x.vigenciaDesde) <= hoyISO;
+    const hastaOk = !x.vigenciaHasta || fmtD(x.vigenciaHasta) >= hoyISO;
+    return desdeOk && hastaOk;
+  };
+  const listaVigente = lista.filter(esVigenteHoy);
+  // Resoluciones ya cargadas pero que todavía no entran en vigencia — se
+  // excluyen de la cita, pero se informan como aviso (no se citan solas ni
+  // junto a la vigente: mientras no llegue su fecha, es como si no estuvieran).
+  const pendientesVigencia = lista.filter(x => x.vigenciaDesde && fmtD(x.vigenciaDesde) > hoyISO);
+
+  out.lista = listaVigente;
+  out.encontrado = listaVigente.length > 0;
+  out.pendientesVigencia = pendientesVigencia;
   out.viaUE = viaUE;
   out.viaGenero = viaGenero;
-
-  // Resoluciones con "Vigencia Desde" cargada a futuro (ej. periodo de transición
-  // entre publicación y entrada en vigencia real de una resolución nueva). Se
-  // avisa en pantalla y se marca en el borrador — no se excluyen de la lista,
-  // porque el usuario decide si igual corresponde citarlas.
-  const hoyISO = new Date().toISOString().substring(0,10);
-  out.pendientesVigencia = lista.filter(x => x.vigenciaDesde && fmtD(x.vigenciaDesde) > hoyISO);
   return out;
 }
 
@@ -13690,15 +13706,16 @@ function generarBorradorResolucion() {
     ? _reqMatch.lista.some(x => /136 de 2021/.test(x.completa))
     : true;
 
-  // Aviso de resolución con vigencia futura (ej. publicada pero aún no vigente).
-  // Se muestra en pantalla y se embebe como nota destacada dentro del propio
-  // Word, para que quede visible aunque el borrador se revise días después.
+  // Aviso informativo: hay una resolución ya cargada que reemplazará la cita
+  // actual apenas llegue su fecha (filtrado automático por 'Vigencia Desde'/
+  // 'Vigencia Hasta' en _buscarResolucionesFitosanitarias — esta resolución
+  // NO se está citando todavía, solo se informa el próximo cambio).
   let avisoVigencia = '';
   if (_reqMatch.pendientesVigencia && _reqMatch.pendientesVigencia.length) {
     const detalle = _reqMatch.pendientesVigencia
       .map(x => `${x.completa} (vigente desde ${fmtDisplay(x.vigenciaDesde)})`)
       .join('; ');
-    avisoVigencia = `OJO: cita resolución(es) con vigencia futura — ${detalle}. Verificar aplicabilidad antes de firmar.`;
+    avisoVigencia = `Próximo cambio normativo (aún no vigente, no se cita en este borrador): ${detalle}.`;
     setS('Atención: ' + avisoVigencia, 'warn');
   }
 
