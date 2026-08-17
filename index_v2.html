@@ -10600,14 +10600,36 @@ const RPT_LABELS   = Object.fromEntries(RPT_REQUIRED.map(c=>[c.key,c.label]));
 const RPT_OPTIONAL = CANONICAL_HEADERS.filter(h=>!RPT_REQ_KEYS.includes(h));
 const RPT_DATE_COLS = new Set(['Fecha Solicitud','Fecha Res.','Fecha Res.4']);
 
-// Estatus para Reporte PMG: 'Entregada' si hay Fecha Entrega o el Status crudo
-// ya es 'Entregada'; en cualquier otro caso, 'En Proceso' (agrupa No Recibida,
-// Aprobada, Recibida, Injertada, etc. — cualquier registro dentro del período
-// que aún no fue entregado).
+// Estatus para Reporte PMG: reutiliza el MISMO cálculo de badge real que usa
+// el resto del sistema (Búsqueda Rápida / Todos los Registros — funciones
+// badgeEstadoEntrada + calcBadgePriority), no una lógica inventada aparte.
+// Esto asegura que el reporte diga exactamente lo mismo que ya se ve en el
+// panel para ese registro. Luego se agrupa la etiqueta real (que tiene ~20
+// variantes internas) en las 4 categorías que exige el reporte PMG:
+//   - Entregada    : el material ya fue entregado (Terminada/Entregada,
+//                    Entregada — Pend. Cierre, o Fecha Entrega ya registrada)
+//   - No Recibida  : resolución firmada pero material nunca llegó a ECA,
+//                    vencida sin recibir, o envío del portal quedó incompleto
+//   - Anulada      : Rechazada, Cancelada o Anulada — la solicitud no sigue
+//   - En Proceso   : cualquier otro estado intermedio (recibida, injertada,
+//                    en análisis, liberada pendiente de cierre, etc.)
 function _pmgEstatus(row) {
-  const entregada = String(row['Entregada']||'').trim();
-  const status = String(row['Status']||'').trim();
-  if (entregada || status === 'Entregada') return 'Entregada';
+  const entregadaFecha = String(row['Entregada']||'').trim();
+  if (entregadaFecha) return 'Entregada';
+
+  const res = String(row['Res.']||'').trim();
+  const rows = _filasDelRegistro(row);
+  const beEntrada = badgeEstadoEntrada(row['Status'], res);
+  const bp = beEntrada
+    ? {label: beEntrada.label}
+    : (res
+        ? (rows.length ? calcBadgePriority(rows) : _badgeResolucionSinMaterial(row))
+        : {label: row['Estado Res.']||'Sin Firma'});
+  const label = String(bp.label||'').trim();
+
+  if (/Entregada/.test(label)) return 'Entregada';
+  if (label==='Rechazada' || label==='Cancelada' || label==='Anulada') return 'Anulada';
+  if (/No Recibida/.test(label) || label==='Envío Incompleto') return 'No Recibida';
   return 'En Proceso';
 }
 
