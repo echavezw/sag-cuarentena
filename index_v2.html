@@ -13682,6 +13682,14 @@ function generarBorradorResolucion() {
       : 'las Resoluciones N° 136 de 2021, 5.561 de 2024 y sus modificaciones';
   }
 
+  // La nota sobre el método de análisis de eriófidos (considerando 3, más abajo
+  // en _buildDocx) solo corresponde si la cita real sigue siendo la 136/2021
+  // (norma con el método desactualizado). Si ya no hay match (plantilla fija)
+  // se asume el caso histórico y se mantiene la nota, igual que antes.
+  const citaIncluye136 = _reqMatch.encontrado
+    ? _reqMatch.lista.some(x => /136 de 2021/.test(x.completa))
+    : true;
+
   // Aviso de resolución con vigencia futura (ej. publicada pero aún no vigente).
   // Se muestra en pantalla y se embebe como nota destacada dentro del propio
   // Word, para que quede visible aunque el borrador se revise días después.
@@ -13704,7 +13712,7 @@ function generarBorradorResolucion() {
     imp, nsol, pais, paisDisplay, paisCert, usoDisplay, prov, fechaTexto,
     isCE, mat, totalCant, piVal, portaTexto, multiEsp, especies,
     frioTexto, sinFrio, horasFrio, cpTexto,
-    vistosRes, resolucionRef, certRes, avisoVigencia
+    vistosRes, resolucionRef, certRes, avisoVigencia, citaIncluye136
   });
 }
 
@@ -14130,7 +14138,11 @@ function _buildDocx(d) {
       t(', '), hl(d.fechaTexto), t(' ante la Estación de Cuarentena Agrícola (ECA) del SAG.')], {indent:true}),
     p([t('2.\t'), t('Que, en virtud de los compromisos adquiridos por el país ante la Unión Internacional para la Protección de las Obtenciones Vegetales (UPOV), y lo estipulado en la Ley N° 19.342, el SAG debe velar para que se cumplan con los acuerdos internacionales relativos a la protección de las variedades de plantas y partes de plantas en el país.')], {indent:true}),
   ];
-  if (!d.isCE) {
+  if (!d.isCE && d.citaIncluye136) {
+    // La 7.781/2026 ya incorpora el método de análisis corregido para eriófidos
+    // en su propio Resuelvo (ver ítem "Para la certificación..." más abajo), así
+    // que este considerando solo aplica cuando la cita todavía es la 136/2021
+    // (norma que sí tenía el método desactualizado).
     considerandoItems.push(p([t('3.\t'), t('Que, se debe corregir el método de análisis para la detección de eriófidos señalado en el resuelvo 1.1.6 de la Resolución N° 136 de 2021.')], {indent:true}));
   }
 
