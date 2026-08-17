@@ -13511,7 +13511,7 @@ function _buscarResolucionesFitosanitarias(especiesArr, paisOrigen) {
           const completa = (r['Resolución Completa']||'').trim();
           if (completa && !vistos.has(completa)) {
             vistos.add(completa);
-            lista.push({ numero:r['N° Resolución']||'', anio:r['Año']||'', completa });
+            lista.push({ numero:r['N° Resolución']||'', anio:r['Año']||'', completa, vigenciaDesde:(r['Vigencia Desde']||'').trim() });
           }
         }
       });
@@ -13530,6 +13530,13 @@ function _buscarResolucionesFitosanitarias(especiesArr, paisOrigen) {
   out.encontrado = lista.length > 0;
   out.viaUE = viaUE;
   out.viaGenero = viaGenero;
+
+  // Resoluciones con "Vigencia Desde" cargada a futuro (ej. periodo de transición
+  // entre publicación y entrada en vigencia real de una resolución nueva). Se
+  // avisa en pantalla y se marca en el borrador — no se excluyen de la lista,
+  // porque el usuario decide si igual corresponde citarlas.
+  const hoyISO = new Date().toISOString().substring(0,10);
+  out.pendientesVigencia = lista.filter(x => x.vigenciaDesde && fmtD(x.vigenciaDesde) > hoyISO);
   return out;
 }
 
@@ -13675,6 +13682,18 @@ function generarBorradorResolucion() {
       : 'las Resoluciones N° 136 de 2021, 5.561 de 2024 y sus modificaciones';
   }
 
+  // Aviso de resolución con vigencia futura (ej. publicada pero aún no vigente).
+  // Se muestra en pantalla y se embebe como nota destacada dentro del propio
+  // Word, para que quede visible aunque el borrador se revise días después.
+  let avisoVigencia = '';
+  if (_reqMatch.pendientesVigencia && _reqMatch.pendientesVigencia.length) {
+    const detalle = _reqMatch.pendientesVigencia
+      .map(x => `${x.completa} (vigente desde ${fmtDisplay(x.vigenciaDesde)})`)
+      .join('; ');
+    avisoVigencia = `OJO: cita resolución(es) con vigencia futura — ${detalle}. Verificar aplicabilidad antes de firmar.`;
+    setS('Atención: ' + avisoVigencia, 'warn');
+  }
+
   // Portainjerto texto
   const portaTexto = multiEsp
     ? `patrón ${piVal} para ${especies.join(' / ')}`
@@ -13685,7 +13704,7 @@ function generarBorradorResolucion() {
     imp, nsol, pais, paisDisplay, paisCert, usoDisplay, prov, fechaTexto,
     isCE, mat, totalCant, piVal, portaTexto, multiEsp, especies,
     frioTexto, sinFrio, horasFrio, cpTexto,
-    vistosRes, resolucionRef, certRes
+    vistosRes, resolucionRef, certRes, avisoVigencia
   });
 }
 
@@ -14133,6 +14152,11 @@ function _buildDocx(d) {
     pc([t('BORRADOR — RESOLUCIÓN EXENTA N°: ', {bold:true}), hl('______/______', {bold:true})], {after:80}),
     pc([t('AUTORIZA INTERNACIÓN Y DISPONE CUARENTENA ABSOLUTA A MATERIAL VEGETAL QUE INDICA', {bold:true})], {after:160}),
     pc([t('Santiago, '), hl('______')], {after:200}),
+
+    // Aviso de resolución con vigencia futura (si corresponde) — destacado en
+    // rojo justo bajo el título, para que sea lo primero que se vea al abrir
+    // el Word, incluso si se revisa el borrador días/semanas después.
+    ...(d.avisoVigencia ? [pc([t('⚠ ' + d.avisoVigencia, {bold:true, color:'C00000'})], {after:200})] : []),
 
     // VISTOS
     pc([t('VISTOS:', {bold:true})], {after:120}),
