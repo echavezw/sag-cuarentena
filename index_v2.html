@@ -13474,7 +13474,16 @@ function _expandirEspeciesHibridas(especiesArr) {
   return [...new Set(out)];
 }
 
-function _buscarResolucionesFitosanitarias(especiesArr, paisOrigen) {
+// Cruza especies+país contra RequisitosFitosanitarios, filtrando por vigencia
+// según una FECHA DE REFERENCIA — normalmente la Fecha de Emisión (f2-fres) de
+// la Resolución de Ingreso del propio registro, NO la fecha en que se está
+// consultando. Esto es crítico: una vez que una Resolución de Ingreso ya fue
+// emitida citando ciertas resoluciones fitosanitarias, esa cita queda fija
+// para siempre — no puede cambiar solo porque después cambió la normativa
+// vigente, o la Resolución de Término terminaría citando algo que la de
+// Ingreso nunca mencionó. Si no se pasa fechaReferencia (registro nuevo, sin
+// Res. de Ingreso emitida aún), se usa la fecha de hoy como mejor estimación.
+function _buscarResolucionesFitosanitarias(especiesArr, paisOrigen, fechaReferencia) {
   const out = { encontrado:false, lista:[], viaUE:false, viaGenero:false };
   if (!refRequisitos || !refRequisitos.length || !especiesArr || !especiesArr.length) return out;
 
@@ -13533,20 +13542,23 @@ function _buscarResolucionesFitosanitarias(especiesArr, paisOrigen) {
   // ── Filtro automático por fecha ──────────────────────────────────────────
   // Cuando una especie+país tiene más de una resolución cargada (norma vigente
   // + norma nueva ya publicada pero que aún no rige, o norma antigua ya
-  // reemplazada), solo se cita la que esté EFECTIVAMENTE vigente hoy, según
-  // 'Vigencia Desde' (inicio, inclusive) y 'Vigencia Hasta' (fin, inclusive).
-  // Ambas columnas son opcionales: sin fecha = sin restricción por ese lado.
-  const hoyISO = new Date().toISOString().substring(0,10);
-  const esVigenteHoy = x => {
-    const desdeOk = !x.vigenciaDesde || fmtD(x.vigenciaDesde) <= hoyISO;
-    const hastaOk = !x.vigenciaHasta || fmtD(x.vigenciaHasta) >= hoyISO;
+  // reemplazada), solo se cita la que estaba EFECTIVAMENTE vigente en la fecha
+  // de referencia, según 'Vigencia Desde' (inicio, inclusive) y 'Vigencia
+  // Hasta' (fin, inclusive). Ambas columnas son opcionales: sin fecha = sin
+  // restricción por ese lado. La fecha de referencia es la de emisión de la
+  // Res. de Ingreso del registro (fija en el tiempo), no la de hoy.
+  const refParsed = fechaReferencia ? fmtD(fechaReferencia) : '';
+  const refValida = refParsed && !isNaN(new Date(refParsed));
+  const fechaRefISO = refValida ? refParsed : new Date().toISOString().substring(0,10);
+  const esVigenteEnRef = x => {
+    const desdeOk = !x.vigenciaDesde || fmtD(x.vigenciaDesde) <= fechaRefISO;
+    const hastaOk = !x.vigenciaHasta || fmtD(x.vigenciaHasta) >= fechaRefISO;
     return desdeOk && hastaOk;
   };
-  const listaVigente = lista.filter(esVigenteHoy);
-  // Resoluciones ya cargadas pero que todavía no entran en vigencia — se
-  // excluyen de la cita, pero se informan como aviso (no se citan solas ni
-  // junto a la vigente: mientras no llegue su fecha, es como si no estuvieran).
-  const pendientesVigencia = lista.filter(x => x.vigenciaDesde && fmtD(x.vigenciaDesde) > hoyISO);
+  const listaVigente = lista.filter(esVigenteEnRef);
+  // Resoluciones ya cargadas pero que todavía no entraban en vigencia a la
+  // fecha de referencia — se excluyen de la cita, pero se informan como aviso.
+  const pendientesVigencia = lista.filter(x => x.vigenciaDesde && fmtD(x.vigenciaDesde) > fechaRefISO);
 
   out.lista = listaVigente;
   out.encontrado = listaVigente.length > 0;
@@ -13561,6 +13573,16 @@ function _formatearListaResoluciones(lista) {
   const partes = lista.map(r => r.completa.replace(/^[Nn][°ºo]\.?\s*/, 'N° '));
   if (partes.length === 1) return partes[0];
   return partes.slice(0,-1).join(', ') + ' y ' + partes[partes.length-1];
+}
+
+// ── Fecha de referencia para vigencia fitosanitaria del registro cargado ──
+// Si la Res. de Ingreso ya fue emitida (f2-fres tiene valor), esa es la fecha
+// que determina qué normativa se citó — fija para siempre, sin importar cuándo
+// se consulte el registro después. Si aún no hay Res. (solicitud/borrador
+// nuevo), se usa hoy como mejor estimación de cuándo se emitirá.
+function _fechaReferenciaFito() {
+  const fres = (typeof v === 'function') ? v('f2-fres') : '';
+  return fres ? fres : '';
 }
 
 // ── Badge de cumplimiento fitosanitario (Etapa I) ──
@@ -13600,7 +13622,7 @@ function actualizarBadgeFitosanitario() {
     const especie = cleanEspecie(v(`es-${i}`));
     const celda = $('ef-' + i);
     if (!especie || !celda) return;
-    const r = _buscarResolucionesFitosanitarias([especie], pais);
+    const r = _buscarResolucionesFitosanitarias([especie], pais, _fechaReferenciaFito());
     if (r.encontrado) {
       const nums = r.lista.map(x => 'N°' + x.numero).join(', ');
       celda.textContent = '✓ ' + nums;
@@ -13678,7 +13700,7 @@ function generarBorradorResolucion() {
 
   // Textos que varían CE vs no-CE — se intenta cruzar Especie+Origen contra
   // RequisitosFitosanitarios (con fallback CE via PaisesUE) antes de usar la plantilla fija.
-  const _reqMatch = _buscarResolucionesFitosanitarias(especies, pais);
+  const _reqMatch = _buscarResolucionesFitosanitarias(especies, pais, _fechaReferenciaFito());
   let vistosRes, resolucionRef, certRes;
   if (_reqMatch.encontrado) {
     const listaTexto = _formatearListaResoluciones(_reqMatch.lista);
@@ -13792,7 +13814,7 @@ function generarBorradorTerminoCPE() {
   // Cruce Especie+Origen contra RequisitosFitosanitarios (mismo criterio que Etapa II: especie exacta,
   // luego CE via PaisesUE, luego género spp.), con fallback al texto fijo si no hay match.
   const especiesTermino = [...new Set(mat.map(r => r.esp).filter(Boolean))];
-  const _reqMatchTermino = _buscarResolucionesFitosanitarias(especiesTermino, pais);
+  const _reqMatchTermino = _buscarResolucionesFitosanitarias(especiesTermino, pais, fres);
   const reqFitoSegment = _reqMatchTermino.encontrado
     ? 'las Resoluciones ' + _reqMatchTermino.lista.map(r => r.completa.replace(/^[Nn][°ºo]\.?\s*/, 'N° ')).join(', ') + ', '
     : 'las Resoluciones N° 7.243 de 2012, 5.410 de 2015, 7.501 de 2020, ';
