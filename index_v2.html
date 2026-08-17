@@ -1710,7 +1710,7 @@ input.field-blocked, select.field-blocked {
     <div class="fg" style="grid-template-columns:repeat(6,1fr);gap:10px 14px">
       <div class="ff c1"><label class="lbl">Liberada</label>
         <select id="f6-lib" onchange="cacheField('f6-lib')"><option value="">—</option><option>SI</option><option>NO</option></select></div>
-      <div class="ff c2"><label class="lbl">Fecha Entrega</label><input type="date" id="f6-fent" oninput="cacheField('f6-fent')"></div>
+      <div class="ff c2"><label class="lbl">Fecha Entrega</label><input type="date" id="f6-fent" oninput="cacheField('f6-fent');autoStatusPorEntrega()"></div>
       <div class="ff c2"><label class="lbl">Status Final</label>
         <select id="f6-stat" onchange="updateStatusBadge();cacheField('f6-stat')" onchange="updateStatusBadge()">
           <option value="">—</option><option>A destruir</option><option>Destruida</option>
@@ -4071,6 +4071,19 @@ function getCached(id, liveVal) {
   return liveVal||'';
 }
 function clearFieldCache() { window._fieldCache={}; }
+// Si se ingresa Fecha Entrega, el registro quedó entregado: el desplegable
+// "Status Final" (Etapa VII) se marca automáticamente como "Entregada",
+// salvo que ya estuviera puesto así manualmente (no hace nada distinto).
+function autoStatusPorEntrega() {
+  const fent = document.getElementById('f6-fent');
+  const stat = document.getElementById('f6-stat');
+  if (!fent || !stat) return;
+  if (fent.value && stat.value !== 'Entregada') {
+    stat.value = 'Entregada';
+    cacheField('f6-stat');
+    if (typeof updateStatusBadge === 'function') updateStatusBadge();
+  }
+}
 
 const IMP_DATA = {"AGRÍCOLA AYG BERRIES LTDA": {"rut": "", "representante": ""}, "Agriconsultores Ltda.": {"rut": "", "representante": ""}, "Agrícola Los Olmos": {"rut": "79.721.580-5", "representante": ""}, "Agrícola Poch": {"rut": "96.778.800-7", "representante": ""}, "Agrícola Polpaico": {"rut": "79.645.260-9", "representante": ""}, "Agrícola San Clemente": {"rut": "79.500.510-2", "representante": ""}, "Asociación Viveros de Chile AGV": {"rut": "", "representante": "Margarita Torres Clavería"}, "Biogold Sudamerica S.A.": {"rut": "76.024.177-6", "representante": ""}, "Biotecnos": {"rut": "76.197.117-4", "representante": ""}, "CONAF": {"rut": "61.313.000-4", "representante": ""}, "Centro de Estudios Avanzados en Fruticultura (CEAF)": {"rut": "65.088.704-2", "representante": ""}, "Comfruit Nursery S.A.": {"rut": "96.764.220-7", "representante": ""}, "Consorcio Viveros Chile S.A.": {"rut": "96.792.420-2", "representante": ""}, "Dole": {"rut": "94.612.000-6", "representante": "Óscar Arriagada"}, "EXPORTADORA DE PLANTAS CHILE SpA": {"rut": "76.361.731-9", "representante": "Ítalo Mariotti"}, "Exportadora Agua Santa S.A.": {"rut": "96.647.510-2", "representante": ""}, "FRANCISCO GALAZ": {"rut": "16.433.645-K", "representante": ""}, "FRUGG SpA": {"rut": "77.480.862-0", "representante": ""}, "Garces Fruit": {"rut": "76.109.794-6", "representante": ""}, "Green Nova SpA": {"rut": "76.382.647-3", "representante": ""}, "Hortifrut Chile S.A.": {"rut": "99.524.450-0", "representante": "Marcela Briones"}, "Innovación Frutal SpA": {"rut": "77.620.179-0", "representante": ""}, "Invitro Lab SpA": {"rut": "", "representante": ""}, "Jingold Chile SpA": {"rut": "76.055.132-5", "representante": ""}, "LAFRUT EXPORTACIONES AGROPECUARIA LTDA.": {"rut": "79.759.730-9", "representante": "Nicolás Alessandrini"}, "S & W INGENIERIA AGRICOLA Y PROPIEDAD INTELECTUAL SPA": {"rut": "76.545.805-6", "representante": "Margarita Torres Clavería"}, "SB Cerasus S.A.": {"rut": "76.193.074-5", "representante": ""}, "Servicios Chilfresh Ltda.": {"rut": "96.690.500-K", "representante": ""}, "Sociedad C&L Frut Spa": {"rut": "76.904.417-5", "representante": "Ignacio Arriagada"}, "Sun World": {"rut": "76.364.155-4", "representante": ""}, "Tuniche Fruits Ltda.": {"rut": "96.962.460-5", "representante": "Gabriela Ramírez"}, "UC Valparaíso": {"rut": "81.669.200-8", "representante": ""}, "Uniagri Copiapó": {"rut": "79.602.650-2", "representante": "Paola Guazzoni Rovirosa"}, "Universidad de Chile": {"rut": "60.910.000-1", "representante": ""}, "Universidad de Talca": {"rut": "70.885.500-6", "representante": ""}, "Vivero Novaberries SpA": {"rut": "76.825..476-1", "representante": ""}, "Vivero Vitrofarm Spa.": {"rut": "77.209.791-3", "representante": "Margarita Torres Clavería"}, "Viveros Asociados Chile Ltda.": {"rut": "77.115.370-4", "representante": "Paz Barrios Valenzuela"}, "Viveros Copequén": {"rut": "77.372.330-3", "representante": ""}, "Viveros Frutura": {"rut": "", "representante": ""}, "Viveros La Cumbre": {"rut": "96.778.800-7", "representante": ""}, "Viveros Nueva Vid Ltda.": {"rut": "77.939.300-3", "representante": "Margarita Torres Clavería"}, "Viveros Requinoa Ltda.": {"rut": "79.651.290-3", "representante": "José Poblete"}, "Viverosur Ltda.": {"rut": "76.065.126-5", "representante": ""}};
 const PAISES = ["Alemania", "Argentina", "Australia", "Bélgica", "Canadá", "CE", "China", "España", "Estados Unidos", "Francia", "Holanda", "Israel", "Italia", "Japón", "México", "Nueva Zelanda", "Países Bajos", "República Checa", "Sudáfrica"];
@@ -6092,6 +6105,9 @@ async function cargarFilaMulti(rows) {
   selEl('f6-term', r['Terminada']||'');
   selEl('f6-lib', r['Liberada']||'');
   selEl('f6-stat', r['Status']||'');
+  // Corrige registros históricos: si ya tienen Fecha Entrega pero el Status
+  // guardado no quedó como 'Entregada', se corrige al cargar la ficha.
+  autoStatusPorEntrega();
   sv('f6-obs', r['Obs.']||'');
   sv('f6-var-pend', r['Obs. Entrega Parcial']||'');
   selEl('f6-afirma', r['A Firma Res. Termino']||r['A firma']||'');
@@ -10384,6 +10400,9 @@ function buildRows(nsol,imp) {
     'Obs.':            getCached('f6-obs',v('f6-obs'))||_lastLoadedRow['Obs.']||'',
     'Obs. Entrega Parcial': getCached('f6-var-pend',v('f6-var-pend'))||_lastLoadedRow['Obs. Entrega Parcial']||'',
     'Status':          (function(){
+      // Fecha Entrega manda: si está presente, el registro quedó entregado.
+      const _fechaEntrega = getCached('f6-fent',v('f6-fent'));
+      if(_fechaEntrega) return 'Entregada';
       const _cached = getCached('f6-stat',v('f6-stat'));
       if(_cached) return _cached;
       const _prevStatus = _lastLoadedRow['Status']||'';
@@ -10581,6 +10600,17 @@ const RPT_LABELS   = Object.fromEntries(RPT_REQUIRED.map(c=>[c.key,c.label]));
 const RPT_OPTIONAL = CANONICAL_HEADERS.filter(h=>!RPT_REQ_KEYS.includes(h));
 const RPT_DATE_COLS = new Set(['Fecha Solicitud','Fecha Res.','Fecha Res.4']);
 
+// Estatus para Reporte PMG: 'Entregada' si hay Fecha Entrega o el Status crudo
+// ya es 'Entregada'; en cualquier otro caso, 'En Proceso' (agrupa No Recibida,
+// Aprobada, Recibida, Injertada, etc. — cualquier registro dentro del período
+// que aún no fue entregado).
+function _pmgEstatus(row) {
+  const entregada = String(row['Entregada']||'').trim();
+  const status = String(row['Status']||'').trim();
+  if (entregada || status === 'Entregada') return 'Entregada';
+  return 'En Proceso';
+}
+
 let _rptSelectedCols = new Set(); // columnas opcionales activas (las obligatorias siempre van)
 let _rptRows = []; // último resultado generado (deduplicado por Solicitud)
 
@@ -10684,7 +10714,8 @@ function _renderReportePMG(rows) {
   if(!rows.length){ tbody.innerHTML=`<tr><td colspan="${cols.length||1}" style="text-align:center;padding:20px;color:var(--g400)">Sin resultados en el período seleccionado.</td></tr>`; return; }
   tbody.innerHTML = rows.map(r=>'<tr>'+cols.map(c=>{
     let v=r[c]||'';
-    if(RPT_DATE_COLS.has(c)) v=fmtDisplay(v);
+    if(c==='Status') v=_pmgEstatus(r);
+    else if(RPT_DATE_COLS.has(c)) v=fmtDisplay(v);
     return `<td>${v}</td>`;
   }).join('')+'</tr>').join('');
 }
@@ -10694,7 +10725,8 @@ function descargarExcelReportePMG() {
   const cols=_rptOrderedCols();
   const cellVal=(r,c)=>{
     let v=r[c]||'';
-    if(RPT_DATE_COLS.has(c)) v=fmtDisplay(v);
+    if(c==='Status') v=_pmgEstatus(r);
+    else if(RPT_DATE_COLS.has(c)) v=fmtDisplay(v);
     return v;
   };
   // Delimitador ";" — con "," Excel en configuración regional Chile/Español no
