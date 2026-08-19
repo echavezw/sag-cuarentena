@@ -1527,6 +1527,7 @@ input.field-blocked, select.field-blocked {
       <button class="btn btn-gh btn-sm" onclick="sugerirFechasMuestreo()" title="Calcula y completa fechas estimadas de muestreo vacías según lógica estacional">📅 Sugerir fechas</button>
       <button class="btn btn-nv btn-sm" onclick="autoCargarAnalisis()">Auto-cargar plagas</button>
       <button class="btn btn-gh btn-sm" onclick="abrirModalCondiciones(document.getElementById('f1-nsol')?.value||'')" title="Solicitar cambio de condiciones ambientales para esta solicitud">📧 Cambio Condiciones</button>
+      <span id="cond-badge-ficha" class="badge badge-gd" style="display:none;font-size:10px"></span>
     </div>
   </div>
   <div class="tabs" id="tabs-4">
@@ -6258,6 +6259,7 @@ async function cargarFilaMulti(rows) {
   buildRecordIndex();
   setActiveRecord(res, yr, rows);
   clearDirty();
+  if (typeof _actualizarBadgeCondicionesFicha === 'function') _actualizarBadgeCondicionesFicha(rows);
   // Navigate to Etapa II if has resolution, otherwise Etapa I
   goStage(res ? 2 : 1);
 }
@@ -11331,7 +11333,7 @@ function _condCondicionRequerida(codigoLabel) {
   if (t.indexOf('nemat')>=0) return 'Normal';
   return null;
 }
-let _condItems = []; // {idx, fila, solicitud, resolucion, cubiculo, especie, condicionActual, condicionRequerida, fija}
+let _condItems = []; // {filas:[], solicitud, resolucion, anioRes, cubiculo, especies:[], condicionActual, condicionRequerida, fija, yaCumplida}
 
 function _condCodigoAnalisis(r) {
   return String(r['Análisis']||r['Analisis']||'').trim();
@@ -11345,11 +11347,31 @@ function _condActualGuardada(r) {
   return { label: partes[0]||'', fecha: partes[1]||'' };
 }
 
+// Muestra en la ficha de Etapa IV si ya se solicitó un cambio de condiciones
+// para el registro cargado (cualquiera de sus filas de Detalle), sin tener
+// que abrir el modal. Toma el valor más reciente encontrado entre las filas.
+function _actualizarBadgeCondicionesFicha(rows) {
+  const el = document.getElementById('cond-badge-ficha');
+  if (!el) return;
+  const valores = (rows||[]).map(r => _condActualGuardada(r)).filter(Boolean);
+  if (!valores.length) { el.style.display = 'none'; return; }
+  const ultimo = valores[valores.length - 1];
+  el.textContent = 'Cambio solicitado: ' + ultimo.label + (ultimo.fecha ? (' (' + ultimo.fecha + ')') : '');
+  el.style.display = 'inline-block';
+}
+
 // filtroSolicitud: opcional, string N° Solicitud — si viene, solo esa solicitud
 // (caso individual desde la ficha de Etapa IV); si viene vacío, todas (masivo).
+//
+// IMPORTANTE: una cuarentena (Solicitud/Res.) puede tener varias filas en
+// Detalle (una por plaga/patógeno analizado). El cambio de condiciones
+// ambientales es UNO SOLO por cuarentena+condición requerida, no uno por
+// plaga — de lo contrario se repite la misma línea en el correo tantas veces
+// como plagas tenga. Por eso se agrupa por (Solicitud + Condición Requerida)
+// antes de mostrar la lista y antes de enviar.
 function abrirModalCondiciones(filtroSolicitud) {
   const filtro = String(filtroSolicitud||'').trim();
-  _condItems = [];
+  const grupos = {};
   gsData.forEach((r, idx) => {
     const codigo = _condCodigoAnalisis(r);
     const requerida = _condCondicionRequerida(codigo);
@@ -11359,19 +11381,28 @@ function abrirModalCondiciones(filtroSolicitud) {
     if (filtro && nsol !== filtro) return;
     const guardada = _condActualGuardada(r);
     const actualLabel = guardada ? guardada.label : '—';
-    _condItems.push({
-      idx,
-      fila: idx + 2, // gsData[0] = fila 2 del Sheet
-      solicitud: nsol,
-      resolucion: String(r['Res.']||'').trim(),
-      cubiculo: String(r['Cubículo']||r['Cubiculo']||'').trim(),
-      especie: String(r['Especie']||'').trim(),
-      condicionActual: actualLabel,
-      condicionRequerida: requerida,
-      fija: !COND_AMBIENTAL_EDITABLES.includes(requerida),
-      yaCumplida: actualLabel === requerida
-    });
+    const especie = String(r['Especie']||'').trim();
+    const key = nsol + '|' + requerida;
+    if (!grupos[key]) {
+      grupos[key] = {
+        filas: [],
+        solicitud: nsol,
+        resolucion: String(r['Res.']||'').trim(),
+        anioRes: fmtD(r['Fecha Res.']||'').substring(0,4),
+        cubiculo: String(r['Cubículo']||r['Cubiculo']||'').trim(),
+        especies: [],
+        condicionActual: actualLabel,
+        condicionRequerida: requerida,
+        fija: !COND_AMBIENTAL_EDITABLES.includes(requerida),
+        yaCumplida: true
+      };
+    }
+    const g = grupos[key];
+    g.filas.push(idx + 2); // gsData[idx] = fila (idx+2) del Sheet
+    if (especie && g.especies.indexOf(especie) === -1) g.especies.push(especie);
+    if (actualLabel !== requerida) g.yaCumplida = false; // basta 1 fila desactualizada
   });
+  _condItems = Object.values(grupos);
   _renderCondTabla();
   $('modal-cond').classList.add('open');
 }
@@ -11387,7 +11418,9 @@ function _renderCondTabla() {
     return;
   }
   tb.innerHTML = _condItems.map((it, i) => {
-    const disp = it.resolucion ? ('Res. ' + it.resolucion) : ('Sol. ' + it.solicitud + ' (sin resolución)');
+    const disp = it.resolucion
+      ? ('Res. ' + it.resolucion + (it.anioRes ? ('/' + it.anioRes) : ''))
+      : ('Sol. ' + it.solicitud + ' (sin resolución)');
     const opciones = COND_AMBIENTAL_EDITABLES.map(c =>
       `<option value="${c}"${c===it.condicionRequerida?' selected':''}>${c}</option>`).join('');
     const selectorCond = it.fija
@@ -11397,13 +11430,13 @@ function _renderCondTabla() {
       <td style="padding:5px 8px"><input type="checkbox" class="cond-chk" data-i="${i}" ${it.yaCumplida?'disabled':''}></td>
       <td style="padding:5px 8px;font-family:var(--mono)">${disp}</td>
       <td style="padding:5px 8px;text-align:center">${it.cubiculo||'—'}</td>
-      <td style="padding:5px 8px;font-style:italic">${it.especie||'—'}</td>
+      <td style="padding:5px 8px;font-style:italic">${it.especies.join(', ')||'—'}</td>
       <td style="padding:5px 8px">${it.condicionActual}${it.yaCumplida?' <span class="badge badge-gd" style="font-size:9px">ya en esta condición</span>':''}</td>
       <td style="padding:5px 8px">${selectorCond}</td>
     </tr>`;
   }).join('');
   const elegibles = _condItems.filter(it=>!it.yaCumplida).length;
-  $('cond-count').textContent = `${elegibles} elegible(s) de ${_condItems.length} registro(s) con análisis.`;
+  $('cond-count').textContent = `${elegibles} elegible(s) de ${_condItems.length} cuarentena(s) con análisis.`;
 }
 
 function _condToggleAll(checked) {
@@ -11420,11 +11453,12 @@ async function enviarCambioCondiciones() {
     const sel = document.getElementById('cond-req-' + i);
     const condicionRequerida = it.fija ? 'Normal' : (sel ? sel.value : it.condicionRequerida);
     return {
-      fila: it.fila,
+      filas: it.filas,
       solicitud: it.solicitud,
       resolucion: it.resolucion,
+      anioRes: it.anioRes,
       cubiculo: it.cubiculo,
-      especie: it.especie,
+      especies: it.especies.join(', '),
       condicionActual: it.condicionActual,
       condicionRequerida: condicionRequerida
     };
@@ -11439,15 +11473,22 @@ async function enviarCambioCondiciones() {
     });
     const data = await resp.json();
     if (data.ok) {
-      // Refleja en memoria (gsData) para que los badges se actualicen sin recargar todo.
-      const hoy = _nowStrSAG ? _nowStrSAG().split(' ')[0] : '';
+      // Refleja en memoria (gsData) todas las filas del grupo, para que los
+      // badges se actualicen sin recargar todo el panel.
+      const hoy = (typeof _nowStrSAG === 'function' ? _nowStrSAG() : new Date().toLocaleDateString('es-CL')).split(' ')[0];
       items.forEach(it => {
-        const idxOriginal = _condItems.find(x => x.fila === it.fila);
-        if (idxOriginal !== undefined && gsData[idxOriginal.idx]) {
-          gsData[idxOriginal.idx]['Cond Ambiental Solicitada'] = it.condicionRequerida + ' | ' + hoy;
-        }
+        (it.filas||[]).forEach(filaSheet => {
+          const idxGs = filaSheet - 2;
+          if (gsData[idxGs]) gsData[idxGs]['Cond Ambiental Solicitada'] = it.condicionRequerida + ' | ' + hoy;
+        });
       });
-      setS(`Solicitud de cambio de condiciones enviada (${items.length} registro(s)).`, 'ok');
+      // Refresca el badge de la ficha si el registro cargado está entre los enviados
+      const nsolActual = (document.getElementById('f1-nsol')?.value||'').trim();
+      if (nsolActual && items.some(it => it.solicitud === nsolActual)) {
+        const rowsActuales = gsData.filter(r => String(r['Solicitud']||'').trim() === nsolActual);
+        _actualizarBadgeCondicionesFicha(rowsActuales);
+      }
+      setS(`Solicitud de cambio de condiciones enviada (${items.length} cuarentena(s)).`, 'ok');
       cerrarModalCondiciones();
     } else {
       setS('No se pudo enviar la solicitud: ' + (data.error || 'error desconocido'), 'err');
