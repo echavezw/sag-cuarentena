@@ -11315,12 +11315,26 @@ function closeModal(){ $('modal').classList.remove('open'); }
 // Códigos de Análisis elegibles y su condición ambiental correspondiente.
 // V=Virologico, H=Micologico(Hongo), B=Bacteriologico → condición editable.
 // F=Fitoplasma, E=Entomologico, N=Nematologico → siempre "Normal", fija.
-const COND_AMBIENTAL_MAP = { V:'Virus', H:'Hongo', B:'Bacteria', F:'Normal', E:'Normal', N:'Normal' };
+// NOTA: la columna 'Análisis' en Detalle guarda el LABEL completo (ej.
+// "Virologico"), no la letra — se normaliza por palabra clave, mismo criterio
+// usado en el resto del sistema (virus/virol→V, hong/micol/fungo→H, bacter→B,
+// fitop/micopl→F, entom→E, nemat→N).
 const COND_AMBIENTAL_EDITABLES = ['Virus','Hongo','Bacteria'];
+function _condCondicionRequerida(codigoLabel) {
+  const t = String(codigoLabel||'').toLowerCase();
+  if (!t) return null;
+  if (t.indexOf('virus')>=0 || t.indexOf('virol')>=0 || t.indexOf('indexaje')>=0) return 'Virus';
+  if (t.indexOf('hong')>=0 || t.indexOf('micol')>=0 || t.indexOf('fungo')>=0) return 'Hongo';
+  if (t.indexOf('bacter')>=0) return 'Bacteria';
+  if (t.indexOf('fitop')>=0 || t.indexOf('micopl')>=0) return 'Normal';
+  if (t.indexOf('entom')>=0) return 'Normal';
+  if (t.indexOf('nemat')>=0) return 'Normal';
+  return null;
+}
 let _condItems = []; // {idx, fila, solicitud, resolucion, cubiculo, especie, condicionActual, condicionRequerida, fija}
 
 function _condCodigoAnalisis(r) {
-  return String(r['Análisis']||r['Analisis']||'').toUpperCase().trim();
+  return String(r['Análisis']||r['Analisis']||'').trim();
 }
 
 // Devuelve {label, fecha} ya guardados en 'Cond Ambiental Solicitada', o null.
@@ -11338,7 +11352,7 @@ function abrirModalCondiciones(filtroSolicitud) {
   _condItems = [];
   gsData.forEach((r, idx) => {
     const codigo = _condCodigoAnalisis(r);
-    const requerida = COND_AMBIENTAL_MAP[codigo];
+    const requerida = _condCondicionRequerida(codigo);
     if (!requerida) return; // código no elegible (sin análisis, u otro)
     const nsol = String(r['Solicitud']||'').trim();
     if (!nsol) return;
