@@ -1537,6 +1537,22 @@ function addMaterialRow(){
   tr.querySelector('.remove-row').addEventListener('click', function(){ tr.remove(); actualizarTotalPlantas(); });
   tr.querySelector('.m-nplantas').addEventListener('input', actualizarTotalPlantas);
   attachViveroRow(tr);
+  var especieInput = tr.querySelector('.m-especie');
+  especieInput.addEventListener('input', function(){ _validarYMarcarEspecie(especieInput); });
+  especieInput.addEventListener('blur', function(){ _validarYMarcarEspecie(especieInput); });
+}
+
+// Valida el contenido actual del campo especie contra la nómina y marca en
+// amarillo solo si sigue sin coincidir; si el usuario corrige el texto hasta
+// que coincide exactamente (o lo deja vacío), el color vuelve a la normalidad.
+function _validarYMarcarEspecie(input){
+  if(!input) return;
+  var listaEsp = Array.prototype.map.call(
+    document.querySelectorAll('#listaEspecies option'), function(o){ return o.value; });
+  var valor = input.value.trim();
+  if(!valor || !listaEsp.length){ input.style.background = ''; return; }
+  var vEsp = validarEspecieNomina(valor, listaEsp);
+  input.style.background = vEsp.ok ? '' : '#fff8e1';
 }
 
 /* ── Registro Vivero por fila de Material: mismo formato/lógica que el campo de Uso/Registro/Logística ── */
@@ -1780,10 +1796,10 @@ function volcarFilasMaterial(filas){
     tr.querySelector('.m-especie').value  = especie;
     const vEsp = validarEspecieNomina(especie, listaEsp);
     if(!vEsp.ok){
-      tr.querySelector('.m-especie').style.background = '#fff8e1';
       avisos.push('Fila '+nfila+': especie "'+especie+'" no está en la nómina'+
         (vEsp.sugerencia ? '. ¿Quiso decir '+vEsp.sugerencia+'?' : '; verifique la escritura.'));
     }
+    _validarYMarcarEspecie(tr.querySelector('.m-especie'));
     tr.querySelector('.m-variedad').value = String(f[1]||'').trim();
     tr.querySelector('.m-clon').value     = String(f[2]||'').trim();
 
