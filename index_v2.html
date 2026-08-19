@@ -1526,6 +1526,7 @@ input.field-blocked, select.field-blocked {
       <button class="btn btn-gh btn-sm" onclick="limpiarEtapa(4)">Limpiar</button>
       <button class="btn btn-gh btn-sm" onclick="sugerirFechasMuestreo()" title="Calcula y completa fechas estimadas de muestreo vacías según lógica estacional">📅 Sugerir fechas</button>
       <button class="btn btn-nv btn-sm" onclick="autoCargarAnalisis()">Auto-cargar plagas</button>
+      <button class="btn btn-gh btn-sm" onclick="abrirModalCondiciones(document.getElementById('f1-nsol')?.value||'')" title="Solicitar cambio de condiciones ambientales para esta solicitud">📧 Cambio Condiciones</button>
     </div>
   </div>
   <div class="tabs" id="tabs-4">
@@ -1812,6 +1813,7 @@ input.field-blocked, select.field-blocked {
       <button class="btn btn-gh btn-sm" onclick="limpiarFiltrosHist()">Limpiar filtros</button>
       <button class="btn btn-gh btn-sm" onclick="descargarExcelHistorial()">Excel</button>
       <button class="btn btn-danger btn-sm" onclick="confirmarEliminarSeleccionados()">🗑 Eliminar selec.</button>
+      <button class="btn btn-gh btn-sm" onclick="abrirModalCondiciones()">📧 Cambio Condiciones</button>
     </div>
   </div>
   <div class="tabs">
@@ -2199,6 +2201,41 @@ input.field-blocked, select.field-blocked {
     <div style="display:flex;gap:8px;justify-content:flex-end">
       <button class="btn btn-gh btn-sm" onclick="cerrarJsonModal()">Cancelar</button>
       <button class="btn btn-nv btn-sm" onclick="aplicarJSON()">Aplicar al formulario</button>
+    </div>
+  </div>
+</div>
+
+<!-- CAMBIO DE CONDICIONES AMBIENTALES — modal independiente, no reutiliza #modal -->
+<div class="modal-overlay" id="modal-cond">
+  <div class="modal" style="max-width:760px">
+    <div class="modal-title">Solicitar Cambio de Condiciones Ambientales</div>
+    <div class="modal-body" style="margin-bottom:10px">
+      Se enviará a: <b>eduardo.ferrada@sag.gob.cl</b> (cc: eduardo.chavez@sag.gob.cl)
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+      <label style="font-size:12px;display:flex;gap:6px;align-items:center;cursor:pointer">
+        <input type="checkbox" id="cond-sel-all" onchange="_condToggleAll(this.checked)"> Seleccionar todos los elegibles
+      </label>
+      <span id="cond-count" style="font-size:11px;color:var(--g400)"></span>
+    </div>
+    <div style="max-height:360px;overflow:auto;border:1.5px solid var(--g100);border-radius:var(--rs)">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead style="position:sticky;top:0;background:var(--g50)">
+          <tr>
+            <th style="padding:6px 8px;text-align:left">&nbsp;</th>
+            <th style="padding:6px 8px;text-align:left">Resolución / Solicitud</th>
+            <th style="padding:6px 8px;text-align:left">Cubículo</th>
+            <th style="padding:6px 8px;text-align:left">Especie</th>
+            <th style="padding:6px 8px;text-align:left">Condición actual</th>
+            <th style="padding:6px 8px;text-align:left">Condición a solicitar</th>
+          </tr>
+        </thead>
+        <tbody id="cond-tbody"></tbody>
+      </table>
+    </div>
+    <div class="modal-actions" style="margin-top:12px">
+      <button class="btn btn-gh btn-sm" onclick="cerrarModalCondiciones()">Cancelar</button>
+      <button class="btn btn-nv btn-sm" id="cond-enviar-btn" onclick="enviarCambioCondiciones()">📧 Enviar Solicitud</button>
     </div>
   </div>
 </div>
@@ -11266,6 +11303,148 @@ function showModal(t,b,fn,lbl,cls) {
   btn.onclick=fn; $('modal').classList.add('open');
 }
 function closeModal(){ $('modal').classList.remove('open'); }
+
+// ══════════════════════════════════════════════════════════════════════════
+// CAMBIO DE CONDICIONES AMBIENTALES — bloque aditivo e independiente.
+// No reutiliza #modal/#m-t/#m-b/#m-ok ni modifica showPanelTab, HIST_COLS,
+// renderHist ni ninguna función existente. Lee gsData (ya cargado en memoria)
+// y escribe/lee solo la columna 'Cond Ambiental Solicitada' de Detalle, que
+// Code.gs actualiza server-side al confirmar el envío.
+// ══════════════════════════════════════════════════════════════════════════
+
+// Códigos de Análisis elegibles y su condición ambiental correspondiente.
+// V=Virologico, H=Micologico(Hongo), B=Bacteriologico → condición editable.
+// F=Fitoplasma, E=Entomologico, N=Nematologico → siempre "Normal", fija.
+const COND_AMBIENTAL_MAP = { V:'Virus', H:'Hongo', B:'Bacteria', F:'Normal', E:'Normal', N:'Normal' };
+const COND_AMBIENTAL_EDITABLES = ['Virus','Hongo','Bacteria'];
+let _condItems = []; // {idx, fila, solicitud, resolucion, cubiculo, especie, condicionActual, condicionRequerida, fija}
+
+function _condCodigoAnalisis(r) {
+  return String(r['Análisis']||r['Analisis']||'').toUpperCase().trim();
+}
+
+// Devuelve {label, fecha} ya guardados en 'Cond Ambiental Solicitada', o null.
+function _condActualGuardada(r) {
+  const raw = String(r['Cond Ambiental Solicitada']||'').trim();
+  if (!raw) return null;
+  const partes = raw.split('|').map(s=>s.trim());
+  return { label: partes[0]||'', fecha: partes[1]||'' };
+}
+
+// filtroSolicitud: opcional, string N° Solicitud — si viene, solo esa solicitud
+// (caso individual desde la ficha de Etapa IV); si viene vacío, todas (masivo).
+function abrirModalCondiciones(filtroSolicitud) {
+  const filtro = String(filtroSolicitud||'').trim();
+  _condItems = [];
+  gsData.forEach((r, idx) => {
+    const codigo = _condCodigoAnalisis(r);
+    const requerida = COND_AMBIENTAL_MAP[codigo];
+    if (!requerida) return; // código no elegible (sin análisis, u otro)
+    const nsol = String(r['Solicitud']||'').trim();
+    if (!nsol) return;
+    if (filtro && nsol !== filtro) return;
+    const guardada = _condActualGuardada(r);
+    const actualLabel = guardada ? guardada.label : '—';
+    _condItems.push({
+      idx,
+      fila: idx + 2, // gsData[0] = fila 2 del Sheet
+      solicitud: nsol,
+      resolucion: String(r['Res.']||'').trim(),
+      cubiculo: String(r['Cubículo']||r['Cubiculo']||'').trim(),
+      especie: String(r['Especie']||'').trim(),
+      condicionActual: actualLabel,
+      condicionRequerida: requerida,
+      fija: !COND_AMBIENTAL_EDITABLES.includes(requerida),
+      yaCumplida: actualLabel === requerida
+    });
+  });
+  _renderCondTabla();
+  $('modal-cond').classList.add('open');
+}
+
+function cerrarModalCondiciones() { $('modal-cond').classList.remove('open'); }
+
+function _renderCondTabla() {
+  const tb = $('cond-tbody');
+  if (!tb) return;
+  if (!_condItems.length) {
+    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--g400)">No hay registros con análisis Virológico, Micológico, Bacteriológico, Fitoplasma, Entomológico o Nematológico.</td></tr>';
+    $('cond-count').textContent = '';
+    return;
+  }
+  tb.innerHTML = _condItems.map((it, i) => {
+    const disp = it.resolucion ? ('Res. ' + it.resolucion) : ('Sol. ' + it.solicitud + ' (sin resolución)');
+    const opciones = COND_AMBIENTAL_EDITABLES.map(c =>
+      `<option value="${c}"${c===it.condicionRequerida?' selected':''}>${c}</option>`).join('');
+    const selectorCond = it.fija
+      ? `<span style="font-weight:600">Normal</span>`
+      : `<select id="cond-req-${i}" style="font-size:12px;padding:2px 4px" ${it.yaCumplida?'disabled':''}>${opciones}</select>`;
+    return `<tr style="${it.yaCumplida?'opacity:.5':''}">
+      <td style="padding:5px 8px"><input type="checkbox" class="cond-chk" data-i="${i}" ${it.yaCumplida?'disabled':''}></td>
+      <td style="padding:5px 8px;font-family:var(--mono)">${disp}</td>
+      <td style="padding:5px 8px;text-align:center">${it.cubiculo||'—'}</td>
+      <td style="padding:5px 8px;font-style:italic">${it.especie||'—'}</td>
+      <td style="padding:5px 8px">${it.condicionActual}${it.yaCumplida?' <span class="badge badge-gd" style="font-size:9px">ya en esta condición</span>':''}</td>
+      <td style="padding:5px 8px">${selectorCond}</td>
+    </tr>`;
+  }).join('');
+  const elegibles = _condItems.filter(it=>!it.yaCumplida).length;
+  $('cond-count').textContent = `${elegibles} elegible(s) de ${_condItems.length} registro(s) con análisis.`;
+}
+
+function _condToggleAll(checked) {
+  document.querySelectorAll('.cond-chk').forEach(cb => { if (!cb.disabled) cb.checked = checked; });
+}
+
+async function enviarCambioCondiciones() {
+  const marcados = Array.from(document.querySelectorAll('.cond-chk:checked'));
+  if (!marcados.length) { setS('Seleccione al menos una cuarentena.', 'warn'); return; }
+
+  const items = marcados.map(cb => {
+    const i = Number(cb.dataset.i);
+    const it = _condItems[i];
+    const sel = document.getElementById('cond-req-' + i);
+    const condicionRequerida = it.fija ? 'Normal' : (sel ? sel.value : it.condicionRequerida);
+    return {
+      fila: it.fila,
+      solicitud: it.solicitud,
+      resolucion: it.resolucion,
+      cubiculo: it.cubiculo,
+      especie: it.especie,
+      condicionActual: it.condicionActual,
+      condicionRequerida: condicionRequerida
+    };
+  });
+
+  const btn = $('cond-enviar-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
+  try {
+    const resp = await fetch(_PORTAL_ENDPOINT, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'solicitarCambioCondiciones', adminToken: _ADMIN_TOKEN, items: items })
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      // Refleja en memoria (gsData) para que los badges se actualicen sin recargar todo.
+      const hoy = _nowStrSAG ? _nowStrSAG().split(' ')[0] : '';
+      items.forEach(it => {
+        const idxOriginal = _condItems.find(x => x.fila === it.fila);
+        if (idxOriginal !== undefined && gsData[idxOriginal.idx]) {
+          gsData[idxOriginal.idx]['Cond Ambiental Solicitada'] = it.condicionRequerida + ' | ' + hoy;
+        }
+      });
+      setS(`Solicitud de cambio de condiciones enviada (${items.length} registro(s)).`, 'ok');
+      cerrarModalCondiciones();
+    } else {
+      setS('No se pudo enviar la solicitud: ' + (data.error || 'error desconocido'), 'err');
+    }
+  } catch (err) {
+    console.error('Error enviando cambio de condiciones:', err);
+    setS('Falló la conexión al enviar la solicitud de cambio de condiciones.', 'err');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '📧 Enviar Solicitud'; }
+  }
+}
 
 // ── AGREGAR NUEVO REGISTRO A SHEETS ──
 const NUEVO_FORMS = {
