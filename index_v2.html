@@ -1915,7 +1915,7 @@ input.field-blocked, select.field-blocked {
   <!-- Tab: Informe Mensual -->
   <div id="panel-content-3" class="tab-panel">
   <div class="tab-body" style="border-radius:0 0 var(--r) var(--r);padding:18px">
-    <div class="info-box" style="margin-bottom:14px">Informe Mensual Cuarentena Posentrada (F-IIT-IMP-PA-018) para nivel central SAG. Cumulativo: incluye toda resolución emitida hasta el fin del mes/año seleccionado.</div>
+    <div class="info-box" style="margin-bottom:14px">Informe Mensual Cuarentena Posentrada (F-IIT-IMP-PA-018) para nivel central SAG. Muestra cuarentenas vigentes/pendientes con resolución emitida hasta el fin del mes/año seleccionado, más las que se cerraron (Terminada/Caducada/Destruida/Desistida/Eliminada) durante este período. Una vez reportada como cerrada, deja de aparecer en informes siguientes.</div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px">
       <div class="ff c1"><label class="lbl">Mes</label>
         <select id="inf-mes">
@@ -1927,6 +1927,10 @@ input.field-blocked, select.field-blocked {
       <div class="ff c1"><label class="lbl">Año</label><input type="number" id="inf-anio" style="font-family:var(--mono)"></div>
       <button class="btn btn-nv btn-sm" onclick="generarInformeMensual()">Generar</button>
       <button class="btn btn-gh btn-sm" onclick="descargarExcelInformeMensual()">⬇ Excel</button>
+      <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--g600);margin-left:8px">
+        <input type="checkbox" id="inf-incluir-cerradas" style="width:14px;height:14px">
+        Incluir cerradas de meses anteriores (auditoría)
+      </label>
     </div>
     <div id="inf-resumen" style="margin-bottom:12px"></div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">
@@ -10908,12 +10912,40 @@ function _estadoCuarentena(r) {
   return estadoRes || 'Pendiente';
 }
 
-function generarInformeMensual() {
+const TERMINAL_STATES = ['Terminada','Caducada','Destruida','Desistida','Eliminada'];
+
+// Construye el set de N° Resolución/año que ya aparecieron con estado terminal
+// en algún informe guardado de un período ANTERIOR al seleccionado. Una vez que
+// un caso se reportó como cerrado, no vuelve a aparecer en informes siguientes
+// — el objetivo del informe es seguimiento de lo activo, no un archivo histórico
+// acumulativo. Se recalcula desde InformesMensuales (nunca desde memoria vieja)
+// para que sea correcto aunque se generen informes fuera de orden.
+function _construirSetCerradosAnteriores(mes, anio) {
+  const set = new Set();
+  const periodoActual = anio*100+mes;
+  _infGuardados.forEach(g=>{
+    const gMes = parseInt(g['Mes'],10), gAnio = parseInt(g['Año'],10);
+    if(!gMes || !gAnio) return;
+    if(gAnio*100+gMes >= periodoActual) return; // solo períodos estrictamente anteriores
+    let rows = [];
+    try { rows = JSON.parse(g['Datos JSON']||'[]'); } catch(e) { return; }
+    rows.forEach(r=>{
+      if(TERMINAL_STATES.includes(r.estado) && r.resAnio) set.add(r.resAnio);
+    });
+  });
+  return set;
+}
+
+async function generarInformeMensual() {
   if(!gsData.length) { setS('Sin datos cargados.','warn'); return; }
   const mes = parseInt($('inf-mes').value,10);
   const anio = parseInt($('inf-anio').value,10);
   if(!mes || !anio) { setS('Seleccione mes y año.','warn'); return; }
   const finMesISO = new Date(anio, mes, 0).toISOString().slice(0,10); // último día del mes
+  const incluirCerradas = !!($('inf-incluir-cerradas') && $('inf-incluir-cerradas').checked);
+
+  try { await cargarInformesGuardados(); } catch(e) { /* si falla, sigue con lo que haya en memoria */ }
+  const cerradosAnteriores = incluirCerradas ? new Set() : _construirSetCerradosAnteriores(mes, anio);
 
   const matchRows = gsData.filter(r=>{
     const res = String(r['Res.']||'').trim();
@@ -10930,6 +10962,7 @@ function generarInformeMensual() {
     (groups[key]=groups[key]||[]).push(r);
   });
 
+  const totalGrupos = Object.keys(groups).length;
   const out = Object.values(groups).map(rows=>{
     const merged = {};
     CANONICAL_HEADERS.forEach(k=>{
@@ -10963,7 +10996,9 @@ function generarInformeMensual() {
       _importador: merged['Importador']||'',
       _fechaResISO: fmtD(merged['Fecha Res.']||'')
     };
-  });
+  }).filter(r => !cerradosAnteriores.has(r.resAnio));
+
+  const omitidos = totalGrupos - out.length;
 
   out.sort((a,b)=>String(a._fechaResISO||'').localeCompare(String(b._fechaResISO||'')));
   _infRows = out;
@@ -10975,7 +11010,7 @@ function generarInformeMensual() {
       `<span style="display:inline-block;margin:0 8px 6px 0;padding:4px 10px;border-radius:12px;background:var(--g50,#f5f5f0);font-size:11px">${k}: <b>${cont[k]}</b></span>`
     ).join('') || '';
   }
-  setS(`${out.length} cuarentenas listadas a ${MESES_NOMBRES[mes]} ${anio} (cumulativo).`,'ok');
+  setS(`${out.length} cuarentenas listadas a ${MESES_NOMBRES[mes]} ${anio}.`+(omitidos?` (${omitidos} cerradas en meses anteriores omitidas — marque "Incluir cerradas" para verlas).`:''),'ok');
 }
 
 function _renderInformeMensual(rows) {
