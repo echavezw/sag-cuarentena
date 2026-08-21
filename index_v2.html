@@ -1925,6 +1925,7 @@ input.field-blocked, select.field-blocked {
           <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
         </select></div>
       <div class="ff c1"><label class="lbl">Año</label><input type="number" id="inf-anio" style="font-family:var(--mono)"></div>
+      <div class="ff c1"><label class="lbl">Año desde</label><input type="number" id="inf-anio-desde" value="2023" style="font-family:var(--mono);width:80px" title="Solo considera resoluciones emitidas desde este año en adelante"></div>
       <button class="btn btn-nv btn-sm" onclick="generarInformeMensual()">Generar</button>
       <button class="btn btn-gh btn-sm" onclick="descargarExcelInformeMensual()">⬇ Excel</button>
       <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--g600);margin-left:8px">
@@ -10885,9 +10886,14 @@ let _infGuardados = []; // filas leídas de InformesMensuales
 
 function initInformeMensual() {
   const hoy = new Date();
-  const selMes = $('inf-mes'), inpAnio = $('inf-anio');
+  const selMes = $('inf-mes'), inpAnio = $('inf-anio'), inpDesde = $('inf-anio-desde');
   if(selMes && !selMes.dataset.init) { selMes.value = String(hoy.getMonth()+1); selMes.dataset.init='1'; }
   if(inpAnio && !inpAnio.value) inpAnio.value = String(hoy.getFullYear());
+  if(inpDesde && !inpDesde.dataset.init) {
+    inpDesde.value = localStorage.getItem('eca_informe_anio_desde') || '2023';
+    inpDesde.dataset.init='1';
+    inpDesde.addEventListener('change', ()=>{ try{ localStorage.setItem('eca_informe_anio_desde', inpDesde.value||'2023'); }catch(e){} });
+  }
   cargarInformesGuardados();
 }
 
@@ -10942,6 +10948,7 @@ async function generarInformeMensual() {
   const anio = parseInt($('inf-anio').value,10);
   if(!mes || !anio) { setS('Seleccione mes y año.','warn'); return; }
   const finMesISO = new Date(anio, mes, 0).toISOString().slice(0,10); // último día del mes
+  const anioDesde = parseInt(($('inf-anio-desde')?.value||'2023'),10) || 2023;
   const incluirCerradas = !!($('inf-incluir-cerradas') && $('inf-incluir-cerradas').checked);
 
   try { await cargarInformesGuardados(); } catch(e) { /* si falla, sigue con lo que haya en memoria */ }
@@ -10951,7 +10958,9 @@ async function generarInformeMensual() {
     const res = String(r['Res.']||'').trim();
     if(!res) return false;
     const fres = fmtD(r['Fecha Res.']||'');
-    return !!fres && fres <= finMesISO;
+    if(!fres || fres > finMesISO) return false;
+    const anioFres = parseInt(fres.substring(0,4),10);
+    return !!anioFres && anioFres >= anioDesde;
   });
 
   const groups = {};
@@ -11006,9 +11015,13 @@ async function generarInformeMensual() {
   const resumen = $('inf-resumen');
   if(resumen) {
     const cont = {}; out.forEach(r=>{ cont[r.estado]=(cont[r.estado]||0)+1; });
-    resumen.innerHTML = Object.keys(cont).map(k=>
+    const badges = Object.keys(cont).map(k=>
       `<span style="display:inline-block;margin:0 8px 6px 0;padding:4px 10px;border-radius:12px;background:var(--g50,#f5f5f0);font-size:11px">${k}: <b>${cont[k]}</b></span>`
-    ).join('') || '';
+    ).join('');
+    const diag = `<div style="font-size:10px;color:var(--g400);font-family:var(--mono);margin-top:2px">
+      ${_infGuardados.length} informe(s) previo(s) encontrado(s) en InformesMensuales · ${omitidos} resolución(es) excluida(s) por cierre ya reportado · universo desde ${anioDesde}
+      </div>`;
+    resumen.innerHTML = badges + diag;
   }
   setS(`${out.length} cuarentenas listadas a ${MESES_NOMBRES[mes]} ${anio}.`+(omitidos?` (${omitidos} cerradas en meses anteriores omitidas — marque "Incluir cerradas" para verlas).`:''),'ok');
 }
