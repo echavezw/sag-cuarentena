@@ -975,6 +975,7 @@ input.field-blocked, select.field-blocked {
   <div class="sb-item" id="nav-importadores" onclick="goStage('importadores');cargarImportadoresAcceso()"><span class="sb-num">I</span><span class="sb-lbl">Acceso Importadores</span></div>
   <div class="sb-actions">
     <button class="btn btn-gd btn-sm" onclick="nuevaSolicitud()">+ Nueva Solicitud</button>
+    <button class="btn btn-danger btn-sm" onclick="abrirModalDestruccion()" style="width:100%;justify-content:center;margin-bottom:6px" title="Registrar destrucción o eliminación de una cuarentena, en cualquier etapa">🗑 Destrucción/Eliminación</button>
     <button class="btn btn-gh btn-sm" id="compact-btn" onclick="toggleCompact()" title="Alternar modo compacto" style="width:100%;justify-content:center;margin-bottom:6px">⊟ Compacto</button>
     <div id="unsaved-banner">⬤ Cambios sin guardar</div>
     <button onclick="guardarTodo()" style="width:100%;padding:10px 0;background:linear-gradient(135deg,var(--nv),var(--nv2));color:#fff;border:1.5px solid #fff;border-radius:var(--rs);font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;transition:all .15s;font-family:var(--font)" onmouseover="this.style.background='var(--gd)';this.style.color='var(--inkv)'" onmouseout="this.style.background='linear-gradient(135deg,var(--nv),var(--nv2))';this.style.color='#fff'">Guardar</button>
@@ -1821,6 +1822,7 @@ input.field-blocked, select.field-blocked {
     <button class="tab active" id="panel-tab-0" onclick="showPanelTab(0)">Todos los Registros</button>
     <button class="tab" id="panel-tab-1" onclick="showPanelTab(1)">Búsqueda Rápida</button>
     <button class="tab" id="panel-tab-2" onclick="showPanelTab(2)">Reportes PMG</button>
+    <button class="tab" id="panel-tab-3" onclick="showPanelTab(3)">Informe Mensual</button>
   </div>
   <div id="panel-content-0" class="tab-panel active">
   <div class="tab-body" style="border-radius:0 0 var(--r) var(--r);padding:14px">
@@ -1909,6 +1911,50 @@ input.field-blocked, select.field-blocked {
     </div>
   </div>
   </div><!-- /panel-content-2 -->
+
+  <!-- Tab: Informe Mensual -->
+  <div id="panel-content-3" class="tab-panel">
+  <div class="tab-body" style="border-radius:0 0 var(--r) var(--r);padding:18px">
+    <div class="info-box" style="margin-bottom:14px">Informe Mensual Cuarentena Posentrada (F-IIT-IMP-PA-018) para nivel central SAG. Cumulativo: incluye toda resolución emitida hasta el fin del mes/año seleccionado.</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px">
+      <div class="ff c1"><label class="lbl">Mes</label>
+        <select id="inf-mes">
+          <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
+          <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+          <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+          <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+        </select></div>
+      <div class="ff c1"><label class="lbl">Año</label><input type="number" id="inf-anio" style="font-family:var(--mono)"></div>
+      <button class="btn btn-nv btn-sm" onclick="generarInformeMensual()">Generar</button>
+      <button class="btn btn-gh btn-sm" onclick="descargarExcelInformeMensual()">⬇ Excel</button>
+    </div>
+    <div id="inf-resumen" style="margin-bottom:12px"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+      <div id="inf-info" style="font-size:11px;color:var(--g400);font-family:var(--mono)"></div>
+    </div>
+    <div id="inf-table-wrap" style="overflow:auto;height:440px;min-height:220px;max-height:70vh;resize:vertical;border:1px solid var(--g200);border-radius:var(--rs)">
+      <table class="tbl" id="inf-table"><thead id="inf-thead"></thead><tbody id="inf-tbody">
+        <tr><td style="text-align:center;padding:30px;color:var(--g400)">Seleccione mes/año y presione "Generar".</td></tr>
+      </tbody></table>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--g200);margin-top:14px;padding-top:14px;flex-wrap:wrap;gap:10px">
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px">
+        <input type="checkbox" id="inf-enviar-check" style="width:15px;height:15px">
+        Enviar por correo a nivel central al guardar
+      </label>
+      <button class="btn btn-nv btn-sm" onclick="guardarInformeMensual()">Guardar informe</button>
+    </div>
+    <div style="margin-top:20px;border-top:1px solid var(--g200);padding-top:12px">
+      <div style="font-size:11px;color:var(--g400);font-family:var(--mono);margin-bottom:8px">Informes guardados</div>
+      <div style="overflow:auto;border:1px solid var(--g200);border-radius:var(--rs)">
+        <table class="tbl" id="inf-guardados-table">
+          <thead><tr><th>Mes/Año</th><th>Fecha Generación</th><th>Registros</th><th>Enviado</th><th>Acciones</th></tr></thead>
+          <tbody id="inf-guardados-tbody"><tr><td colspan="5" style="text-align:center;padding:14px;color:var(--g400)">Cargando...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  </div><!-- /panel-content-3 -->
 </div>
 
 
@@ -4504,7 +4550,7 @@ async function init() {
 
 // ── NAVIGATION ──
 function showPanelTab(idx) {
-  [0,1,2].forEach(i => {
+  [0,1,2,3].forEach(i => {
     const tab = document.getElementById('panel-tab-'+i);
     const pnl = document.getElementById('panel-content-'+i);
     if(tab) tab.classList.toggle('active', i===idx);
@@ -4517,6 +4563,7 @@ function showPanelTab(idx) {
     buscarPanelDefault();
   }
   if(idx===2) { initReportePMG(); }
+  if(idx===3) { initInformeMensual(); }
 }
 
 let _panelYearFilter = null; // null = usa la ventana por defecto (últimos 4 años); si el usuario fija un año, se usa desde ahí sin límite superior
@@ -10613,7 +10660,8 @@ const CANONICAL_HEADERS = [
   'N° CDA','N° Cert. Fitosanitario','Link Solicitud PDF','Link Resolucion PDF',
   'Link Timbre Recepcion','Fecha Aviso SPS','Fecha Aviso SPS Estadía',
   'Fecha Reserva','Fecha Hora Envío','Fecha Hora Cancelación','Obs. Entrega Parcial',
-  'Fecha Último Evento SAG','Tipo Último Evento SAG'
+  'Fecha Último Evento SAG','Tipo Último Evento SAG',
+  'Res. Destrucción/Eliminación','Fecha Res. Destrucción/Eliminación'
 ];
 
 // ══════════════════════════════════════════════
@@ -10800,6 +10848,434 @@ function descargarExcelReportePMG() {
   a.download='ECA_Reporte_PMG_'+new Date().toISOString().slice(0,10)+'.csv';
   a.click();
   setS('Reporte PMG descargado.','ok');
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// INFORME MENSUAL DE CUARENTENAS (ECA) — F-IIT-IMP-PA-018
+// Cumulativo por Res.+Fecha Res. <= fin del mes/año seleccionado. Un registro
+// único por Resolución (agrupa filas de Detalle repetidas por plaga/análisis),
+// igual patrón de deduplicación que Reportes PMG (_filasDelRegistro / merge).
+// ══════════════════════════════════════════════════════════════════════════
+const SHEET_INFORMES = 'InformesMensuales';
+const INFORMES_HEADERS = ['Mes','Año','Nombre Informe','Fecha Generación','Generado Por','Cant. Registros','Datos JSON','Enviado','Fecha Envío','Destinatario'];
+let _informesTabAsegurada = false;
+const MESES_NOMBRES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+const INF_COLS = [
+  {key:'resAnio',   label:'N° Resolución/año'},
+  {key:'estado',    label:'Estado Cuarentena'},
+  {key:'tipoCuar',  label:'Tipo de Cuarentena'},
+  {key:'tipoEC',    label:'Tipo Estación Cuarentenaria'},
+  {key:'especie',   label:'Especie(s)'},
+  {key:'origen',    label:'País de origen'},
+  {key:'fechaRecep',label:'Fecha Recepción material vegetal'},
+  {key:'fechaEstab',label:'Fecha Establecimiento'},
+  {key:'cda',       label:'N° CDA / Aviso llegada'},
+  {key:'resTermino',label:'N° y Fecha Res. Término'},
+  {key:'resDestr',  label:'N° y Fecha Res. Destrucción/Eliminación'},
+  {key:'obs',       label:'Actividades/Observaciones'}
+];
+
+let _infRows = []; // último informe generado en memoria (antes de guardar)
+let _infGuardados = []; // filas leídas de InformesMensuales
+
+function initInformeMensual() {
+  const hoy = new Date();
+  const selMes = $('inf-mes'), inpAnio = $('inf-anio');
+  if(selMes && !selMes.dataset.init) { selMes.value = String(hoy.getMonth()+1); selMes.dataset.init='1'; }
+  if(inpAnio && !inpAnio.value) inpAnio.value = String(hoy.getFullYear());
+  cargarInformesGuardados();
+}
+
+// Regla de Estado Cuarentena — 7 casos definidos con Eduardo (ver hilo de diseño).
+// El resultado queda pre-cargado en un <select> editable por fila en la vista previa.
+function _estadoCuarentena(r) {
+  const resDestr = String(r['Res. Destrucción/Eliminación']||'').trim();
+  if(resDestr) {
+    const st = String(r['Status']||'').trim();
+    return st==='Desistida' ? 'Desistida' : (st==='Eliminada' ? 'Eliminada' : 'Destruida');
+  }
+  const terminada = String(r['Terminada']||'').trim();
+  const liberada = String(r['Liberada']||'').trim();
+  if(/^s[ií]$/i.test(terminada) || /^s[ií]$/i.test(liberada)) return 'Terminada';
+  const vigHasta = fmtD(r['Vigencia Final Hasta']||r['Vigencia Desde']||'');
+  const fechaRecep = String(r['Fecha Recepcion']||'').trim();
+  const hoyISO = new Date().toISOString().slice(0,10);
+  if(vigHasta && vigHasta < hoyISO && !fechaRecep) return 'Caducada';
+  const estadoRes = String(r['Estado Res.']||'').trim();
+  if(fechaRecep && /vigente/i.test(estadoRes)) return 'Vigente';
+  if(/vigente/i.test(estadoRes) && !fechaRecep) return 'Pendiente';
+  return estadoRes || 'Pendiente';
+}
+
+function generarInformeMensual() {
+  if(!gsData.length) { setS('Sin datos cargados.','warn'); return; }
+  const mes = parseInt($('inf-mes').value,10);
+  const anio = parseInt($('inf-anio').value,10);
+  if(!mes || !anio) { setS('Seleccione mes y año.','warn'); return; }
+  const finMesISO = new Date(anio, mes, 0).toISOString().slice(0,10); // último día del mes
+
+  const matchRows = gsData.filter(r=>{
+    const res = String(r['Res.']||'').trim();
+    if(!res) return false;
+    const fres = fmtD(r['Fecha Res.']||'');
+    return !!fres && fres <= finMesISO;
+  });
+
+  const groups = {};
+  matchRows.forEach(r=>{
+    const res = String(r['Res.']||'').trim();
+    const anioRes = fmtD(r['Fecha Res.']||'').substring(0,4);
+    const key = res+'|'+anioRes;
+    (groups[key]=groups[key]||[]).push(r);
+  });
+
+  const out = Object.values(groups).map(rows=>{
+    const merged = {};
+    CANONICAL_HEADERS.forEach(k=>{
+      if(k==='Especie') return;
+      let v='';
+      for(const r of rows){ const rv=r[k]; if(rv!==undefined && String(rv).trim()!==''){ v=rv; break; } }
+      merged[k]=v;
+    });
+    let especies=[...new Set(rows.map(r=>String(r['Especie']||'').trim()).filter(Boolean))];
+    const especiesReales = especies.filter(e => !/\bspp\.?\s*$/i.test(e));
+    if(especiesReales.length) especies = especiesReales;
+    merged['Especie']=especies.join('; ');
+
+    const anioRes = fmtD(merged['Fecha Res.']||'').substring(0,4) || String(new Date(merged['Fecha Res.']||'').getFullYear()||'');
+    const resTermTxt = merged['Res. Término'] ? (merged['Res. Término']+(merged['Fecha Res.4']?(' / '+fmtDisplay(merged['Fecha Res.4'])):'')) : '';
+    const resDestrTxt = merged['Res. Destrucción/Eliminación'] ? (merged['Res. Destrucción/Eliminación']+(merged['Fecha Res. Destrucción/Eliminación']?(' / '+fmtDisplay(merged['Fecha Res. Destrucción/Eliminación'])):'')) : '';
+
+    return {
+      resAnio:   merged['Res.'] + (anioRes?('/'+anioRes):''),
+      estado:    _estadoCuarentena(merged),
+      tipoCuar:  'Absoluta',
+      tipoEC:    '1',
+      especie:   merged['Especie']||'',
+      origen:    merged['Origen']||'',
+      fechaRecep: merged['Fecha Recepcion'] ? fmtDisplay(merged['Fecha Recepcion']) : '',
+      fechaEstab: merged['Fecha Injertación'] ? fmtDisplay(merged['Fecha Injertación']) : '',
+      cda:       merged['N° CDA']||'',
+      resTermino: resTermTxt,
+      resDestr:  resDestrTxt,
+      obs:       merged['Obs.']||'',
+      _importador: merged['Importador']||'',
+      _fechaResISO: fmtD(merged['Fecha Res.']||'')
+    };
+  });
+
+  out.sort((a,b)=>String(a._fechaResISO||'').localeCompare(String(b._fechaResISO||'')));
+  _infRows = out;
+  _renderInformeMensual(out);
+  const resumen = $('inf-resumen');
+  if(resumen) {
+    const cont = {}; out.forEach(r=>{ cont[r.estado]=(cont[r.estado]||0)+1; });
+    resumen.innerHTML = Object.keys(cont).map(k=>
+      `<span style="display:inline-block;margin:0 8px 6px 0;padding:4px 10px;border-radius:12px;background:var(--g50,#f5f5f0);font-size:11px">${k}: <b>${cont[k]}</b></span>`
+    ).join('') || '';
+  }
+  setS(`${out.length} cuarentenas listadas a ${MESES_NOMBRES[mes]} ${anio} (cumulativo).`,'ok');
+}
+
+function _renderInformeMensual(rows) {
+  const thead=$('inf-thead'), tbody=$('inf-tbody'), info=$('inf-info');
+  if(!thead||!tbody) return;
+  if(info) info.textContent = `${rows.length} registros`;
+  thead.innerHTML = '<tr>'+INF_COLS.map(c=>`<th>${c.label}</th>`).join('')+'</tr>';
+  if(!rows.length){ tbody.innerHTML = `<tr><td colspan="${INF_COLS.length}" style="text-align:center;padding:20px;color:var(--g400)">Sin cuarentenas en el período seleccionado.</td></tr>`; return; }
+  const estadosOpts = ['Vigente','Pendiente','Caducada','Destruida','Desistida','Eliminada','Terminada'];
+  tbody.innerHTML = rows.map((r,i)=>'<tr>'+INF_COLS.map(c=>{
+    if(c.key==='estado') {
+      return `<td><select onchange="_infRows[${i}].estado=this.value" style="font-size:11px;padding:2px 4px">${
+        estadosOpts.map(o=>`<option value="${o}" ${o===r.estado?'selected':''}>${o}</option>`).join('')
+      }</select></td>`;
+    }
+    return `<td>${r[c.key]||''}</td>`;
+  }).join('')+'</tr>').join('');
+}
+
+function descargarExcelInformeMensual() {
+  if(!_infRows.length){ setS('Genere el informe primero.','warn'); return; }
+  const mes = parseInt($('inf-mes').value,10), anio = parseInt($('inf-anio').value,10);
+  const esc2=v=>{ const s=String(v||''); return s.includes(';')||s.includes(',')||s.includes('"')||s.includes('\n')?'"'+s.replace(/"/g,'""')+'"':s; };
+  const csv='\uFEFF'+INF_COLS.map(c=>c.label).join(';')+'\n'+_infRows.map(r=>INF_COLS.map(c=>esc2(r[c.key])).join(';')).join('\n');
+  const nombre = `Informe Mensual de Cuarentenas (ECA) ${MESES_NOMBRES[mes]} ${anio}`;
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download=nombre+'.csv';
+  a.click();
+  setS('Informe descargado.','ok');
+}
+
+// Construye el HTML del informe (mismo estilo navy/gold del sistema) — se usa
+// tanto para la vista previa antes de enviar como para convertir a PDF en
+// Code.gs (reutiliza htmlBase64ToPdfBlob_, igual que el timbre de recepción).
+function _construirHTMLInformeMensual(mes, anio, rows) {
+  const filas = rows.map(r=>`<tr>
+    <td>${r.resAnio||''}</td><td>${r.estado||''}</td><td>${r.tipoCuar||''}</td><td>${r.tipoEC||''}</td>
+    <td>${r.especie||''}</td><td>${r.origen||''}</td><td>${r.fechaRecep||''}</td><td>${r.fechaEstab||''}</td>
+    <td>${r.cda||''}</td><td>${r.resTermino||''}</td><td>${r.resDestr||''}</td><td>${r.obs||''}</td>
+  </tr>`).join('');
+  return `<html><head><meta charset="utf-8"><style>
+    body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:26px;color:#0a1628;font-size:11px}
+    h1{font-size:16px;color:#0A1628;border-bottom:2px solid #B8975A;padding-bottom:8px;margin:0 0 4px}
+    .sub{font-size:11px;color:#556;margin-bottom:16px}
+    table{border-collapse:collapse;width:100%}
+    th{background:#0A1628;color:#E8E6DE;font-size:9.5px;padding:6px 5px;text-align:left}
+    td{border:1px solid #ccc;padding:5px;font-size:9.5px;vertical-align:top}
+    tr:nth-child(even) td{background:#f7f6f2}
+    .pie{margin-top:16px;font-size:9px;color:#667}
+  </style></head><body>
+  <h1>Informe Mensual de Cuarentenas (ECA)</h1>
+  <div class="sub">SAG — Estación de Cuarentena Agrícola (ECA), Región Metropolitana &nbsp;·&nbsp; Período: ${MESES_NOMBRES[mes]} ${anio} &nbsp;·&nbsp; ${rows.length} cuarentenas</div>
+  <table><thead><tr>${INF_COLS.map(c=>`<th>${c.label}</th>`).join('')}</tr></thead><tbody>${filas}</tbody></table>
+  <div class="pie">Generado automáticamente por el sistema SAG Cuarentena Vegetal — F-IIT-IMP-PA-018.</div>
+  </body></html>`;
+}
+
+async function _asegurarTabInformes() {
+  if(_informesTabAsegurada) return;
+  const sheetMeta = await fetch(`${BASE_URL}/${GS.sheetId}?fields=sheets.properties&key=${GS.apiKey}`);
+  const sheetMetaJson = await sheetMeta.json();
+  const tab = (sheetMetaJson.sheets||[]).find(s=>s.properties?.title===SHEET_INFORMES);
+  if(!tab) {
+    await fetch(`${BASE_URL}/${GS.sheetId}:batchUpdate`,
+      {method:'POST',
+       headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+       body:JSON.stringify({requests:[{addSheet:{properties:{title:SHEET_INFORMES}}}]})});
+    await fetch(
+      `${BASE_URL}/${GS.sheetId}/values/${SHEET_INFORMES}!A1?valueInputOption=USER_ENTERED`,
+      {method:'PUT',
+       headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+       body:JSON.stringify({values:[INFORMES_HEADERS]})});
+  }
+  _informesTabAsegurada = true;
+}
+
+async function cargarInformesGuardados() {
+  const tbody = $('inf-guardados-tbody');
+  if(!tbody) return;
+  try {
+    await ensureToken();
+    await _asegurarTabInformes();
+    const r = await fetch(`${BASE_URL}/${GS.sheetId}/values/${SHEET_INFORMES}?key=${GS.apiKey}`,
+      {headers:{Authorization:`Bearer ${accessToken}`}});
+    const d = await r.json();
+    const vals = d.values||[];
+    if(vals.length<2) { tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:14px;color:var(--g400)">Sin informes guardados.</td></tr>`; _infGuardados=[]; return; }
+    const hdr = vals[0];
+    _infGuardados = vals.slice(1).map(row=>{ const o={}; hdr.forEach((h,i)=>o[h]=row[i]||''); return o; }).reverse();
+    tbody.innerHTML = _infGuardados.map((g,i)=>`<tr>
+      <td>${MESES_NOMBRES[parseInt(g['Mes'],10)]||g['Mes']} ${g['Año']}</td>
+      <td>${g['Fecha Generación']}</td>
+      <td>${g['Cant. Registros']}</td>
+      <td>${/^s[ií]$/i.test(g['Enviado']||'')?'Sí — '+(g['Fecha Envío']||''):'No'}</td>
+      <td><button class="btn btn-gh btn-sm" onclick="verInformeGuardado(${i})">Ver</button></td>
+    </tr>`).join('');
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:14px;color:var(--g400)">Error al cargar: ${e.message}</td></tr>`;
+  }
+}
+
+function verInformeGuardado(i) {
+  const g = _infGuardados[i]; if(!g) return;
+  let rows = [];
+  try { rows = JSON.parse(g['Datos JSON']||'[]'); } catch(e) {}
+  const html = `<div style="font-family:var(--serif);font-size:16px;color:var(--gd,#B8975A);margin-bottom:10px">
+      ${g['Nombre Informe']||('Informe '+g['Mes']+'/'+g['Año'])}</div>
+    <div style="overflow:auto;max-height:60vh;border:1px solid var(--g200);border-radius:var(--rs)">
+      <table class="tbl"><thead><tr>${INF_COLS.map(c=>`<th>${c.label}</th>`).join('')}</tr></thead>
+      <tbody>${rows.map(r=>'<tr>'+INF_COLS.map(c=>`<td>${r[c.key]||''}</td>`).join('')+'</tr>').join('')}</tbody></table>
+    </div>
+    <div style="margin-top:12px;text-align:right"><button class="btn btn-gh btn-sm" onclick="cerrarModal()">Cerrar</button></div>`;
+  abrirModal(html);
+}
+
+// Abre la ventana de confirmación de envío — nada se manda hasta que el
+// usuario haga clic en "Enviar correo" dentro de esta ventana.
+function _abrirModalEnvioInforme(mes, anio, rows) {
+  const nombreInforme = `Informe Mensual de Cuarentenas (ECA) ${MESES_NOMBRES[mes]} ${anio}`;
+  const html = `<div style="font-family:var(--serif);font-size:16px;color:var(--gd,#B8975A);margin-bottom:4px">${nombreInforme}</div>
+    <div style="font-size:11px;color:var(--g400);margin-bottom:16px">${rows.length} cuarentenas listadas</div>
+    <div class="ff" style="margin-bottom:10px"><label class="lbl">Para</label>
+      <input id="inf-mail-to" type="email" placeholder="nivelcentral@sag.gob.cl" style="width:100%"></div>
+    <div class="ff" style="margin-bottom:10px"><label class="lbl">Asunto</label>
+      <input id="inf-mail-subject" value="${nombreInforme}" style="width:100%"></div>
+    <div class="ff" style="margin-bottom:16px"><label class="lbl">Adjunto</label>
+      <div style="font-size:12px;padding:8px 10px;border:1px solid var(--g200);border-radius:var(--rs);background:var(--g50,#f8f8f6)">📄 ${nombreInforme}.pdf</div></div>
+    <div id="inf-mail-status" style="font-size:12px;margin-bottom:10px"></div>
+    <div style="text-align:right;display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-gh btn-sm" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn btn-nv btn-sm" id="inf-mail-send-btn" onclick="_confirmarEnvioInforme(${mes},${anio})">Enviar correo</button>
+    </div>`;
+  abrirModal(html);
+}
+
+async function _confirmarEnvioInforme(mes, anio) {
+  const to = ($('inf-mail-to')?.value||'').trim();
+  const subject = ($('inf-mail-subject')?.value||'').trim();
+  const statusEl = $('inf-mail-status');
+  if(!to) { if(statusEl) statusEl.innerHTML='<span style="color:var(--err,#c0392b)">Ingrese un destinatario.</span>'; return; }
+  const btn = $('inf-mail-send-btn'); if(btn) { btn.disabled=true; btn.textContent='Enviando...'; }
+  try {
+    const htmlInforme = _construirHTMLInformeMensual(mes, anio, _infRows);
+    const htmlBase64 = btoa(unescape(encodeURIComponent(htmlInforme)));
+    const nombreArchivo = `Informe Mensual de Cuarentenas (ECA) ${MESES_NOMBRES[mes]} ${anio}.pdf`;
+    const resp = await fetch(_PORTAL_ENDPOINT, {method:'POST', body: JSON.stringify({
+      action:'enviarInformeMensual', adminToken:_ADMIN_TOKEN,
+      correo:to, asunto:subject||nombreArchivo, nombreArchivo, htmlBase64
+    })});
+    const data = await resp.json();
+    if(data.ok) {
+      await _guardarInformeMensualEnSheet(mes, anio, _infRows, true, to);
+      if(statusEl) statusEl.innerHTML='<span style="color:var(--ok,#1a7a3c)">Correo enviado.</span>';
+      setS('Informe enviado y guardado.','ok');
+      setTimeout(cerrarModal, 900);
+      cargarInformesGuardados();
+    } else {
+      if(statusEl) statusEl.innerHTML='<span style="color:var(--err,#c0392b)">'+(data.error||'Error al enviar.')+'</span>';
+      if(btn) { btn.disabled=false; btn.textContent='Enviar correo'; }
+    }
+  } catch(e) {
+    if(statusEl) statusEl.innerHTML='<span style="color:var(--err,#c0392b)">Error de conexión: '+e.message+'</span>';
+    if(btn) { btn.disabled=false; btn.textContent='Enviar correo'; }
+  }
+}
+
+async function _guardarInformeMensualEnSheet(mes, anio, rows, enviado, destinatario) {
+  await ensureToken();
+  await _asegurarTabInformes();
+  const nombreInforme = `Informe Mensual de Cuarentenas (ECA) ${MESES_NOMBRES[mes]} ${anio}`;
+  const fila = [
+    String(mes), String(anio), nombreInforme, _nowStrSAG(),
+    (_currentUserEmail || (typeof _obtenerUsuarioActual==='function' ? await _obtenerUsuarioActual() : '')),
+    String(rows.length), JSON.stringify(rows),
+    enviado ? 'SI' : 'NO', enviado ? _nowStrSAG() : '', destinatario || ''
+  ];
+  await fetch(`${BASE_URL}/${GS.sheetId}/values/${SHEET_INFORMES}!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+    {method:'POST',
+     headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+     body:JSON.stringify({values:[fila]})});
+}
+
+async function guardarInformeMensual() {
+  if(!_infRows.length) { setS('Genere el informe primero.','warn'); return; }
+  const mes = parseInt($('inf-mes').value,10), anio = parseInt($('inf-anio').value,10);
+  const enviarCheck = $('inf-enviar-check');
+  if(enviarCheck && enviarCheck.checked) {
+    _abrirModalEnvioInforme(mes, anio, _infRows);
+    return;
+  }
+  try {
+    await _guardarInformeMensualEnSheet(mes, anio, _infRows, false, '');
+    setS('Informe guardado.','ok');
+    cargarInformesGuardados();
+  } catch(e) {
+    setS('Error al guardar: '+e.message,'err');
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// DESTRUCCIÓN / ELIMINACIÓN — acción global, disponible en cualquier etapa
+// (la destrucción u orden de eliminación de una cuarentena puede resolverse
+// en cualquier momento del proceso, no solo al término en Etapa VII).
+// Requiere que 'Res. Destrucción/Eliminación' y 'Fecha Res. Destrucción/
+// Eliminación' existan como columnas en Detalle (agregadas manualmente por
+// Eduardo — ver instrucciones de despliegue).
+// ══════════════════════════════════════════════════════════════════════════
+function abrirModalDestruccion() {
+  const html = `<div style="font-family:var(--serif);font-size:16px;color:var(--gd,#B8975A);margin-bottom:14px">Registrar Destrucción / Eliminación</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div class="ff"><label class="lbl">N° Resolución</label><input id="dx-res" placeholder="ej. 1590" style="font-family:var(--mono)"></div>
+      <div class="ff"><label class="lbl">Año Resolución</label><input id="dx-anio" placeholder="2025" style="font-family:var(--mono)"></div>
+    </div>
+    <div style="font-size:10px;color:var(--g400);margin-bottom:10px">O, si aún no tiene resolución:</div>
+    <div class="ff" style="margin-bottom:14px"><label class="lbl">N° Solicitud</label><input id="dx-sol" placeholder="ej. 263" style="font-family:var(--mono)"></div>
+    <button class="btn btn-gh btn-sm" onclick="_buscarRegistroDestruccion()" style="margin-bottom:14px">Buscar registro</button>
+    <div id="dx-preview"></div>`;
+  abrirModal(html);
+}
+
+function _buscarRegistroDestruccion() {
+  const res = ($('dx-res')?.value||'').trim();
+  const anio = ($('dx-anio')?.value||'').trim();
+  const sol = ($('dx-sol')?.value||'').trim();
+  const preview = $('dx-preview');
+  let rows = [];
+  if(res) {
+    rows = gsData.filter(r=>String(r['Res.']||'').trim()===res && (!anio || fmtD(r['Fecha Res.']||'').substring(0,4)===anio));
+  } else if(sol) {
+    rows = gsData.filter(r=>String(r['Solicitud']||'').trim()===sol);
+  }
+  if(!rows.length) { preview.innerHTML = '<div style="color:var(--err,#c0392b);font-size:12px">No se encontró ningún registro.</div>'; return; }
+  const r0 = rows[0];
+  preview.innerHTML = `
+    <div style="background:var(--g50,#f8f8f6);border:1px solid var(--g200);border-radius:var(--rs);padding:12px;margin-bottom:14px;font-size:12px">
+      <b>${r0['Importador']||'—'}</b> · ${r0['Especie']||''} · ${r0['Origen']||''}<br>
+      <span style="color:var(--g400)">${rows.length} fila(s) afectada(s) en Detalle · Status actual: ${r0['Status']||'—'}</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div class="ff"><label class="lbl">Motivo</label>
+        <select id="dx-motivo">
+          <option value="Destruida">Destruida por orden de SAG</option>
+          <option value="Eliminada">Eliminada a solicitud del importador</option>
+          <option value="Desistida">Desistida (no ingresó, con aviso del importador)</option>
+        </select></div>
+      <div class="ff"><label class="lbl">N° Resolución Destr./Elim.</label><input id="dx-res-destr" placeholder="ej. 300/2026"></div>
+    </div>
+    <div class="ff" style="margin-bottom:12px"><label class="lbl">Fecha Resolución Destr./Elim.</label><input type="date" id="dx-fecha-destr"></div>
+    <div class="ff" style="margin-bottom:14px"><label class="lbl">Observación (se agrega a Obs.)</label><textarea id="dx-obs" rows="3" style="width:100%"></textarea></div>
+    <div id="dx-confirm-status" style="font-size:12px;margin-bottom:8px"></div>
+    <div style="text-align:right"><button class="btn btn-err btn-sm" id="dx-confirm-btn" onclick='_confirmarDestruccion(${JSON.stringify(res)},${JSON.stringify(anio)},${JSON.stringify(sol)})'>Confirmar</button></div>`;
+}
+
+async function _filasIndicesPorRegistro(res, anio, sol) {
+  const rows = await fetchAllRows();
+  const hdr = rows[0]||[];
+  const iRes = hdr.indexOf('Res.'), iFres = hdr.indexOf('Fecha Res.'), iSol = hdr.indexOf('Solicitud');
+  const out = [];
+  for(let i=1;i<rows.length;i++){
+    if(res) {
+      const xr = String(rows[i][iRes]||'').trim();
+      const xa = fmtD(rows[i][iFres]||'').substring(0,4);
+      if(xr===res && (!anio || xa===anio)) out.push(i+1);
+    } else if(sol) {
+      if(String(rows[i][iSol]||'').trim()===sol) out.push(i+1);
+    }
+  }
+  return out;
+}
+
+async function _confirmarDestruccion(res, anio, sol) {
+  const motivo = $('dx-motivo').value;
+  const resDestr = ($('dx-res-destr')?.value||'').trim();
+  const fechaDestr = $('dx-fecha-destr').value;
+  const obsTxt = ($('dx-obs')?.value||'').trim();
+  if(!resDestr || !fechaDestr) { $('dx-confirm-status').innerHTML='<span style="color:var(--err,#c0392b)">Complete N° Resolución y fecha.</span>'; return; }
+  const btn = $('dx-confirm-btn'); if(btn){ btn.disabled=true; btn.textContent='Procesando...'; }
+  try {
+    await ensureToken();
+    const filas = await _filasIndicesPorRegistro(res, anio, sol);
+    if(!filas.length) throw new Error('No se encontraron filas para actualizar.');
+    const fechaDestrDisplay = fmtDisplay(fechaDestr);
+    for(const fila of filas) {
+      await _escribirCeldaDetalle(fila, 'Res. Destrucción/Eliminación', resDestr);
+      await _escribirCeldaDetalle(fila, 'Fecha Res. Destrucción/Eliminación', fechaDestrDisplay);
+      await _escribirCeldaDetalle(fila, 'Status', motivo);
+      if(obsTxt) await _escribirCeldaDetalle(fila, 'Obs.', obsTxt);
+      await _escribirCeldaDetalle(fila, 'Fecha Último Evento SAG', _nowStrSAG());
+      await _escribirCeldaDetalle(fila, 'Tipo Último Evento SAG', motivo);
+    }
+    await registrarEventoHistorial(sol||'', res||'', '', motivo+' — '+resDestr, 'SAG interno');
+    $('dx-confirm-status').innerHTML='<span style="color:var(--ok,#1a7a3c)">Registrado. Actualizando datos...</span>';
+    setS(`Cuarentena marcada como "${motivo}" (${filas.length} fila(s)).`,'ok');
+    setTimeout(cerrarModal, 900);
+    recargar();
+  } catch(e) {
+    $('dx-confirm-status').innerHTML='<span style="color:var(--err,#c0392b)">Error: '+e.message+'</span>';
+    if(btn){ btn.disabled=false; btn.textContent='Confirmar'; }
+  }
 }
 
 // ── Historial completo de eventos de badge (a diferencia de "Fecha/Tipo
