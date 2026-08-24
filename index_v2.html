@@ -1438,6 +1438,8 @@ input.field-blocked, select.field-blocked {
           <option>No Recibida/Destruida en Punto de Ingreso</option>
           <option>Plantada</option><option>Recibida</option>
         </select></div>
+      <div class="ff c2"><label class="lbl">N° Res. Destrucción/Eliminación</label><input id="f3-resdestr" oninput="cacheField('f3-resdestr')" placeholder="ej. 300/2026"></div>
+      <div class="ff c2"><label class="lbl">Fecha Res. Destrucción/Eliminación</label><input type="date" id="f3-fresdestr" oninput="cacheField('f3-fresdestr')"></div>
     </div>
 
     <!-- Tabla fusionada: Verificación + Establecimiento -->
@@ -1721,6 +1723,8 @@ input.field-blocked, select.field-blocked {
           <option>Entregada</option><option>Liberada</option><option>No Recibida</option>
           <option>No Prosperó</option><option>Terminada</option>
         </select></div>
+      <div class="ff c2"><label class="lbl">N° Res. Destrucción/Eliminación</label><input id="f6-resdestr" oninput="cacheField('f6-resdestr')" placeholder="ej. 300/2026"></div>
+      <div class="ff c2"><label class="lbl">Fecha Res. Destrucción/Eliminación</label><input type="date" id="f6-fresdestr" oninput="cacheField('f6-fresdestr')"></div>
       <div class="ff c1">
         <label class="lbl">Status</label>
         <div id="f6-stat-badge" style="padding:6px 8px;min-height:34px;display:flex;align-items:center">
@@ -6194,6 +6198,8 @@ async function cargarFilaMulti(rows) {
   sv('f3-finj', fmtD(r['Fecha Injertación']||r['Fecha Inyertacion']||''));
   sv('f3-flev', fmtD(r['Fecha aprox. Levant.']||''));
   selEl('f3-estado', r['Estado']||'');
+  sv('f3-resdestr', r['Res. Destrucción/Eliminación']||'');
+  sv('f3-fresdestr', fmtD(r['Fecha Res. Destrucción/Eliminación']||''));
   // Etapa VI
   sv('f6-nrest', r['Res. Término']||r['Res. Termino']||'');
   sv('f6-frterm', fmtD(r['Fecha Res.4']||''));
@@ -6201,6 +6207,8 @@ async function cargarFilaMulti(rows) {
   selEl('f6-term', r['Terminada']||'');
   selEl('f6-lib', r['Liberada']||'');
   selEl('f6-stat', r['Status']||'');
+  sv('f6-resdestr', r['Res. Destrucción/Eliminación']||'');
+  sv('f6-fresdestr', fmtD(r['Fecha Res. Destrucción/Eliminación']||''));
   // Corrige registros históricos: si ya tienen Fecha Entrega pero el Status
   // guardado no quedó como 'Entregada', se corrige al cargar la ficha.
   autoStatusPorEntrega();
@@ -10496,7 +10504,18 @@ function buildRows(nsol,imp) {
     'Entregada':       fmtDisplay(getCached('f6-fent',v('f6-fent')))||_lastLoadedRow['Entregada']||'',
     'Obs.':            getCached('f6-obs',v('f6-obs'))||_lastLoadedRow['Obs.']||'',
     'Obs. Entrega Parcial': getCached('f6-var-pend',v('f6-var-pend'))||_lastLoadedRow['Obs. Entrega Parcial']||'',
+    'Res. Destrucción/Eliminación': getCached('f6-resdestr',v('f6-resdestr'))||getCached('f3-resdestr',v('f3-resdestr'))||_lastLoadedRow['Res. Destrucción/Eliminación']||'',
+    'Fecha Res. Destrucción/Eliminación': fmtDisplay(getCached('f6-fresdestr',v('f6-fresdestr'))||getCached('f3-fresdestr',v('f3-fresdestr')))||_lastLoadedRow['Fecha Res. Destrucción/Eliminación']||'',
     'Status':          (function(){
+      // Los estados de destrucción/eliminación/desistimiento son determinaciones
+      // administrativas específicas (registradas manualmente por SAG) y no deben
+      // ser pisadas por la regla automática de "Fecha Entrega ⇒ Entregada" — bug
+      // corregido: antes, guardar cualquier cambio en un registro ya marcado
+      // Destruida con una Fecha Entrega antigua lo revertía silenciosamente a
+      // 'Entregada' en el Sheet.
+      const _statPrimero = getCached('f6-stat',v('f6-stat'));
+      if(_ESTADOS_DESTRUCCION.includes(_statPrimero)) return _statPrimero;
+      if(_ESTADOS_DESTRUCCION.includes(_lastLoadedRow['Status']) && !_statPrimero) return _lastLoadedRow['Status'];
       // Fecha Entrega manda: si está presente, el registro quedó entregado.
       const _fechaEntrega = getCached('f6-fent',v('f6-fent'));
       if(_fechaEntrega) return 'Entregada';
@@ -10902,9 +10921,15 @@ function initInformeMensual() {
 // El resultado queda pre-cargado en un <select> editable por fila en la vista previa.
 function _estadoCuarentena(r) {
   const resDestr = String(r['Res. Destrucción/Eliminación']||'').trim();
-  if(resDestr) {
-    const st = String(r['Status']||'').trim();
-    return st==='Desistida' ? 'Desistida' : (st==='Eliminada' ? 'Eliminada' : 'Destruida');
+  const statusRaw = String(r['Status']||'').trim();
+  // Se reconoce tanto por la columna dedicada (N° Res. Destrucción/Eliminación,
+  // cargada desde Etapa III/VII) como por el Status literal — cubre registros
+  // marcados Destruida/Eliminada/Desistida antes de que existieran los campos
+  // de resolución dedicados, para que el informe no los pierda.
+  if(resDestr || ['Destruida','Eliminada','Desistida'].includes(statusRaw)) {
+    if(statusRaw==='Desistida') return 'Desistida';
+    if(statusRaw==='Eliminada') return 'Eliminada';
+    return 'Destruida';
   }
   const terminada = String(r['Terminada']||'').trim();
   const liberada = String(r['Liberada']||'').trim();
