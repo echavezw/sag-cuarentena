@@ -10968,13 +10968,34 @@ function _estadoCuarentena(r) {
   const recibidaFlag = String(r['Recibida']||'').trim().toLowerCase()==='si';
   const recibido = recibidaFlag || !!fechaIngreso || ['Injertada','Plantada','Recibida'].includes(estado3) || !!fechaInjert;
 
-  const vigHasta = fmtD(r['Vigencia Final Hasta']||r['Vigencia Desde']||'');
+  const vigHasta = _plazoVigenciaISO(r);
   const hoyISO = new Date().toISOString().slice(0,10);
   const vencidaPorFecha = !!(vigHasta && vigHasta < hoyISO);
   const vencidaPorEstado = /^vencida$/i.test(estadoRes);
   if((vencidaPorFecha || vencidaPorEstado) && !recibido) return 'Caducada';
 
   return recibido ? 'Vigente' : 'Pendiente';
+}
+
+// Replica exactamente la regla de autoEstadoRes() (Etapa II): el plazo real
+// de vigencia es Vigencia Desde + 30 días ('Vigencia Hasta', que se calcula
+// en pantalla pero NO se guarda como columna propia en el Sheet — por eso
+// hay que recalcularlo aquí), salvo que exista una 'Vigencia Final Hasta'
+// posterior (extensión/modificación de resolución), en cuyo caso manda esa.
+// BUG previo: se usaba 'Vigencia Desde' directamente como si fuera la fecha
+// de término cuando 'Vigencia Final Hasta' estaba vacía, marcando como
+// caducadas resoluciones que recién estaban empezando su plazo.
+function _plazoVigenciaISO(r) {
+  const vigDesde = fmtD(r['Vigencia Desde']||'');
+  const vfHasta  = fmtD(r['Vigencia Final Hasta']||'');
+  const candidatos = [];
+  if(vigDesde) {
+    const d = new Date(vigDesde+'T00:00:00');
+    if(!isNaN(d)) { d.setDate(d.getDate()+30); candidatos.push(d.toISOString().slice(0,10)); }
+  }
+  if(vfHasta) candidatos.push(vfHasta);
+  if(!candidatos.length) return '';
+  return candidatos.sort().pop(); // la más tardía manda, igual que autoEstadoRes()
 }
 
 const TERMINAL_STATES = ['Terminada','Caducada','Destruida','Desistida','Eliminada'];
