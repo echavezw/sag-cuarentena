@@ -2301,7 +2301,7 @@ input.field-blocked, select.field-blocked {
     </div>
     <div class="modal-actions" style="margin-top:12px">
       <button class="btn btn-gh btn-sm" onclick="cerrarModalCondiciones()">Cancelar</button>
-      <button class="btn btn-nv btn-sm" id="cond-enviar-btn" onclick="enviarCambioCondiciones()">📧 Enviar Solicitud</button>
+      <button class="btn btn-nv btn-sm" id="cond-enviar-btn" onclick="previsualizarCambioCondiciones()">📧 Ver borrador y enviar</button>
     </div>
   </div>
 </div>
@@ -12245,7 +12245,42 @@ function _condToggleAll(checked) {
   document.querySelectorAll('.cond-chk').forEach(cb => { if (!cb.disabled) cb.checked = checked; });
 }
 
-async function enviarCambioCondiciones() {
+let _condItemsParaEnvio = [];
+
+// Construye la tabla HTML del correo — una FILA por cuarentena (no por
+// plaga/análisis), así nunca se parte en dos líneas visuales como pasaba
+// con el texto plano largo. Se usa tanto en la vista previa como, si el
+// backend la recibe, para el envío real (mismo contenido exacto).
+function _construirHTMLCambioCondiciones(items) {
+  const filas = items.map(it => {
+    const disp = it.resolucion
+      ? ('Res. ' + it.resolucion + (it.anioRes ? ('/' + it.anioRes) : ''))
+      : ('Sol. ' + it.solicitud + ' (sin resolución)');
+    return `<tr>
+      <td style="padding:5px 8px;border:1px solid #ccc;font-family:monospace;white-space:nowrap">${disp}</td>
+      <td style="padding:5px 8px;border:1px solid #ccc;text-align:center;white-space:nowrap">${it.cubiculo||'—'}</td>
+      <td style="padding:5px 8px;border:1px solid #ccc;font-style:italic">${it.especies||'—'}</td>
+      <td style="padding:5px 8px;border:1px solid #ccc;text-align:center;white-space:nowrap">${it.condicionActual||'—'}</td>
+      <td style="padding:5px 8px;border:1px solid #ccc;text-align:center;white-space:nowrap;font-weight:bold;color:#0A1628">${it.condicionRequerida}</td>
+    </tr>`;
+  }).join('');
+  return `<table style="border-collapse:collapse;width:100%;font-size:12px">
+    <thead><tr style="background:#0A1628;color:#E8E6DE">
+      <th style="padding:6px 8px;text-align:left">Resolución/Solicitud</th>
+      <th style="padding:6px 8px">Cubículo</th>
+      <th style="padding:6px 8px;text-align:left">Especie(s)</th>
+      <th style="padding:6px 8px">Condición actual</th>
+      <th style="padding:6px 8px">Cambiar a</th>
+    </tr></thead>
+    <tbody>${filas}</tbody>
+  </table>`;
+}
+
+// Reemplaza el envío directo: junta los ítems marcados, arma el borrador
+// del correo (destinatario/asunto/tabla editables) y lo muestra en una
+// ventana de confirmación — nada se envía hasta que el usuario haga clic
+// en "Enviar correo" ahí dentro.
+function previsualizarCambioCondiciones() {
   const marcados = Array.from(document.querySelectorAll('.cond-chk:checked'));
   if (!marcados.length) { setS('Seleccione al menos una cuarentena.', 'warn'); return; }
 
@@ -12265,13 +12300,42 @@ async function enviarCambioCondiciones() {
       condicionRequerida: condicionRequerida
     };
   });
+  _condItemsParaEnvio = items;
 
-  const btn = $('cond-enviar-btn');
+  const htmlTabla = _construirHTMLCambioCondiciones(items);
+  cerrarModalCondiciones();
+
+  const previewHtml = `<div style="font-family:var(--serif);font-size:16px;color:var(--gd,#B8975A);margin-bottom:4px">Solicitud de Cambio de Condiciones Ambientales</div>
+    <div style="font-size:11px;color:var(--g400);margin-bottom:14px">${items.length} cuarentena(s) seleccionada(s)</div>
+    <div class="ff" style="margin-bottom:10px"><label class="lbl">Para</label>
+      <input id="cond-mail-to" value="eduardo.ferrada@sag.gob.cl" style="width:100%"></div>
+    <div class="ff" style="margin-bottom:10px"><label class="lbl">CC</label>
+      <input id="cond-mail-cc" value="eduardo.chavez@sag.gob.cl" style="width:100%" readonly></div>
+    <div class="ff" style="margin-bottom:14px"><label class="lbl">Asunto</label>
+      <input id="cond-mail-subject" value="Solicitud de cambio de condiciones ambientales — ${items.length} cuarentena(s)" style="width:100%"></div>
+    <div style="border:1px solid var(--g200);border-radius:var(--rs);padding:2px;max-height:300px;overflow:auto;margin-bottom:14px">${htmlTabla}</div>
+    <div id="cond-mail-status" style="font-size:12px;margin-bottom:8px"></div>
+    <div style="text-align:right;display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-gh btn-sm" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn btn-nv btn-sm" id="cond-mail-send-btn" onclick="_confirmarEnvioCondiciones()">Enviar correo</button>
+    </div>`;
+  abrirModal(previewHtml);
+}
+
+// Envío real, disparado solo desde el botón "Enviar correo" de la vista previa.
+async function _confirmarEnvioCondiciones() {
+  const items = _condItemsParaEnvio;
+  const to = ($('cond-mail-to')?.value||'').trim();
+  const subject = ($('cond-mail-subject')?.value||'').trim();
+  const statusEl = $('cond-mail-status');
+  if (!to) { if(statusEl) statusEl.innerHTML='<span style="color:var(--err,#c0392b)">Ingrese un destinatario.</span>'; return; }
+  const btn = $('cond-mail-send-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
   try {
+    const htmlBody = _construirHTMLCambioCondiciones(items);
     const resp = await fetch(_PORTAL_ENDPOINT, {
       method: 'POST',
-      body: JSON.stringify({ action: 'solicitarCambioCondiciones', adminToken: _ADMIN_TOKEN, items: items })
+      body: JSON.stringify({ action: 'solicitarCambioCondiciones', adminToken: _ADMIN_TOKEN, items, correoTo: to, asunto: subject, htmlBody })
     });
     const data = await resp.json();
     if (data.ok) {
@@ -12284,22 +12348,22 @@ async function enviarCambioCondiciones() {
           if (gsData[idxGs]) gsData[idxGs]['Cond Ambiental Solicitada'] = it.condicionRequerida + ' | ' + hoy;
         });
       });
-      // Refresca el badge de la ficha si el registro cargado está entre los enviados
       const nsolActual = (document.getElementById('f1-nsol')?.value||'').trim();
       if (nsolActual && items.some(it => it.solicitud === nsolActual)) {
         const rowsActuales = gsData.filter(r => String(r['Solicitud']||'').trim() === nsolActual);
         _actualizarBadgeCondicionesFicha(rowsActuales);
       }
+      if (statusEl) statusEl.innerHTML = '<span style="color:var(--ok,#1a7a3c)">Correo enviado.</span>';
       setS(`Solicitud de cambio de condiciones enviada (${items.length} cuarentena(s)).`, 'ok');
-      cerrarModalCondiciones();
+      setTimeout(cerrarModal, 900);
     } else {
-      setS('No se pudo enviar la solicitud: ' + (data.error || 'error desconocido'), 'err');
+      if (statusEl) statusEl.innerHTML = '<span style="color:var(--err,#c0392b)">'+(data.error||'Error al enviar.')+'</span>';
+      if (btn) { btn.disabled = false; btn.textContent = 'Enviar correo'; }
     }
   } catch (err) {
     console.error('Error enviando cambio de condiciones:', err);
-    setS('Falló la conexión al enviar la solicitud de cambio de condiciones.', 'err');
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '📧 Enviar Solicitud'; }
+    if (statusEl) statusEl.innerHTML = '<span style="color:var(--err,#c0392b)">Error de conexión: '+err.message+'</span>';
+    if (btn) { btn.disabled = false; btn.textContent = 'Enviar correo'; }
   }
 }
 
