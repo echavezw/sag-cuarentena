@@ -2328,6 +2328,7 @@ input.field-blocked, select.field-blocked {
 <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()" defer></script>
 <script src="https://accounts.google.com/gsi/client" onload="onGISLoad()" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js" defer></script>
 
 <script>
 
@@ -11163,16 +11164,76 @@ function _renderInformeMensual(rows) {
   }).join('')+'</tr>').join('');
 }
 
+// Colores de fondo para .xlsx (mismos códigos hex que INF_ESTADO_COLOR, sin
+// '#', formato que espera xlsx-js-style). fg = texto, bg = fondo de celda.
+const INF_ESTADO_COLOR_XLSX = {
+  'Caducada':  {bg:'FDECEA', fg:'C0392B'},
+  'Destruida': {bg:'FDECEA', fg:'C0392B'},
+  'Desistida': {bg:'FDECEA', fg:'C0392B'},
+  'Eliminada': {bg:'FDECEA', fg:'C0392B'},
+  'Terminada': {bg:'FDECEA', fg:'C0392B'},
+  'Pendiente': {bg:'FDF3D8', fg:'8A6D1A'},
+  'Vigente':   {bg:'E6F6EC', fg:'1A7A3C'}
+};
+
 function descargarExcelInformeMensual() {
   if(!_infRows.length){ setS('Genere el informe primero.','warn'); return; }
+  if(typeof XLSX === 'undefined') { setS('La librería de Excel aún está cargando, intente en unos segundos.','warn'); return; }
   const mes = parseInt($('inf-mes').value,10), anio = parseInt($('inf-anio').value,10);
-  const esc2=v=>{ const s=String(v||''); return s.includes(';')||s.includes(',')||s.includes('"')||s.includes('\n')?'"'+s.replace(/"/g,'""')+'"':s; };
-  const csv='\uFEFF'+INF_COLS.map(c=>c.label).join(';')+'\n'+_infRows.map(r=>INF_COLS.map(c=>esc2(r[c.key])).join(';')).join('\n');
   const nombre = `Informe Mensual de Cuarentenas (ECA) ${MESES_NOMBRES[mes]} ${anio}`;
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
-  a.download=nombre+'.csv';
-  a.click();
+
+  // Encabezado
+  const aoa = [INF_COLS.map(c=>c.label)];
+  _infRows.forEach(r=> aoa.push(INF_COLS.map(c=>r[c.key]||'')));
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+  // Ancho de columna: según el contenido más largo de esa columna (incluido
+  // el encabezado), con un tope para Especie/Observaciones (columnas de
+  // texto libre) equivalente a ~2-3 celdas estándar, para que no se disparen.
+  const ANCHO_TOPE_LIBRE = 42; // ~2-3 celdas estándar
+  ws['!cols'] = INF_COLS.map(c=>{
+    let maxLen = c.label.length;
+    _infRows.forEach(r=>{ const v=String(r[c.key]||''); if(v.length>maxLen) maxLen=v.length; });
+    let wch = maxLen + 2;
+    if(c.align==='left') wch = Math.min(wch, ANCHO_TOPE_LIBRE); // Especie / Obs
+    return {wch: Math.max(wch, 8)};
+  });
+
+  // Encabezado: fondo navy, texto claro, negrita, centrado
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for(let c=range.s.c; c<=range.e.c; c++){
+    const cellRef = XLSX.utils.encode_cell({r:0, c});
+    if(!ws[cellRef]) continue;
+    ws[cellRef].s = {
+      fill:{fgColor:{rgb:'0A1628'}},
+      font:{color:{rgb:'E8E6DE'}, bold:true, sz:10},
+      alignment:{horizontal:'center', vertical:'center', wrapText:true}
+    };
+  }
+
+  // Filas de datos: alineación por columna (izquierda solo en
+  // Especie/Observaciones, centrado en el resto) y color de fondo/texto en
+  // la columna Estado Cuarentena según el código de badges (rojo/amarillo/verde).
+  const iEstado = INF_COLS.findIndex(c=>c.key==='estado');
+  _infRows.forEach((r,ri)=>{
+    INF_COLS.forEach((c,ci)=>{
+      const cellRef = XLSX.utils.encode_cell({r:ri+1, c:ci});
+      if(!ws[cellRef]) return;
+      const align = c.align==='left' ? 'left' : 'center';
+      const style = { alignment:{horizontal:align, vertical:'center', wrapText: c.align==='left'} };
+      if(ci===iEstado) {
+        const col = INF_ESTADO_COLOR_XLSX[r.estado] || {bg:'F0F0F0', fg:'555555'};
+        style.fill = {fgColor:{rgb:col.bg}};
+        style.font = {color:{rgb:col.fg}, bold:true};
+      }
+      ws[cellRef].s = style;
+    });
+  });
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Informe Mensual');
+  XLSX.writeFile(wb, nombre+'.xlsx');
   setS('Informe descargado.','ok');
 }
 
