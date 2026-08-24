@@ -1542,6 +1542,21 @@ input.field-blocked, select.field-blocked {
       <span id="cond-badge-ficha" class="badge badge-gd" style="display:none;font-size:10px"></span>
     </div>
   </div>
+  <div id="cond-bitacora-wrap" style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:8px;cursor:pointer" onclick="_toggleBitacoraCondiciones()">
+      <span id="cond-bit-toggle-icon" style="font-size:11px;transition:transform .15s">▶</span>
+      <span style="font-size:12px;font-weight:600;color:var(--g600)">🧪 Bitácora Condiciones Ambientales</span>
+      <span id="cond-bit-count" style="font-size:11px;color:var(--g400)"></span>
+    </div>
+    <div id="cond-bitacora-body" style="display:none;margin-top:8px;border:1px solid var(--g200);border-radius:var(--rs);overflow:auto;max-height:260px">
+      <table class="tbl" style="width:100%">
+        <thead><tr>
+          <th>Fecha Envío</th><th>Cambio</th><th>Enviado a</th><th>Fecha Real del Cambio</th><th>Confirmado por</th><th></th>
+        </tr></thead>
+        <tbody id="cond-bitacora-tbody"><tr><td colspan="6" style="text-align:center;padding:10px;color:var(--g400)">Sin registros.</td></tr></tbody>
+      </table>
+    </div>
+  </div>
   <div class="tabs" id="tabs-4">
     <button class="tab active" onclick="showTab(4,0)">Virologico</button>
     <button class="tab" onclick="showTab(4,1)">Micologico</button>
@@ -6338,6 +6353,7 @@ async function cargarFilaMulti(rows) {
   setActiveRecord(res, yr, rows);
   clearDirty();
   if (typeof _actualizarBadgeCondicionesFicha === 'function') _actualizarBadgeCondicionesFicha(rows);
+  if (typeof cargarBitacoraCondiciones === 'function') cargarBitacoraCondiciones(sol);
   // Navigate to Etapa II if has resolution, otherwise Etapa I
   goStage(res ? 2 : 1);
 }
@@ -12353,6 +12369,10 @@ async function _confirmarEnvioCondiciones() {
         const rowsActuales = gsData.filter(r => String(r['Solicitud']||'').trim() === nsolActual);
         _actualizarBadgeCondicionesFicha(rowsActuales);
       }
+      await _registrarBitacoraCambiosCond(items, to);
+      if (nsolActual && items.some(it => it.solicitud === nsolActual) && typeof cargarBitacoraCondiciones === 'function') {
+        cargarBitacoraCondiciones(nsolActual);
+      }
       if (statusEl) statusEl.innerHTML = '<span style="color:var(--ok,#1a7a3c)">Correo enviado.</span>';
       setS(`Solicitud de cambio de condiciones enviada (${items.length} cuarentena(s)).`, 'ok');
       setTimeout(cerrarModal, 900);
@@ -12714,6 +12734,152 @@ function isActive(row) {
 function getAnalysisLabel(row) {
   const tipo = String(row['Análisis'] || row['Analisis'] || '').toUpperCase().trim();
   return AN_TYPE_LABEL[tipo] || tipo || '—';
+}
+
+// ── Bitácora de Cambios de Condiciones Ambientales — pestaña dedicada,
+// registra CADA solicitud de cambio enviada (no solo la última, a diferencia
+// de la columna 'Cond Ambiental Solicitada' que se sobrescribe). Cada fila
+// guarda la fecha de ENVÍO de la solicitud (automática) y permite editar
+// después la fecha REAL en que se confirmó el cambio (cuando llega el correo
+// de confirmación del encargado) — son dos datos distintos a propósito.
+// ══════════════════════════════════════════════════════════════════════════
+const SHEET_CAMBIOS_COND = 'CambiosCondicionAmbiental';
+const CAMBIOS_COND_HEADERS = ['ID','Solicitud','Res.','Cubículo','Condición Anterior','Condición Nueva','Fecha Envío','Enviado A','Fecha Real Cambio','Confirmado Por','Fecha Hora Registro','Usuario'];
+let _cambiosCondTabAsegurada = false;
+
+async function _asegurarTabCambiosCond() {
+  if (_cambiosCondTabAsegurada) return;
+  try {
+    const meta = await fetch(`${BASE_URL}/${GS.sheetId}?fields=sheets.properties&key=${GS.apiKey}`);
+    const metaJson = await meta.json();
+    const existe = (metaJson.sheets||[]).some(s=>s.properties?.title===SHEET_CAMBIOS_COND);
+    if (!existe) {
+      await fetch(`${BASE_URL}/${GS.sheetId}:batchUpdate`,
+        {method:'POST',
+         headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+         body:JSON.stringify({requests:[{addSheet:{properties:{title:SHEET_CAMBIOS_COND}}}]})});
+      await fetch(
+        `${BASE_URL}/${GS.sheetId}/values/${SHEET_CAMBIOS_COND}!A1?valueInputOption=USER_ENTERED`,
+        {method:'PUT',
+         headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+         body:JSON.stringify({values:[CAMBIOS_COND_HEADERS]})});
+    }
+    _cambiosCondTabAsegurada = true;
+  } catch(e) { console.error('No se pudo asegurar la pestaña CambiosCondicionAmbiental:', e); }
+}
+
+// Se llama tras un envío exitoso de solicitud de cambio (uno o varios items):
+// agrega una fila por cuarentena, con Fecha Real Cambio vacía (se completa
+// después manualmente).
+async function _registrarBitacoraCambiosCond(items, correoTo) {
+  try {
+    await ensureToken();
+    await _asegurarTabCambiosCond();
+    const hoy = (typeof _nowStrSAG === 'function' ? _nowStrSAG() : new Date().toLocaleDateString('es-CL'));
+    const usuario = (_currentUserEmail || (typeof _obtenerUsuarioActual==='function' ? await _obtenerUsuarioActual() : '')) || '';
+    const filas = items.map(it => {
+      const disp = it.resolucion ? ('Res. ' + it.resolucion + (it.anioRes?('/'+it.anioRes):'')) : ('Sol. ' + it.solicitud);
+      const id = 'cc_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+      return [id, it.solicitud||'', it.resolucion||'', it.cubiculo||'', it.condicionActual||'', it.condicionRequerida||'',
+        hoy, correoTo||'', '', '', hoy, usuario];
+    });
+    await fetch(`${BASE_URL}/${GS.sheetId}/values/${SHEET_CAMBIOS_COND}!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+      {method:'POST',
+       headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+       body:JSON.stringify({values:filas})});
+  } catch(e) { console.error('No se pudo registrar en CambiosCondicionAmbiental:', e); }
+}
+
+let _cambiosCondActuales = []; // [{rowIndex1based, ...datos}] del Solicitud cargado
+
+function _toggleBitacoraCondiciones() {
+  const body = $('cond-bitacora-body');
+  const icon = $('cond-bit-toggle-icon');
+  if (!body) return;
+  const abrir = body.style.display === 'none';
+  body.style.display = abrir ? '' : 'none';
+  if (icon) icon.style.transform = abrir ? 'rotate(90deg)' : 'rotate(0deg)';
+}
+
+// Carga y muestra las filas de CambiosCondicionAmbiental para la Solicitud
+// dada (registro cargado en el formulario).
+async function cargarBitacoraCondiciones(nSolicitud) {
+  const tbody = $('cond-bitacora-tbody');
+  const countEl = $('cond-bit-count');
+  if (!tbody) return;
+  const sol = String(nSolicitud||'').trim();
+  if (!sol) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:10px;color:var(--g400)">Sin registro cargado.</td></tr>'; if(countEl) countEl.textContent=''; return; }
+  try {
+    await ensureToken();
+    await _asegurarTabCambiosCond();
+    const r = await fetch(`${BASE_URL}/${GS.sheetId}/values/${SHEET_CAMBIOS_COND}?key=${GS.apiKey}`,
+      {headers:{Authorization:`Bearer ${accessToken}`}});
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error?.message || ('HTTP '+r.status));
+    const vals = d.values||[];
+    if (vals.length < 2) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:10px;color:var(--g400)">Sin registros.</td></tr>'; if(countEl) countEl.textContent=''; return; }
+    const hdr = vals[0];
+    const iSol = hdr.indexOf('Solicitud');
+    _cambiosCondActuales = [];
+    vals.slice(1).forEach((row, idx) => {
+      if (String(row[iSol]||'').trim() !== sol) return;
+      const o = {}; hdr.forEach((h,i)=>o[h]=row[i]||'');
+      o._rowIndex1 = idx + 2; // fila real en el Sheet (1-based, +1 por encabezado)
+      _cambiosCondActuales.push(o);
+    });
+    if (countEl) countEl.textContent = _cambiosCondActuales.length ? `(${_cambiosCondActuales.length})` : '';
+    if (!_cambiosCondActuales.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:10px;color:var(--g400)">Sin registros para esta solicitud.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = _cambiosCondActuales.map((o,i) => `<tr>
+      <td style="white-space:nowrap">${o['Fecha Envío']||''}</td>
+      <td>${o['Condición Anterior']||'—'} → <b>${o['Condición Nueva']||''}</b></td>
+      <td style="font-size:10px">${o['Enviado A']||''}</td>
+      <td><input type="date" id="cond-bit-freal-${i}" value="${_isoFromFechaHora(o['Fecha Real Cambio'])}" style="font-size:11px;padding:2px 4px"></td>
+      <td><input type="text" id="cond-bit-conf-${i}" value="${o['Confirmado Por']||''}" placeholder="nombre" style="font-size:11px;padding:2px 4px;width:90px"></td>
+      <td><button class="btn btn-gh btn-sm" onclick="_guardarFechaRealCondicion(${i})" title="Guardar">💾</button></td>
+    </tr>`).join('');
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:10px;color:var(--g400)">Error: ${e.message}</td></tr>`;
+  }
+}
+
+// Convierte 'DD-MM-YYYY' o 'DD-MM-YYYY HH:MM' (formato del sistema) a
+// 'YYYY-MM-DD' para precargar un <input type="date">.
+function _isoFromFechaHora(s) {
+  const str = String(s||'').trim();
+  const m = str.match(/^(\d{2})-(\d{2})-(\d{4})/);
+  if (!m) return '';
+  return `${m[3]}-${m[2]}-${m[1]}`;
+}
+
+async function _guardarFechaRealCondicion(i) {
+  const o = _cambiosCondActuales[i];
+  if (!o) return;
+  const fechaInput = $('cond-bit-freal-' + i);
+  const confInput = $('cond-bit-conf-' + i);
+  const fechaISO = fechaInput ? fechaInput.value : '';
+  const confirmadoPor = confInput ? confInput.value.trim() : '';
+  const fechaDisplay = fechaISO ? fmtDisplay(fechaISO) : '';
+  try {
+    await ensureToken();
+    const hdr = CAMBIOS_COND_HEADERS;
+    const colFecha = hdr.indexOf('Fecha Real Cambio') + 1;
+    const colConf  = hdr.indexOf('Confirmado Por') + 1;
+    const colLetterFecha = String.fromCharCode(64 + colFecha);
+    const colLetterConf  = String.fromCharCode(64 + colConf);
+    await fetch(`${BASE_URL}/${GS.sheetId}/values:batchUpdate`,
+      {method:'POST',
+       headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+       body:JSON.stringify({valueInputOption:'USER_ENTERED', data:[
+         {range:`${SHEET_CAMBIOS_COND}!${colLetterFecha}${o._rowIndex1}`, values:[[fechaDisplay]]},
+         {range:`${SHEET_CAMBIOS_COND}!${colLetterConf}${o._rowIndex1}`, values:[[confirmadoPor]]}
+       ]})});
+    setS('Fecha real del cambio guardada.', 'ok');
+  } catch(e) {
+    setS('No se pudo guardar: ' + e.message, 'err');
+  }
 }
 
 // ── Bitácora de Manejo — pestaña Bitacora en el Sheet, append-only ──────────
