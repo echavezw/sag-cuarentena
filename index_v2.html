@@ -10952,9 +10952,21 @@ function _estadoCuarentena(r) {
   // (bug detectado en la 3814/2026). La señal correcta es el campo 'Estado'
   // de Etapa III, que es donde SAG registra si el material efectivamente
   // llegó y se estableció (Injertada/Plantada/Recibida).
+  // IMPORTANTE: 'Fecha Recepcion' registra cuándo SAG recibió la SOLICITUD
+  // (trámite electrónico del portal de importadores), NO cuándo llegó el
+  // material vegetal físicamente — usarla como señal de recepción física
+  // producía falsos "Vigente" en resoluciones vencidas sin material recibido
+  // (bug detectado en la 3814/2026). La señal correcta es 'Fecha de Ingreso'
+  // (fecha real en que el material llega desde el aeropuerto a ECA), el mismo
+  // campo que usa el resto del sistema como fuente de verdad de "recibida"
+  // (ver items.push 'Recepción' en la ficha resumen). Se respalda con el
+  // flag 'Recibida' y, en su defecto, el Estado de Etapa III / Fecha
+  // Injertación por si el dato quedó incompleto.
   const estadoRes = String(r['Estado Res.']||'').trim();
+  const fechaIngreso = String(r['Fecha de Ingreso']||'').trim();
   const fechaInjert = String(r['Fecha Injertación']||'').trim();
-  const recibido = ['Injertada','Plantada','Recibida'].includes(estado3) || !!fechaInjert;
+  const recibidaFlag = String(r['Recibida']||'').trim().toLowerCase()==='si';
+  const recibido = recibidaFlag || !!fechaIngreso || ['Injertada','Plantada','Recibida'].includes(estado3) || !!fechaInjert;
 
   const vigHasta = fmtD(r['Vigencia Final Hasta']||r['Vigencia Desde']||'');
   const hoyISO = new Date().toISOString().slice(0,10);
@@ -11045,12 +11057,11 @@ async function generarInformeMensual() {
       tipoEC:    '1',
       especie:   merged['Especie']||'',
       origen:    merged['Origen']||'',
-      // 'Fecha Recepcion' es la fecha en que SAG recibió la SOLICITUD (trámite
-      // del portal), no cuándo llegó el material físico — solo se muestra si
-      // el Estado de Etapa III confirma que el material efectivamente llegó
-      // (Injertada/Plantada/Recibida), para no mostrar una fecha de trámite
-      // como si fuera fecha de recepción física.
-      fechaRecep: (['Injertada','Plantada','Recibida'].includes(String(merged['Estado']||'').trim()) && merged['Fecha Recepcion']) ? fmtDisplay(merged['Fecha Recepcion']) : '',
+      // 'Fecha de Ingreso' = fecha real de llegada del material desde el
+      // aeropuerto a ECA (Etapa III) — es la fecha correcta para este campo
+      // del informe oficial, NO 'Fecha Recepcion' (que es la fecha en que
+      // SAG recibió la solicitud/trámite del portal, un concepto distinto).
+      fechaRecep: merged['Fecha de Ingreso'] ? fmtDisplay(merged['Fecha de Ingreso']) : '',
       fechaEstab: merged['Fecha Injertación'] ? fmtDisplay(merged['Fecha Injertación']) : '',
       cda:       merged['N° CDA']||'',
       resTermino: resTermTxt,
