@@ -13488,7 +13488,13 @@ function renderAlertsDarkSummary(venc, prox, pend) {
     const keyEsc = String(a.key).replace(/'/g, "\\'");
     const tagEsc = String(a.tag).replace(/'/g, "\\'");
     const dkEnc  = encodeURIComponent((a.key||'') + '||' + (a.tag||'') + '||' + (a.analysis||''));
+    const esCCAA = a.tag === 'CCAA';
+    const keyAttr = String(a.key).replace(/"/g,'&quot;');
+    const ccaaChk = esCCAA
+      ? `<input type="checkbox" class="al-ccaa-chk" data-key="${keyAttr}" onclick="event.stopPropagation();actualizarBotonEnvioCondiciones()" title="Seleccionar para enviar cambio de condiciones ambientales" style="width:15px;height:15px;flex-shrink:0;accent-color:#B8975A">`
+      : '';
     return `<div style="position:relative;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.03);border-left:3px solid ${sevBorder[a.severity]};border-radius:0 8px 8px 0;padding:10px 14px;padding-right:36px;cursor:pointer" onclick="goStageFromAlert('${keyEsc}','${tagEsc}')">
+      ${ccaaChk}
       <span style="font-size:16px">${icon}</span>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:500;color:#E8ECF2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.action}${daysTxt ? ' — ' + daysTxt : ''}</div>
@@ -13505,6 +13511,8 @@ function renderAlertsDarkSummary(venc, prox, pend) {
         onmouseout="this.style.color='rgba(232,236,242,0.4)';this.style.background='none'">✕</button>
     </div>`;
   }).join('') : `<div style="text-align:center;padding:20px;color:#E8ECF2;opacity:0.5;font-size:12px">Sin alertas activas ✓</div>`;
+
+  const hayCCAA = top.some(a => a.tag === 'CCAA');
 
   el.innerHTML = `
   <div style="font-family:'Inter',sans-serif;background:#0A1628;border-radius:16px;padding:24px;color:#E8ECF2">
@@ -13532,7 +13540,80 @@ function renderAlertsDarkSummary(venc, prox, pend) {
     </div>
     <div style="display:flex;flex-direction:column;gap:8px;max-height:480px;overflow-y:auto;padding-right:4px;scrollbar-width:thin;scrollbar-color:#B8975A #0A1628">${itemsHtml}</div>
     ${top.length > 0 ? `<div style="margin-top:8px;text-align:right;font-size:11px;color:#E8ECF2;opacity:0.45">${top.length} alerta(s) — usa ✕ para descartar</div>` : ''}
+    ${hayCCAA ? `<div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(184,151,90,0.25);display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:#E8ECF2;opacity:0.85;cursor:pointer">
+        <input type="checkbox" onclick="document.querySelectorAll('.al-ccaa-chk').forEach(cb=>cb.checked=this.checked);actualizarBotonEnvioCondiciones()" style="width:14px;height:14px;accent-color:#B8975A">
+        Seleccionar todas las 🧪 CCAA
+      </label>
+      <button id="btn-enviar-condiciones-alertas" disabled onclick="abrirModalCondicionesDesdeAlertas()"
+        style="background:#B8975A;color:#0A1628;border:none;padding:8px 16px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;opacity:.4"
+        >📧 Enviar cambio de condiciones</button>
+    </div>` : ''}
   </div>`;
+}
+
+// Habilita/actualiza el botón de envío según cuántas alertas CCAA estén
+// marcadas en el panel de Vigilancia Activa.
+function actualizarBotonEnvioCondiciones() {
+  const n = document.querySelectorAll('.al-ccaa-chk:checked').length;
+  const btn = document.getElementById('btn-enviar-condiciones-alertas');
+  if (!btn) return;
+  btn.disabled = n === 0;
+  btn.style.opacity = n === 0 ? '.4' : '1';
+  btn.textContent = n === 0 ? '📧 Enviar cambio de condiciones' : `📧 Enviar cambio de condiciones (${n})`;
+}
+
+// Construye _condItems SOLO a partir de las alertas CCAA marcadas en
+// Vigilancia Activa (en vez de escanear todo gsData como abrirModalCondiciones)
+// y abre el mismo modal/flujo ya existente — reutiliza _renderCondTabla,
+// enviarCambioCondiciones y el backend 'solicitarCambioCondiciones' sin
+// duplicar lógica.
+function abrirModalCondicionesDesdeAlertas() {
+  const keys = Array.from(document.querySelectorAll('.al-ccaa-chk:checked')).map(cb => cb.dataset.key);
+  if (!keys.length) { setS('Seleccione al menos una alerta CCAA.', 'warn'); return; }
+
+  const grupos = {};
+  keys.forEach(key => {
+    let rows;
+    if (key.startsWith('|sol:')) {
+      const sol = key.replace('|sol:', '');
+      rows = gsData.filter(r => String(r['Solicitud'] || '').trim() === sol);
+    } else {
+      const resNum = key.replace('Res.', '').split('/')[0].trim();
+      rows = gsData.filter(r => String(r['Res.'] || '').trim() === resNum);
+    }
+    rows.forEach((r, idx0) => {
+      const codigo = _condCodigoAnalisis(r);
+      const requerida = _condCondicionRequerida(codigo);
+      if (!requerida) return;
+      const nsol = String(r['Solicitud']||'').trim();
+      if (!nsol) return;
+      const idx = gsData.indexOf(r);
+      const guardada = _condActualGuardada(r);
+      const actualLabel = guardada ? guardada.label : '—';
+      const especie = String(r['Especie']||'').trim();
+      const gkey = nsol + '|' + requerida;
+      if (!grupos[gkey]) {
+        grupos[gkey] = {
+          filas: [], solicitud: nsol,
+          resolucion: String(r['Res.']||'').trim(),
+          anioRes: fmtD(r['Fecha Res.']||'').substring(0,4),
+          cubiculo: String(r['Cubículo']||r['Cubiculo']||'').trim(),
+          especies: [], condicionActual: actualLabel, condicionRequerida: requerida,
+          fija: !COND_AMBIENTAL_EDITABLES.includes(requerida), yaCumplida: true
+        };
+      }
+      const g = grupos[gkey];
+      g.filas.push(idx + 2);
+      if (especie && g.especies.indexOf(especie) === -1) g.especies.push(especie);
+      if (actualLabel !== requerida) g.yaCumplida = false;
+    });
+  });
+
+  _condItems = Object.values(grupos);
+  if (!_condItems.length) { setS('Las alertas seleccionadas no tienen análisis elegibles para cambio de condiciones.', 'warn'); return; }
+  _renderCondTabla();
+  $('modal-cond').classList.add('open');
 }
 
 function scrollToGroup(id) {
