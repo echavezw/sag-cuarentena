@@ -236,6 +236,15 @@ input.auto-filled{animation:auto-flash .6s ease-out}
 input,select,textarea{padding:9px 11px;border:1px solid var(--bd);border-radius:var(--rs);
   font-size:14px;font-family:var(--font);width:100%;color:var(--ink);background:var(--wh);
   outline:none;-webkit-appearance:none;transition:border .12s,box-shadow .12s}
+/* La regla genérica de arriba (padding grande + appearance:none) deja los
+   checkboxes sin indicador visual de marcado fuera de .tbl (que tiene su
+   propio estilo con checkmark). Se restaura apariencia nativa + accent-color
+   para que se vea claramente el tick al marcar. */
+input[type="checkbox"]{
+  width:15px;height:15px;padding:0;border-radius:3px;
+  -webkit-appearance:checkbox;appearance:auto;
+  accent-color:var(--gd,#B8975A);cursor:pointer;flex-shrink:0;
+}
 input:focus,select:focus,textarea:focus{border-color:var(--nv);box-shadow:0 0 0 3px rgba(0,108,184,.14);background:#fff}
 input[readonly]{background:var(--g50);border-color:var(--g100);color:var(--g600);cursor:default;font-family:var(--mono);font-size:12px}
 input[readonly]:focus{box-shadow:none;border-color:var(--g100)}
