@@ -10922,11 +10922,13 @@ function initInformeMensual() {
 function _estadoCuarentena(r) {
   const resDestr = String(r['Res. Destrucción/Eliminación']||'').trim();
   const statusRaw = String(r['Status']||'').trim();
+  const estado3 = String(r['Estado']||'').trim(); // Etapa III: Injertada/Plantada/Recibida/No Recibida/No Recibida-Destruida en Punto de Ingreso
   // Se reconoce tanto por la columna dedicada (N° Res. Destrucción/Eliminación,
-  // cargada desde Etapa III/VII) como por el Status literal — cubre registros
-  // marcados Destruida/Eliminada/Desistida antes de que existieran los campos
-  // de resolución dedicados, para que el informe no los pierda.
-  if(resDestr || ['Destruida','Eliminada','Desistida'].includes(statusRaw)) {
+  // cargada desde Etapa III/VII) como por el Status literal, y también si el
+  // material fue destruido directamente en el punto de ingreso (Etapa III) —
+  // cubre registros marcados antes de que existieran los campos de resolución
+  // dedicados, para que el informe no los pierda.
+  if(resDestr || ['Destruida','Eliminada','Desistida'].includes(statusRaw) || estado3==='No Recibida/Destruida en Punto de Ingreso') {
     if(statusRaw==='Desistida') return 'Desistida';
     if(statusRaw==='Eliminada') return 'Eliminada';
     return 'Destruida';
@@ -10939,15 +10941,20 @@ function _estadoCuarentena(r) {
   // Firma / Enviada a Firma Res. Ingreso / Vencida / Vigente / vacío) — NO es
   // directamente uno de los 7 estados del informe oficial. Para el informe,
   // lo único que importa es: ¿venció el plazo sin que entrara el material?, y
-  // si no, ¿ya entró y se estableció el material (Fecha Recepción / Fecha
-  // Injertación) o sigue sin ingresar? "Sin Firma"/"Enviada a Firma" NO
-  // implican que la cuarentena no esté vigente — solo describen el trámite
-  // documental de la resolución, que puede seguir en curso mientras la
-  // cuarentena biológica ya está activa (material recibido e injertado).
+  // si no, ¿ya entró y se estableció el material o sigue sin ingresar?
+  // "Sin Firma"/"Enviada a Firma" NO implican que la cuarentena no esté
+  // vigente — solo describen el trámite documental de la resolución.
+  //
+  // IMPORTANTE: 'Fecha Recepcion' registra cuándo SAG recibió la SOLICITUD
+  // (trámite electrónico del portal de importadores), NO cuándo llegó el
+  // material vegetal físicamente — usarla como señal de recepción física
+  // producía falsos "Vigente" en resoluciones vencidas sin material recibido
+  // (bug detectado en la 3814/2026). La señal correcta es el campo 'Estado'
+  // de Etapa III, que es donde SAG registra si el material efectivamente
+  // llegó y se estableció (Injertada/Plantada/Recibida).
   const estadoRes = String(r['Estado Res.']||'').trim();
-  const fechaRecep = String(r['Fecha Recepcion']||'').trim();
   const fechaInjert = String(r['Fecha Injertación']||'').trim();
-  const recibido = !!(fechaRecep || fechaInjert);
+  const recibido = ['Injertada','Plantada','Recibida'].includes(estado3) || !!fechaInjert;
 
   const vigHasta = fmtD(r['Vigencia Final Hasta']||r['Vigencia Desde']||'');
   const hoyISO = new Date().toISOString().slice(0,10);
@@ -11038,7 +11045,12 @@ async function generarInformeMensual() {
       tipoEC:    '1',
       especie:   merged['Especie']||'',
       origen:    merged['Origen']||'',
-      fechaRecep: merged['Fecha Recepcion'] ? fmtDisplay(merged['Fecha Recepcion']) : '',
+      // 'Fecha Recepcion' es la fecha en que SAG recibió la SOLICITUD (trámite
+      // del portal), no cuándo llegó el material físico — solo se muestra si
+      // el Estado de Etapa III confirma que el material efectivamente llegó
+      // (Injertada/Plantada/Recibida), para no mostrar una fecha de trámite
+      // como si fuera fecha de recepción física.
+      fechaRecep: (['Injertada','Plantada','Recibida'].includes(String(merged['Estado']||'').trim()) && merged['Fecha Recepcion']) ? fmtDisplay(merged['Fecha Recepcion']) : '',
       fechaEstab: merged['Fecha Injertación'] ? fmtDisplay(merged['Fecha Injertación']) : '',
       cda:       merged['N° CDA']||'',
       resTermino: resTermTxt,
