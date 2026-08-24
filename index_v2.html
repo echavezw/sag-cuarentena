@@ -1932,6 +1932,7 @@ input.field-blocked, select.field-blocked {
       <div class="ff c1"><label class="lbl">Año</label><input type="number" id="inf-anio" style="font-family:var(--mono)"></div>
       <button class="btn btn-nv btn-sm" onclick="generarInformeMensual()">Generar</button>
       <button class="btn btn-gh btn-sm" onclick="descargarExcelInformeMensual()">⬇ Excel</button>
+      <button class="btn btn-gh btn-sm" onclick="descargarPdfInformePrevia()">⬇ PDF</button>
       <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--g600);margin-left:8px">
         <input type="checkbox" id="inf-incluir-cerradas" style="width:14px;height:14px">
         Incluir cerradas de meses anteriores (auditoría)
@@ -11175,6 +11176,21 @@ function descargarExcelInformeMensual() {
   setS('Informe descargado.','ok');
 }
 
+// Descarga/imprime en PDF el informe recién generado (aún no guardado): abre
+// el HTML en una ventana nueva y dispara el diálogo de impresión, donde el
+// usuario elige "Guardar como PDF". Mismo mecanismo que el PDF de informes
+// ya guardados, sin depender de que se haya guardado antes.
+function descargarPdfInformePrevia() {
+  if(!_infRows.length){ setS('Genere el informe primero.','warn'); return; }
+  const mes = parseInt($('inf-mes').value,10), anio = parseInt($('inf-anio').value,10);
+  const html = _construirHTMLInformeMensual(mes, anio, _infRows);
+  const w = window.open('', '_blank');
+  if(!w) { setS('El navegador bloqueó la ventana emergente. Habilite pop-ups para este sitio.','warn'); return; }
+  w.document.write(html);
+  w.document.close();
+  setTimeout(()=>{ try{ w.print(); }catch(e){} }, 400);
+}
+
 // Construye el HTML del informe (mismo estilo navy/gold del sistema) — se usa
 // tanto para la vista previa antes de enviar como para convertir a PDF en
 // Code.gs (reutiliza htmlBase64ToPdfBlob_, igual que el timbre de recepción).
@@ -11248,10 +11264,67 @@ async function cargarInformesGuardados() {
       <td>${g['Fecha Generación']}</td>
       <td>${g['Cant. Registros']}</td>
       <td>${/^s[ií]$/i.test(g['Enviado']||'')?'Sí — '+(g['Fecha Envío']||''):'No'}</td>
-      <td><button class="btn btn-gh btn-sm" onclick="verInformeGuardado(${i})">Ver</button></td>
+      <td><button class="btn btn-gh btn-sm" onclick="verInformeGuardado(${i})">Ver</button> <button class="btn btn-gh btn-sm" onclick="descargarPdfInformeGuardado(${i})" title="Descargar/Imprimir PDF">PDF</button> <button class="btn btn-err btn-sm" onclick="eliminarInformeGuardado(${i})" title="Eliminar este informe">🗑</button></td>
     </tr>`).join('');
   } catch(e) {
     tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:14px;color:var(--g400)">Error al cargar: ${e.message}</td></tr>`;
+  }
+}
+
+// Descarga/imprime en PDF un informe ya guardado: abre el HTML ya construido
+// en una ventana nueva y dispara el diálogo de impresión del navegador (el
+// usuario elige "Guardar como PDF"). No requiere librerías adicionales.
+function descargarPdfInformeGuardado(i) {
+  const g = _infGuardados[i]; if(!g) return;
+  let rows = [];
+  try { rows = JSON.parse(g['Datos JSON']||'[]'); } catch(e) {}
+  const mes = parseInt(g['Mes'],10), anio = parseInt(g['Año'],10);
+  const html = _construirHTMLInformeMensual(mes, anio, rows);
+  const w = window.open('', '_blank');
+  if(!w) { setS('El navegador bloqueó la ventana emergente. Habilite pop-ups para este sitio.','warn'); return; }
+  w.document.write(html);
+  w.document.close();
+  setTimeout(()=>{ try{ w.print(); }catch(e){} }, 400);
+}
+
+// Elimina definitivamente un informe guardado — localiza la fila real en
+// InformesMensuales (por Fecha Generación + Nombre Informe, combinación
+// única) y la borra con deleteDimension, mismo patrón que eliminarRegistrosCompletos.
+async function eliminarInformeGuardado(i) {
+  const g = _infGuardados[i]; if(!g) return;
+  if(!confirm('¿Eliminar definitivamente el informe "'+(g['Nombre Informe']||'')+'"? Esta acción no se puede deshacer.')) return;
+  try {
+    await ensureToken();
+    const r = await fetch(`${BASE_URL}/${GS.sheetId}/values/${SHEET_INFORMES}?key=${GS.apiKey}`,
+      {headers:{Authorization:`Bearer ${accessToken}`}});
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.error?.message || ('HTTP '+r.status));
+    const vals = d.values||[];
+    const hdr = vals[0]||[];
+    const iFecha = hdr.indexOf('Fecha Generación'), iNombre = hdr.indexOf('Nombre Informe');
+    let rowIdx = null; // índice 0-based dentro de vals
+    for(let idx=1; idx<vals.length; idx++){
+      if(vals[idx][iFecha]===g['Fecha Generación'] && vals[idx][iNombre]===g['Nombre Informe']){ rowIdx = idx; break; }
+    }
+    if(rowIdx===null) throw new Error('No se encontró la fila en la hoja (puede que ya se haya eliminado).');
+
+    const sheetMeta = await fetch(`${BASE_URL}/${GS.sheetId}?fields=sheets.properties&key=${GS.apiKey}`);
+    const sheetMetaJson = await sheetMeta.json();
+    if(!sheetMeta.ok) throw new Error(sheetMetaJson.error?.message || ('HTTP '+sheetMeta.status));
+    const tab = (sheetMetaJson.sheets||[]).find(s=>s.properties?.title===SHEET_INFORMES);
+    const gridId = tab?.properties?.sheetId ?? null;
+    if(gridId===null) throw new Error('No se encontró la pestaña InformesMensuales.');
+
+    const rDel = await fetch(`${BASE_URL}/${GS.sheetId}:batchUpdate`,
+      {method:'POST',
+       headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+       body:JSON.stringify({requests:[{deleteDimension:{range:{sheetId:gridId, dimension:'ROWS', startIndex:rowIdx, endIndex:rowIdx+1}}}]})});
+    if(!rDel.ok) { const j=await rDel.json().catch(()=>({})); throw new Error(j.error?.message || rDel.status); }
+
+    setS('Informe eliminado.','ok');
+    cargarInformesGuardados();
+  } catch(e) {
+    setS('Error al eliminar: '+e.message,'err');
   }
 }
 
