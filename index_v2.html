@@ -1915,7 +1915,7 @@ input.field-blocked, select.field-blocked {
   <!-- Tab: Informe Mensual -->
   <div id="panel-content-3" class="tab-panel">
   <div class="tab-body" style="border-radius:0 0 var(--r) var(--r);padding:18px">
-    <div class="info-box" style="margin-bottom:14px">Informe Mensual Cuarentena Posentrada (F-IIT-IMP-PA-018) para nivel central SAG. Muestra cuarentenas vigentes/pendientes con resolución emitida hasta el fin del mes/año seleccionado, más las que se cerraron (Terminada/Caducada/Destruida/Desistida/Eliminada) durante este período. Una vez reportada como cerrada, deja de aparecer en informes siguientes.</div>
+    <div class="info-box" style="margin-bottom:14px">Informe Mensual Cuarentena Posentrada (F-IIT-IMP-PA-018) para nivel central SAG. Muestra cuarentenas con resolución emitida en los últimos 24 meses hasta el fin del mes/año seleccionado (vigentes/pendientes) más las que se cerraron (Terminada/Caducada/Destruida/Desistida/Eliminada) durante este período. Una vez reportada como cerrada, deja de aparecer en informes siguientes.</div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px">
       <div class="ff c1"><label class="lbl">Mes</label>
         <select id="inf-mes">
@@ -1925,7 +1925,6 @@ input.field-blocked, select.field-blocked {
           <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
         </select></div>
       <div class="ff c1"><label class="lbl">Año</label><input type="number" id="inf-anio" style="font-family:var(--mono)"></div>
-      <div class="ff c1"><label class="lbl">Año desde</label><input type="number" id="inf-anio-desde" value="2023" style="font-family:var(--mono);width:80px" title="Solo considera resoluciones emitidas desde este año en adelante"></div>
       <button class="btn btn-nv btn-sm" onclick="generarInformeMensual()">Generar</button>
       <button class="btn btn-gh btn-sm" onclick="descargarExcelInformeMensual()">⬇ Excel</button>
       <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--g600);margin-left:8px">
@@ -10886,14 +10885,9 @@ let _infGuardados = []; // filas leídas de InformesMensuales
 
 function initInformeMensual() {
   const hoy = new Date();
-  const selMes = $('inf-mes'), inpAnio = $('inf-anio'), inpDesde = $('inf-anio-desde');
+  const selMes = $('inf-mes'), inpAnio = $('inf-anio');
   if(selMes && !selMes.dataset.init) { selMes.value = String(hoy.getMonth()+1); selMes.dataset.init='1'; }
   if(inpAnio && !inpAnio.value) inpAnio.value = String(hoy.getFullYear());
-  if(inpDesde && !inpDesde.dataset.init) {
-    inpDesde.value = localStorage.getItem('eca_informe_anio_desde') || '2023';
-    inpDesde.dataset.init='1';
-    inpDesde.addEventListener('change', ()=>{ try{ localStorage.setItem('eca_informe_anio_desde', inpDesde.value||'2023'); }catch(e){} });
-  }
   cargarInformesGuardados();
 }
 
@@ -10948,7 +10942,10 @@ async function generarInformeMensual() {
   const anio = parseInt($('inf-anio').value,10);
   if(!mes || !anio) { setS('Seleccione mes y año.','warn'); return; }
   const finMesISO = new Date(anio, mes, 0).toISOString().slice(0,10); // último día del mes
-  const anioDesde = parseInt(($('inf-anio-desde')?.value||'2023'),10) || 2023;
+  // Ventana de 24 meses: si se pide agosto 2026, solo se considera desde
+  // agosto 2024 en adelante. Evita arrastrar cuarentenas antiguas (2017,
+  // 2018...) que ya perdieron relevancia práctica para el seguimiento mensual.
+  const desdeISO = new Date(anio-2, mes-1, 1).toISOString().slice(0,10);
   const incluirCerradas = !!($('inf-incluir-cerradas') && $('inf-incluir-cerradas').checked);
 
   try { await cargarInformesGuardados(); } catch(e) { /* si falla, sigue con lo que haya en memoria */ }
@@ -10959,8 +10956,7 @@ async function generarInformeMensual() {
     if(!res) return false;
     const fres = fmtD(r['Fecha Res.']||'');
     if(!fres || fres > finMesISO) return false;
-    const anioFres = parseInt(fres.substring(0,4),10);
-    return !!anioFres && anioFres >= anioDesde;
+    return fres >= desdeISO;
   });
 
   const groups = {};
@@ -11019,7 +11015,7 @@ async function generarInformeMensual() {
       `<span style="display:inline-block;margin:0 8px 6px 0;padding:4px 10px;border-radius:12px;background:var(--g50,#f5f5f0);font-size:11px">${k}: <b>${cont[k]}</b></span>`
     ).join('');
     const diag = `<div style="font-size:10px;color:var(--g400);font-family:var(--mono);margin-top:2px">
-      ${_infGuardados.length} informe(s) previo(s) encontrado(s) en InformesMensuales · ${omitidos} resolución(es) excluida(s) por cierre ya reportado · universo desde ${anioDesde}
+      ${_infGuardados.length} informe(s) previo(s) encontrado(s) en InformesMensuales · ${omitidos} resolución(es) excluida(s) por cierre ya reportado · ventana: ${fmtDisplay(desdeISO)} a ${fmtDisplay(finMesISO)}
       </div>`;
     resumen.innerHTML = badges + diag;
   }
@@ -11086,17 +11082,20 @@ async function _asegurarTabInformes() {
   if(_informesTabAsegurada) return;
   const sheetMeta = await fetch(`${BASE_URL}/${GS.sheetId}?fields=sheets.properties&key=${GS.apiKey}`);
   const sheetMetaJson = await sheetMeta.json();
+  if(!sheetMeta.ok) throw new Error('No se pudo leer la estructura del Sheet: '+(sheetMetaJson.error?.message||sheetMeta.status));
   const tab = (sheetMetaJson.sheets||[]).find(s=>s.properties?.title===SHEET_INFORMES);
   if(!tab) {
-    await fetch(`${BASE_URL}/${GS.sheetId}:batchUpdate`,
+    const rAdd = await fetch(`${BASE_URL}/${GS.sheetId}:batchUpdate`,
       {method:'POST',
        headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
        body:JSON.stringify({requests:[{addSheet:{properties:{title:SHEET_INFORMES}}}]})});
-    await fetch(
+    if(!rAdd.ok) { const j=await rAdd.json().catch(()=>({})); throw new Error('No se pudo crear la pestaña InformesMensuales: '+(j.error?.message||rAdd.status)); }
+    const rHdr = await fetch(
       `${BASE_URL}/${GS.sheetId}/values/${SHEET_INFORMES}!A1?valueInputOption=USER_ENTERED`,
       {method:'PUT',
        headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
        body:JSON.stringify({values:[INFORMES_HEADERS]})});
+    if(!rHdr.ok) { const j=await rHdr.json().catch(()=>({})); throw new Error('No se pudo escribir el encabezado de InformesMensuales: '+(j.error?.message||rHdr.status)); }
   }
   _informesTabAsegurada = true;
 }
@@ -11110,6 +11109,7 @@ async function cargarInformesGuardados() {
     const r = await fetch(`${BASE_URL}/${GS.sheetId}/values/${SHEET_INFORMES}?key=${GS.apiKey}`,
       {headers:{Authorization:`Bearer ${accessToken}`}});
     const d = await r.json();
+    if(!r.ok) throw new Error(d.error?.message || ('HTTP '+r.status));
     const vals = d.values||[];
     if(vals.length<2) { tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:14px;color:var(--g400)">Sin informes guardados.</td></tr>`; _infGuardados=[]; return; }
     const hdr = vals[0];
@@ -11195,16 +11195,19 @@ async function _guardarInformeMensualEnSheet(mes, anio, rows, enviado, destinata
   await ensureToken();
   await _asegurarTabInformes();
   const nombreInforme = `Informe Mensual de Cuarentenas (ECA) ${MESES_NOMBRES[mes]} ${anio}`;
+  const rowsLimpias = rows.map(r=>{ const o={}; Object.keys(r).forEach(k=>{ if(!k.startsWith('_')) o[k]=r[k]; }); return o; });
   const fila = [
     String(mes), String(anio), nombreInforme, _nowStrSAG(),
     (_currentUserEmail || (typeof _obtenerUsuarioActual==='function' ? await _obtenerUsuarioActual() : '')),
-    String(rows.length), JSON.stringify(rows),
+    String(rows.length), JSON.stringify(rowsLimpias),
     enviado ? 'SI' : 'NO', enviado ? _nowStrSAG() : '', destinatario || ''
   ];
-  await fetch(`${BASE_URL}/${GS.sheetId}/values/${SHEET_INFORMES}!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+  const rApp = await fetch(`${BASE_URL}/${GS.sheetId}/values/${SHEET_INFORMES}!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
     {method:'POST',
      headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
      body:JSON.stringify({values:[fila]})});
+  if(!rApp.ok) { const j=await rApp.json().catch(()=>({})); throw new Error('No se pudo guardar el informe en la hoja: '+(j.error?.message||rApp.status)); }
+  _informesTabAsegurada = true; // ya confirmado que la pestaña existe y acepta escritura
 }
 
 async function guardarInformeMensual() {
