@@ -2553,7 +2553,7 @@ const DATE_COLS_TO_CHECK = [
   'Fecha Real de CCAA','Fecha muestreo/Indexaje','Fecha de envío',
   'Fecha Informe Fitosanitario','Fecha Res.4','Entregada',
   'Fecha Ing. Solicitada','Fecha Ing. Asignada','Vigencia Desde',
-  'Fecha Recepcion','Fec. Mod.','Vigencia Final Desde','Vigencia Final Hasta'
+  'Fecha Recepcion','Fec. Mod.','Vigencia Final Desde','Vigencia Final Hasta','Prórroga'
 ];
 
 function _isCorruptDateString(s) {
@@ -6179,6 +6179,7 @@ async function cargarFilaMulti(rows) {
   sv('f2-vfin-hasta', fmtD(r['Vigencia Final Hasta']||''));
   sv('f2-res-mod', r['Res. Modificacion']||'');
   sv('f2-fres-mod', fmtD(r['Fec. Mod.']||''));
+  sv('f2-prorroga', fmtD(r['Prórroga']||''));
   calcVigencia();
   autoProceso();
   autoEstadoRes();
@@ -10564,6 +10565,7 @@ function buildRows(nsol,imp) {
     'Pto Ingreso':     v('f1-pto')||_lastLoadedRow['Pto Ingreso']||'',
     'Res. Modificacion': v('f2-res-mod')||_lastLoadedRow['Res. Modificacion']||'',
     'Fec. Mod.':       fmtDisplay(v('f2-fres-mod')),
+    'Prórroga':        fmtDisplay(v('f2-prorroga'))||_lastLoadedRow['Prórroga']||'',
     'N° Plantas Finales': (()=>{
       // Prefer live DOM sum; fallback to _loadedEspData sum; then f6-total-fin
       // Excluye filas marcadas como "no entregar" (checkbox pf-inc-{i} desmarcado)
@@ -10691,7 +10693,8 @@ const CANONICAL_HEADERS = [
   'Link Timbre Recepcion','Fecha Aviso SPS','Fecha Aviso SPS Estadía',
   'Fecha Reserva','Fecha Hora Envío','Fecha Hora Cancelación','Obs. Entrega Parcial',
   'Fecha Último Evento SAG','Tipo Último Evento SAG',
-  'Res. Destrucción/Eliminación','Fecha Res. Destrucción/Eliminación'
+  'Res. Destrucción/Eliminación','Fecha Res. Destrucción/Eliminación',
+  'Prórroga'
 ];
 
 // ══════════════════════════════════════════════
@@ -10988,12 +10991,18 @@ function _estadoCuarentena(r) {
 function _plazoVigenciaISO(r) {
   const vigDesde = fmtD(r['Vigencia Desde']||'');
   const vfHasta  = fmtD(r['Vigencia Final Hasta']||'');
+  const prorroga = fmtD(r['Prórroga']||'');
+  // La Res. Modificación suele SER la prórroga (se emite justamente para
+  // extender el plazo), así que su fecha también entra como candidata.
+  const fecMod   = fmtD(r['Fec. Mod.']||'');
   const candidatos = [];
   if(vigDesde) {
     const d = new Date(vigDesde+'T00:00:00');
     if(!isNaN(d)) { d.setDate(d.getDate()+30); candidatos.push(d.toISOString().slice(0,10)); }
   }
   if(vfHasta) candidatos.push(vfHasta);
+  if(prorroga) candidatos.push(prorroga);
+  if(fecMod) candidatos.push(fecMod);
   if(!candidatos.length) return '';
   return candidatos.sort().pop(); // la más tardía manda, igual que autoEstadoRes()
 }
