@@ -10902,14 +10902,28 @@ function _estadoCuarentena(r) {
   const terminada = String(r['Terminada']||'').trim();
   const liberada = String(r['Liberada']||'').trim();
   if(/^s[ií]$/i.test(terminada) || /^s[ií]$/i.test(liberada)) return 'Terminada';
-  const vigHasta = fmtD(r['Vigencia Final Hasta']||r['Vigencia Desde']||'');
-  const fechaRecep = String(r['Fecha Recepcion']||'').trim();
-  const hoyISO = new Date().toISOString().slice(0,10);
-  if(vigHasta && vigHasta < hoyISO && !fechaRecep) return 'Caducada';
+
+  // 'Estado Res.' es un subestado administrativo interno de Etapa II (Sin
+  // Firma / Enviada a Firma Res. Ingreso / Vencida / Vigente / vacío) — NO es
+  // directamente uno de los 7 estados del informe oficial. Para el informe,
+  // lo único que importa es: ¿venció el plazo sin que entrara el material?, y
+  // si no, ¿ya entró y se estableció el material (Fecha Recepción / Fecha
+  // Injertación) o sigue sin ingresar? "Sin Firma"/"Enviada a Firma" NO
+  // implican que la cuarentena no esté vigente — solo describen el trámite
+  // documental de la resolución, que puede seguir en curso mientras la
+  // cuarentena biológica ya está activa (material recibido e injertado).
   const estadoRes = String(r['Estado Res.']||'').trim();
-  if(fechaRecep && /vigente/i.test(estadoRes)) return 'Vigente';
-  if(/vigente/i.test(estadoRes) && !fechaRecep) return 'Pendiente';
-  return estadoRes || 'Pendiente';
+  const fechaRecep = String(r['Fecha Recepcion']||'').trim();
+  const fechaInjert = String(r['Fecha Injertación']||'').trim();
+  const recibido = !!(fechaRecep || fechaInjert);
+
+  const vigHasta = fmtD(r['Vigencia Final Hasta']||r['Vigencia Desde']||'');
+  const hoyISO = new Date().toISOString().slice(0,10);
+  const vencidaPorFecha = !!(vigHasta && vigHasta < hoyISO);
+  const vencidaPorEstado = /^vencida$/i.test(estadoRes);
+  if((vencidaPorFecha || vencidaPorEstado) && !recibido) return 'Caducada';
+
+  return recibido ? 'Vigente' : 'Pendiente';
 }
 
 const TERMINAL_STATES = ['Terminada','Caducada','Destruida','Desistida','Eliminada'];
