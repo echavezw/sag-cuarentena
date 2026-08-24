@@ -1717,6 +1717,7 @@ input.field-blocked, select.field-blocked {
       <div class="ff c2"><label class="lbl">Status Final</label>
         <select id="f6-stat" onchange="updateStatusBadge();cacheField('f6-stat')" onchange="updateStatusBadge()">
           <option value="">—</option><option>A destruir</option><option>Destruida</option>
+          <option>Eliminada</option><option>Desistida</option>
           <option>Entregada</option><option>Liberada</option><option>No Recibida</option>
           <option>No Prosperó</option><option>Terminada</option>
         </select></div>
@@ -3417,7 +3418,7 @@ function calcStatusAuto(rows) {
 
   // 1. Estado manual final (Etapa VII) tiene prioridad absoluta si está seteado
   const statusManual = String(first['Status'] || '').trim();
-  const ESTADOS_FINALES = ['A destruir', 'Destruida', 'Entregada', 'Liberada', 'No Prosperó', 'Perdida', 'Terminada'];
+  const ESTADOS_FINALES = ['A destruir', 'Destruida', 'Eliminada', 'Desistida', 'Entregada', 'Liberada', 'No Prosperó', 'Perdida', 'Terminada'];
   if (ESTADOS_FINALES.includes(statusManual)) return statusManual;
 
   // 2. Sin Fecha de Ingreso → aún no llegó a la ECA
@@ -4162,10 +4163,16 @@ function clearFieldCache() { window._fieldCache={}; }
 // Si se ingresa Fecha Entrega, el registro quedó entregado: el desplegable
 // "Status Final" (Etapa VII) se marca automáticamente como "Entregada",
 // salvo que ya estuviera puesto así manualmente (no hace nada distinto).
+// EXCEPCIÓN: si el Status ya es Destruida/Eliminada/Desistida (registrado vía
+// el botón global de Destrucción/Eliminación), esa determinación es más
+// específica y no debe pisarse solo porque exista una Fecha Entrega antigua
+// de antes de la destrucción.
+const _ESTADOS_DESTRUCCION = ['Destruida','Eliminada','Desistida'];
 function autoStatusPorEntrega() {
   const fent = document.getElementById('f6-fent');
   const stat = document.getElementById('f6-stat');
   if (!fent || !stat) return;
+  if (_ESTADOS_DESTRUCCION.includes(stat.value)) return;
   if (fent.value && stat.value !== 'Entregada') {
     stat.value = 'Entregada';
     cacheField('f6-stat');
