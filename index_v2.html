@@ -7810,13 +7810,28 @@ function makeAnRow(key,i,r,tecnica) {
   // Compute esRaiz from stored flag OR from via field
   const normVia = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
   let viaStr = r.via||'';
-  // If no via stored, look it up in PLAGAS_LOOKUP by patogeno name
+  // If no via stored, look it up in PLAGAS_LOOKUP — SIEMPRE acotado a la especie de
+  // esta fila (y como respaldo, a su género "Genero spp."), nunca a toda la tabla.
+  // BUGFIX: antes buscaba el nombre del patógeno en TODAS las especies/zonas de
+  // PLAGAS_LOOKUP y se quedaba con la primera coincidencia — como varios patógenos
+  // (ej. "Tomato black ring virus", "Raspberry ringspot virus") se repiten en más
+  // de una especie con "via" distinta, esto podía traer la vía de una especie ajena
+  // (ej. Fragaria x ananassa, via "Plantas") y marcar el badge R en un registro de
+  // otra especie (ej. Prunus persica) donde esa plaga NO requiere material con raíz.
   if(!viaStr && r.patogeno && typeof PLAGAS_LOOKUP!=='undefined') {
-    outer: for(const zonas of Object.values(PLAGAS_LOOKUP)) {
+    const espKey = r.especie || '';
+    const buscarEn = (zonas) => {
+      if(!zonas) return '';
       for(const items of Object.values(zonas)) {
         const match = items.find(p=>p.plaga===r.patogeno);
-        if(match){ viaStr=match.via||''; break outer; }
+        if(match) return match.via||'';
       }
+      return '';
+    };
+    viaStr = buscarEn(PLAGAS_LOOKUP[espKey]);
+    if(!viaStr && espKey) {
+      const genero = espKey.split(' ')[0] + ' spp.';
+      viaStr = buscarEn(PLAGAS_LOOKUP[genero]);
     }
   }
   // R indicator: plaga is for root material only AND current material has no roots
