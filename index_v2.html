@@ -3835,13 +3835,14 @@ function _especiesConsolidadas(r) {
   function _agregarPar(esp, vRaw, tipoAn) {
     esp = String(esp||'').trim();
     if (!esp) return;
-    const esSpp = /\bspp\.?$/i.test(esp);
-    if (esSpp) {
-      const esEntomologico = tipoAn === 'entomológico' || tipoAn === 'entomologico';
-      if (esEntomologico) especiesSet.add(esp);
-    } else {
-      especiesSet.add(esp);
-    }
+    // BUGFIX: antes se descartaban las especies "Género spp." salvo que la fila
+    // fuera de análisis entomológico — pero "Género spp." también se usa como
+    // especie real declarada (Vitis spp., Citrus spp., Actinidia spp., etc.) en
+    // análisis virológico/bacteriológico/micológico/fitoplasma, y quedaba fuera
+    // del panel aunque estuviera en Material/Detalle. Se agrega siempre; la
+    // redundancia frente a especies reales del mismo género ya se resuelve más
+    // abajo (bloque "Si para un género ya hay especies reales conocidas...").
+    especiesSet.add(esp);
     vRaw = String(vRaw||'').trim();
     if (vRaw) {
       if (!variedadesPorEspecie[esp]) variedadesPorEspecie[esp] = new Set();
