@@ -1945,6 +1945,10 @@ let proveedoresArr = [], ciudadesArr = [], paisesArr = [], comunasArr = [];
 // Proveedores ya utilizados por el RUT en sesion (historial en Detalle).
 // Es la lista que ve el importador; puede escribir uno nuevo a mano.
 let proveedoresImportadorArr = [];
+// Portainjertos ya utilizados por el RUT en sesion (historial en Material).
+// Se anteponen a la lista global de Portainjertos para que aparezcan primero
+// en el datalist, sin ocultar el resto de la nomina.
+let portainjertosImportadorArr = [];
 
 function cargarListasAutocomplete(){
   fetch(ENDPOINT_URL, {
@@ -1955,7 +1959,15 @@ function cargarListasAutocomplete(){
   .then(function(data){
     if(!data.ok) return;
     poblarDatalist('listaEspecies', data.especies);
-    poblarDatalist('listaPortainjertos', data.portainjertos);
+    portainjertosImportadorArr = data.portainjertosImportador || [];
+    // El datalist muestra primero los portainjertos que el importador ya ha
+    // usado, seguidos del resto de la nomina completa (sin duplicar ni ocultar
+    // los que no ha usado antes).
+    var portGlobal = data.portainjertos || [];
+    var portMerged = portainjertosImportadorArr.concat(
+      portGlobal.filter(function(p){ return portainjertosImportadorArr.indexOf(p) === -1; })
+    );
+    poblarDatalist('listaPortainjertos', portMerged);
     proveedoresArr = data.proveedores || [];
     proveedoresImportadorArr = data.proveedoresImportador || [];
     ciudadesArr    = data.ciudades || [];
