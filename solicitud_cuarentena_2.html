@@ -1959,15 +1959,12 @@ function cargarListasAutocomplete(){
   .then(function(data){
     if(!data.ok) return;
     poblarDatalist('listaEspecies', data.especies);
+    // Restringido por importador: el datalist muestra SOLO el historial de
+    // portainjertos de ese RUT (pestaña PortainjertosImportador). Si el
+    // importador no tiene historial, el datalist queda vacio y debe escribirlo
+    // a mano (el campo sigue siendo texto libre, no un <select>).
     portainjertosImportadorArr = data.portainjertosImportador || [];
-    // El datalist muestra primero los portainjertos que el importador ya ha
-    // usado, seguidos del resto de la nomina completa (sin duplicar ni ocultar
-    // los que no ha usado antes).
-    var portGlobal = data.portainjertos || [];
-    var portMerged = portainjertosImportadorArr.concat(
-      portGlobal.filter(function(p){ return portainjertosImportadorArr.indexOf(p) === -1; })
-    );
-    poblarDatalist('listaPortainjertos', portMerged);
+    poblarDatalist('listaPortainjertos', portainjertosImportadorArr);
     proveedoresArr = data.proveedores || [];
     proveedoresImportadorArr = data.proveedoresImportador || [];
     ciudadesArr    = data.ciudades || [];
