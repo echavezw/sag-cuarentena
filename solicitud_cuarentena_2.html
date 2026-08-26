@@ -511,7 +511,7 @@
 
   <footer>
     Servicio Agrícola y Ganadero<br>
-    Departamento Red de Laboratorios SAG<br>
+    Departamento RED SAG de Laboratorios - ECA<br>
     Estación de Cuarentena Agrícola (ECA)
   </footer>
 </div><!-- /container -->
@@ -931,7 +931,7 @@ function buildPdfHtml(nombre,rut,correo,telefono,direccion,comunaImp,regionImp,
     '<tr><td class="lbl">N° Solicitud / Año</td><td class="val">'+e(folioDisplay||'')+'</td>'+
     '<td class="lbl">Fecha Recepción</td><td class="val">'+e(tsDisplay)+'</td></tr>'+
     '<tr><td class="lbl">Región</td><td class="val">Región Metropolitana</td>'+
-    '<td class="lbl">Oficina Sectorial</td><td class="val">Red de Laboratorios SAG-ECA</td></tr>'+
+    '<td class="lbl">Oficina Sectorial</td><td class="val">Departamento RED SAG de Laboratorios - ECA</td></tr>'+
     '<tr><td class="lbl">Fecha de emisión</td><td class="val">'+e(fechaHoy)+'</td>'+
     '<td class="lbl">Tipo de cuarentena</td><td class="val">Cuarentena Posentrada Absoluta (EC1)</td></tr>'+
     '</table>'+
@@ -985,16 +985,16 @@ function buildPdfHtml(nombre,rut,correo,telefono,direccion,comunaImp,regionImp,
     '<strong>Fecha y hora de recepción SAG-ECA:</strong> '+e(tsDisplay)+
     '<span style="margin-left:16px;color:#666">USO SAG — Conclusión: ☐ Cumple &nbsp;&nbsp; ☐ No Cumple</span>'+
     '</div></div></div>'+
-    '<div class="footer-form">F-IIT-IMP-PA-002 · Red de Laboratorios SAG-ECA · Región Metropolitana<br>'+
-    'Servicio Agrícola y Ganadero | Departamento RED de Laboratorios SAG | Estación de Cuarentena Agrícola (ECA)<br>'+
+    '<div class="footer-form">F-IIT-IMP-PA-002 · Departamento RED SAG de Laboratorios - ECA · Región Metropolitana<br>'+
+    'Servicio Agrícola y Ganadero | Estación de Cuarentena Agrícola (ECA)<br>'+
     'Documento presentado electrónicamente. La declaración del representante tiene valor de acuse formal.<br>'+
     'Desarrollado por EChW, 2026</div>'+
     '<div style="page-break-before:always"></div>'+
     hdrDoc('3 de 3')+
     secH('Anexo — Regulaciones para el Ingreso de Material Vegetal a Cuarentena Posentrada Absoluta')+
     '<div style="margin-top:8px;text-align:justify">'+anexo373BodyHtml()+'</div>'+
-    '<div class="footer-form">F-IIT-IMP-PA-002 · Red de Laboratorios SAG-ECA · Región Metropolitana<br>'+
-    'Servicio Agrícola y Ganadero | Departamento RED de Laboratorios SAG | Estación de Cuarentena Agrícola (ECA)<br>'+
+    '<div class="footer-form">F-IIT-IMP-PA-002 · Departamento RED SAG de Laboratorios - ECA · Región Metropolitana<br>'+
+    'Servicio Agrícola y Ganadero | Estación de Cuarentena Agrícola (ECA)<br>'+
     'Desarrollado por EChW, 2026</div>'+
     '</body></html>';
 }
@@ -1050,7 +1050,7 @@ function buildFormBodyPart1Html(nombre,rut,correo,telefono,direccion,comunaImp,r
     '<tr><td class="lbl">N° Solicitud / Año</td><td class="val">'+e(folioDisplay||'')+'</td>'+
     '<td class="lbl">Fecha Recepción</td><td class="val">'+e(tsDisplay)+'</td></tr>'+
     '<tr><td class="lbl">Región</td><td class="val">Región Metropolitana</td>'+
-    '<td class="lbl">Oficina Sectorial</td><td class="val">Red de Laboratorios SAG-ECA</td></tr>'+
+    '<td class="lbl">Oficina Sectorial</td><td class="val">Departamento RED SAG de Laboratorios - ECA</td></tr>'+
     '<tr><td class="lbl">Fecha de emisión</td><td class="val">'+e(fechaHoy)+'</td>'+
     '<td class="lbl">Tipo de cuarentena</td><td class="val">Cuarentena Posentrada Absoluta (EC1)</td></tr>'+
     '</table>'+
@@ -1253,7 +1253,7 @@ function drawFooterOnPage(doc, margin, footerH){
   doc.line(margin, top, pageW - margin, top);
   doc.setFont('helvetica','normal'); doc.setFontSize(6.6);
   doc.setTextColor(102,102,102);
-  doc.text('F-IIT-IMP-PA-002 · Red de Laboratorios SAG-ECA · Región Metropolitana', pageW/2, bottomEdge-6.5, {align:'center'});
+  doc.text('F-IIT-IMP-PA-002 · Departamento RED SAG de Laboratorios - ECA · Región Metropolitana', pageW/2, bottomEdge-6.5, {align:'center'});
   doc.text('Servicio Agrícola y Ganadero | Estación de Cuarentena Agrícola (ECA) | Desarrollado por EChW, 2026', pageW/2, bottomEdge-3, {align:'center'});
   doc.setTextColor(0,0,0);
 }
