@@ -12751,14 +12751,14 @@ function renderCondPendientesLista(all) {
       </div>
       <div style="font-size:10px;color:var(--g400);margin-bottom:8px">Marca las filas de Cambio de Condiciones (CCAA) que quieres incluir en el correo. Si no marcas ninguna, se envían todas las CCAA vencidas o próximas.</div>
       <div style="max-height:320px;overflow:auto;border:1px solid var(--g100);border-radius:6px">
-        <table style="width:100%;border-collapse:collapse;font-size:12px">
-          <thead style="position:sticky;top:0;background:var(--g50)">
+        <table class="tbl">
+          <thead>
             <tr>
-              <th style="padding:6px 8px;text-align:center;width:36px">✉</th>
-              <th style="padding:6px 8px;text-align:left">Tipo</th>
-              <th style="padding:6px 8px;text-align:left">Actividad</th>
-              <th style="padding:6px 8px;text-align:left">Registro</th>
-              <th style="padding:6px 8px;text-align:center">Urgencia</th>
+              <th style="width:36px;text-align:center">✉</th>
+              <th>Tipo</th>
+              <th>Actividad</th>
+              <th>Registro</th>
+              <th style="text-align:center">Urgencia</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
