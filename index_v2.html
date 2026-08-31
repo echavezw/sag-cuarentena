@@ -11571,7 +11571,7 @@ async function enviarCambioCondiciones() {
     if (data.ok) {
       // Refleja en memoria (gsData) todas las filas del grupo, para que los
       // badges se actualicen sin recargar todo el panel.
-      const hoy = (typeof _nowStrSAG === 'function' ? _nowStrSAG() : new Date().toLocaleDateString('es-CL')).split(' ')[0];
+      const hoy = (typeof _nowStrSAG === 'function' ? _nowStrSAG() : new Date().toLocaleDateString('es-CL'));
       items.forEach(it => {
         (it.filas||[]).forEach(filaSheet => {
           const idxGs = filaSheet - 2;
