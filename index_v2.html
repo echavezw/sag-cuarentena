@@ -2220,20 +2220,20 @@ input.field-blocked, select.field-blocked {
     </div>
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
       <label style="font-size:12px;display:flex;gap:6px;align-items:center;cursor:pointer">
-        <input type="checkbox" id="cond-sel-all" onchange="_condToggleAll(this.checked)"> Seleccionar todos los elegibles
+        <input type="checkbox" id="cond-sel-all" onchange="_condToggleAll(this.checked)" style="appearance:auto;-webkit-appearance:auto;width:14px;height:14px;cursor:pointer"> Seleccionar todos los elegibles
       </label>
       <span id="cond-count" style="font-size:11px;color:var(--g400)"></span>
     </div>
     <div style="max-height:360px;overflow:auto;border:1.5px solid var(--g100);border-radius:var(--rs)">
-      <table style="width:100%;border-collapse:collapse;font-size:12px">
-        <thead style="position:sticky;top:0;background:var(--g50)">
+      <table class="tbl">
+        <thead>
           <tr>
-            <th style="padding:6px 8px;text-align:left">&nbsp;</th>
-            <th style="padding:6px 8px;text-align:left">Resolución / Solicitud</th>
-            <th style="padding:6px 8px;text-align:left">Cubículo</th>
-            <th style="padding:6px 8px;text-align:left">Especie</th>
-            <th style="padding:6px 8px;text-align:left">Condición actual</th>
-            <th style="padding:6px 8px;text-align:left">Condición a solicitar</th>
+            <th style="width:36px">&nbsp;</th>
+            <th>Resolución / Solicitud</th>
+            <th>Cubículo</th>
+            <th>Especie</th>
+            <th>Condición actual</th>
+            <th>Condición a solicitar</th>
           </tr>
         </thead>
         <tbody id="cond-tbody"></tbody>
@@ -11519,8 +11519,11 @@ function _renderCondTabla() {
     const selectorCond = it.fija
       ? `<span style="font-weight:600">Normal</span>`
       : `<select id="cond-req-${i}" style="font-size:12px;padding:2px 4px" ${it.yaCumplida?'disabled':''}>${opciones}</select>`;
+    const tdChkClick = it.yaCumplida
+      ? ` style="padding:5px 8px;text-align:center"`
+      : ` onclick="const c=this.querySelector('input.cond-chk'); if(c) c.checked=!c.checked;" style="padding:5px 8px;text-align:center;cursor:pointer"`;
     return `<tr style="${it.yaCumplida?'opacity:.5':''}">
-      <td style="padding:5px 8px"><input type="checkbox" class="cond-chk" data-i="${i}" ${it.yaCumplida?'disabled':''}></td>
+      <td${tdChkClick}><input type="checkbox" class="cond-chk" data-i="${i}" ${it.yaCumplida?'disabled':''} onclick="event.stopPropagation()"></td>
       <td style="padding:5px 8px;font-family:var(--mono)">${disp}</td>
       <td style="padding:5px 8px;text-align:center">${it.cubiculo||'—'}</td>
       <td style="padding:5px 8px;font-style:italic">${it.especies.join(', ')||'—'}</td>
