@@ -11491,12 +11491,26 @@ function _condCampoActivo(v) {
   return norm !== 'no';
 }
 
-// true si la cuarentena ya está cerrada en la práctica (entregada, liberada
-// o terminada), aunque el Status en Detalle no lo refleje formalmente.
+// Valores de la columna 'Status' que indican que la cuarentena ya no está
+// activa en la práctica: cerrada normalmente (Entregada/Terminada) o con
+// desenlace negativo (vencida sin recibir, destruida, anulada, perdida, etc).
+const STATUS_CIERRE = [
+  'a destruir', 'destruida', 'no prospero', 'perdida',
+  'no recibida', 'anulada', 'entregada', 'terminada'
+];
+function _statusIndicaCierre(status) {
+  const norm = String(status||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  return STATUS_CIERRE.includes(norm);
+}
+
+// true si la cuarentena ya está cerrada en la práctica (entregada, liberada,
+// terminada, o Status indica un desenlace de cierre/negativo — destruida,
+// anulada, perdida, no recibida, etc.), aunque otros campos no lo reflejen.
 function _condRegistroCerrado(r) {
   if (_condCampoActivo(r['Entregada'])) return true;
   if (_condCampoActivo(r['Liberada'])) return true;
   if (_condCampoActivo(r['Terminada'])) return true;
+  if (_statusIndicaCierre(r['Status'])) return true;
   return false;
 }
 
@@ -12021,9 +12035,7 @@ function isActive(row) {
   if (tipoCuarNorm === 'filtro') return false;
 
   // Estados de cierre negativo — el material ya no se sigue: no debe generar alertas
-  const statusRechazo = ['a destruir', 'destruida', 'no prospero', 'perdida'];
-  const statusNorm = String(row['Status'] || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-  if (statusRechazo.includes(statusNorm)) return false;
+  if (_statusIndicaCierre(row['Status'])) return false;
 
   // Entregada holds a date string when delivered
   // Active = not yet delivered OR delivered within last 15 days (grace period)
