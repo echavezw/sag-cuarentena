@@ -1018,7 +1018,7 @@ input.field-blocked, select.field-blocked {
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
       <label style="font-size:10px;color:var(--g600);display:flex;align-items:center;gap:6px">
         Mostrar desde año:
-        <input type="number" id="al-year-filter" value="2024" min="2000" max="2099"
+        <input type="number" id="al-year-filter" value="2023" min="2000" max="2099"
           style="width:72px;font-family:var(--mono);font-size:12px;text-align:center;padding:4px 6px"
           oninput="applyYearFilter()">
       </label>
@@ -11373,6 +11373,34 @@ function _actualizarBadgeCondicionesFicha(rows) {
 //   específica solamente — caso alertas CCAA marcadas una por una, para no
 //   traer Hongo/Bacteria de la misma cuarentena si no se marcaron.
 // - vacío/omitido: todas las cuarentenas elegibles (masivo desde panel general).
+// Año mínimo para el módulo de Cambio de Condiciones Ambientales — excluye
+// cuarentenas antiguas ya cerradas en la práctica aunque el Sheet no las
+// tenga marcadas formalmente como terminadas/entregadas (dato histórico
+// incompleto). Aplica a los 3 puntos de entrada: masivo, individual y alertas CCAA.
+const COND_AMBIENTAL_ANIO_MINIMO = 2023;
+
+// Año de referencia del registro: Año de Ingreso si existe y es válido,
+// si no se intenta extraer de Fecha de Ingreso / Fecha Solicitud / Fecha Res.
+function _condAnioRegistro(r) {
+  const directo = parseInt(String(r['Año de Ingreso'] || r['Año'] || '').trim(), 10);
+  if (directo > 2000) return directo;
+  const fechas = [r['Fecha de Ingreso'], r['Fecha Ing. Asignada'], r['Fecha Solicitud'], r['Fecha Res.']];
+  for (let i = 0; i < fechas.length; i++) {
+    const iso = fmtD(fechas[i] || '');
+    if (iso) { const y = parseInt(iso.substring(0,4), 10); if (y > 2000) return y; }
+  }
+  return 0;
+}
+
+// true si la cuarentena ya está cerrada en la práctica (entregada, liberada
+// o terminada), aunque el Status en Detalle no lo refleje formalmente.
+function _condRegistroCerrado(r) {
+  if (String(r['Entregada']||'').trim()) return true;
+  if (String(r['Liberada']||'').trim()) return true;
+  if (String(r['Terminada']||'').trim()) return true;
+  return false;
+}
+
 function abrirModalCondiciones(filtroSolicitud) {
   try {
     const filtroArr = Array.isArray(filtroSolicitud)
@@ -11385,6 +11413,9 @@ function abrirModalCondiciones(filtroSolicitud) {
       if (!requerida) return; // código no elegible (sin análisis, u otro)
       const nsol = String(r['Solicitud']||'').trim();
       if (!nsol) return;
+      const anio = _condAnioRegistro(r);
+      if (anio && anio < COND_AMBIENTAL_ANIO_MINIMO) return; // cuarentena demasiado antigua
+      if (_condRegistroCerrado(r)) return; // ya entregada/liberada/terminada
       const key = nsol + '|' + requerida;
       if (filtroArr) {
         const matchSolicitudCompleta = filtroArr.indexOf(nsol) !== -1;
@@ -11846,7 +11877,7 @@ init();
 //  SISTEMA DE ALERTAS — buildAlerts()
 // ══════════════════════════════════════════════════════════════════
 let _alerts = [];          // [{severity, reg, imp, cub, esp, analysis, action, tag, days, key}]
-let _alertYearFilter = 2024; // only show records from this year onwards
+let _alertYearFilter = 2023; // only show records from this year onwards
 const AN_TYPE_LABEL = { V:'Virológico', H:'Micológico', B:'Bacteriológico', F:'Fitoplasma', E:'Entomológico', N:'Nematológico' };
 
 
@@ -12610,7 +12641,7 @@ function buildAlerts() {
 
 function applyYearFilter() {
   const el = document.getElementById('al-year-filter');
-  _alertYearFilter = el ? (parseInt(el.value) || 0) : 2024;
+  _alertYearFilter = el ? (parseInt(el.value) || 0) : 2023;
   buildAlerts();
   renderAlertsStage();
 }
