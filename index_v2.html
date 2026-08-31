@@ -11921,6 +11921,16 @@ function isActive(row) {
       return false;
     }
   }
+  // Liberada / Terminada — 'NO' es el valor normal de "todavía no", no cuenta
+  // como cierre; cualquier otro valor no vacío (fecha, 'SI', '1') sí lo es.
+  const _campoIndicaCierre = v => {
+    const s = String(v||'').trim();
+    if (!s) return false;
+    return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'') !== 'no';
+  };
+  if (_campoIndicaCierre(row['Liberada'])) return false;
+  if (_campoIndicaCierre(row['Terminada'])) return false;
+
   // Year filter — derive from Fecha de Ingreso (most reliable)
   if (_alertYearFilter) {
     // Try explicit year columns first, then parse from date
@@ -12387,7 +12397,11 @@ function buildAlerts() {
     });
 
     // ── R2: CCAA — 3 días antes / 1 día vencido ──
-    once('ccaa', () => {
+    // Deduplicado por registro + tipo de análisis (no solo por registro): una
+    // misma Res./Solicitud puede tener Virus, Hongo y Bacteria con fechas de
+    // CCAA distintas — si solo se revisara la primera fila del registro, las
+    // demás quedaban sin evaluar aunque estuvieran vencidas.
+    once('ccaa|'+analysis, () => {
       const fechaCCAA    = String(row['Fecha estimada de CCAA'] || '').trim();
       const fechaCCAArea = String(row['Fecha Real de CCAA'] || '').trim();
       const solCCAA      = String(row['Solicitud'] || '').trim();
