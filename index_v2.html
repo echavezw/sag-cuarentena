@@ -11411,6 +11411,15 @@ function _condRegistroCerrado(r) {
   return false;
 }
 
+// true si la cuarentena está marcada como 'Filtro' (columna 'Tipo Cuarentena')
+// — cuarentenas de filtro se manejan aparte, no entran al módulo de Cambio
+// de Condiciones Ambientales. Vacío o cualquier otro valor = Absoluta (normal).
+function _condEsFiltro(r) {
+  const t = String(r['Tipo Cuarentena']||'').trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  return t === 'filtro';
+}
+
 function abrirModalCondiciones(filtroSolicitud) {
   try {
     const filtroArr = Array.isArray(filtroSolicitud)
@@ -11423,6 +11432,7 @@ function abrirModalCondiciones(filtroSolicitud) {
       if (!requerida) return; // código no elegible (sin análisis, u otro)
       const nsol = String(r['Solicitud']||'').trim();
       if (!nsol) return;
+      if (_condEsFiltro(r)) return; // cuarentena de filtro — se maneja aparte
       const anio = _condAnioRegistro(r);
       if (anio && anio < COND_AMBIENTAL_ANIO_MINIMO) return; // cuarentena demasiado antigua
       if (_condRegistroCerrado(r)) return; // ya entregada/liberada/terminada
@@ -11903,6 +11913,11 @@ function regLabel(row) {
 }
 
 function isActive(row) {
+  // Cuarentenas de Filtro se manejan aparte — no generan alertas en el sistema.
+  const tipoCuarNorm = String(row['Tipo Cuarentena']||'').trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  if (tipoCuarNorm === 'filtro') return false;
+
   // Estados de cierre negativo — el material ya no se sigue: no debe generar alertas
   const statusRechazo = ['a destruir', 'destruida', 'no prospero', 'perdida'];
   const statusNorm = String(row['Status'] || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
