@@ -1028,8 +1028,9 @@ input.field-blocked, select.field-blocked {
     <!-- Actividades pendientes — lista con checkbox para envío de correo CCAA -->
     <div id="cond-pendientes-container" style="margin-bottom:18px"></div>
 
-    <!-- Resumen ejecutivo — panel oscuro navy/gold -->
-    <div id="al-dark-summary" style="margin-bottom:18px"></div>
+    <!-- Resumen ejecutivo — panel oscuro navy/gold (retirado: redundante con
+         "Actividades Pendientes" de arriba; renderAlertsDarkSummary() queda
+         sin usar, no se borra por si se necesita reactivar) -->
 
     <!-- Resumen de disponibilidad de cubículos -->
     <div id="al-disponibilidad-container" style="margin-bottom:16px"></div>
@@ -12661,7 +12662,6 @@ function renderAlertsStage() {
   const pend = fa.filter(a => a.severity === 'pendiente');
   const all  = [...venc, ...prox, ...pend];
 
-  renderAlertsDarkSummary(venc, prox, pend);
   renderCondPendientesLista(all);
 
   const cc = document.getElementById('al-cards-container');
