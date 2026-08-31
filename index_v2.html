@@ -1025,6 +1025,9 @@ input.field-blocked, select.field-blocked {
       <span style="font-size:9px;color:var(--g400);font-style:italic">Solo cuarentenas no entregadas · no liberadas · no terminadas</span>
     </div>
 
+    <!-- Actividades pendientes — lista con checkbox para envío de correo CCAA -->
+    <div id="cond-pendientes-container" style="margin-bottom:18px"></div>
+
     <!-- Resumen ejecutivo — panel oscuro navy/gold -->
     <div id="al-dark-summary" style="margin-bottom:18px"></div>
 
@@ -12659,6 +12662,7 @@ function renderAlertsStage() {
   const all  = [...venc, ...prox, ...pend];
 
   renderAlertsDarkSummary(venc, prox, pend);
+  renderCondPendientesLista(all);
 
   const cc = document.getElementById('al-cards-container');
   if (!cc) return;
@@ -12674,6 +12678,72 @@ function renderAlertsStage() {
   renderInvernaderoGrid();
 
   renderIncoming();
+}
+
+// Lista plana y visible de TODAS las actividades pendientes (CCAA, Muestreo,
+// Envío Lab, etc., cualquier tag activo), con checkbox solo en las filas CCAA
+// (única acción con correo automático por ahora). Se muestra al tope del stage
+// de Alertas, siempre visible, sin depender de abrir ningún modal.
+function renderCondPendientesLista(all) {
+  const el = document.getElementById('cond-pendientes-container');
+  if (!el) return;
+  if (!all || !all.length) { el.innerHTML = ''; return; }
+
+  const items = all.slice().sort((a, b) => {
+    const rank = s => s === 'vencido' ? 0 : s === 'proximo' ? 1 : 2;
+    if (rank(a.severity) !== rank(b.severity)) return rank(a.severity) - rank(b.severity);
+    const da = a.days === null ? 999 : a.days, db = b.days === null ? 999 : b.days;
+    return da - db;
+  });
+
+  const sevLabel = { vencido: 'Vencido', proximo: 'Próximo', pendiente: 'Revisar' };
+  const sevColor = { vencido: '#D85A30', proximo: '#EF9F27', pendiente: '#B8975A' };
+
+  const rows = items.map(a => {
+    const icon = AL_TAG_ICON[a.tag] || '⚠';
+    const daysTxt = a.monthsLeft != null ? `faltan ${a.monthsLeft} mes(es)`
+      : a.days === null ? ''
+      : a.days <= 0 ? `vencida hace ${Math.abs(a.days)} día(s)`
+      : `faltan ${a.days} día(s)`;
+    const chk = (a.tag === 'CCAA' && a.solicitud)
+      ? `<input type="checkbox" class="al-ccaa-chk cond-pend-chk" data-sol="${String(a.solicitud).replace(/"/g,'&quot;')}">`
+      : '';
+    return `<tr>
+      <td style="padding:6px 8px;text-align:center">${chk}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${icon} ${a.tag}</td>
+      <td style="padding:6px 8px">${a.action}${daysTxt ? ' — ' + daysTxt : ''}</td>
+      <td style="padding:6px 8px;font-family:var(--mono)">${a.reg || ''}</td>
+      <td style="padding:6px 8px;text-align:center"><span style="font-size:10px;color:#fff;background:${sevColor[a.severity]||'#999'};padding:2px 8px;border-radius:6px">${sevLabel[a.severity]||a.severity}</span></td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div style="background:#fff;border:1.5px solid var(--g100);border-radius:var(--r);padding:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:18px;color:var(--nv);font-weight:600">📋 Actividades Pendientes</div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <label style="font-size:11px;display:flex;gap:5px;align-items:center;cursor:pointer">
+            <input type="checkbox" id="cond-pend-sel-all" onchange="document.querySelectorAll('.cond-pend-chk').forEach(c=>c.checked=this.checked)"> Marcar todas las CCAA
+          </label>
+          <button class="btn btn-nv btn-sm" onclick="enviarCorreoCCAAAlertas()">📧 Enviar Cambio Condiciones</button>
+        </div>
+      </div>
+      <div style="font-size:10px;color:var(--g400);margin-bottom:8px">Marca las filas de Cambio de Condiciones (CCAA) que quieres incluir en el correo. Si no marcas ninguna, se envían todas las CCAA vencidas o próximas.</div>
+      <div style="max-height:320px;overflow:auto;border:1px solid var(--g100);border-radius:6px">
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead style="position:sticky;top:0;background:var(--g50)">
+            <tr>
+              <th style="padding:6px 8px;text-align:center;width:36px">✉</th>
+              <th style="padding:6px 8px;text-align:left">Tipo</th>
+              <th style="padding:6px 8px;text-align:left">Actividad</th>
+              <th style="padding:6px 8px;text-align:left">Registro</th>
+              <th style="padding:6px 8px;text-align:center">Urgencia</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
 }
 
 // ── Panel oscuro navy/gold — resumen ejecutivo de alertas ──
