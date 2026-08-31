@@ -958,6 +958,7 @@ input.field-blocked, select.field-blocked {
   <div class="sb-sec">Consultar</div>
   <div class="sb-item" id="nav-hist" onclick="goStage('hist')"><span class="sb-num">H</span><span class="sb-lbl">Panel / Búsqueda</span></div>
   <div class="sb-item" id="nav-alerts" onclick="goStage('alerts');buildAlerts();renderAlertsStage()"><span class="sb-num">A</span>Alertas<span class="sb-dot empty" id="dot-alerts"></span></div>
+  <div class="sb-item" id="nav-seguimiento" onclick="goStage('seguimiento')"><span class="sb-num">S</span>Seguimiento</div>
   <div class="sb-item" id="nav-bitacora" onclick="goStage('bitacora')"><span class="sb-num">B</span>Bitácora<span class="sb-dot empty" id="dot-bitacora"></span></div>
   <hr class="sb-divider">
   <div class="sb-sec">Registro</div>
@@ -995,6 +996,65 @@ input.field-blocked, select.field-blocked {
 <div class="content">
 <div id="status-bar" class="status-bar" style="display:none"></div>
 
+
+<!-- ════════════════════════════════════
+     STAGE SEGUIMIENTO DE ACTIVIDADES
+════════════════════════════════════ -->
+<div class="stage" id="stage-seguimiento">
+  <div class="sec-h">
+    <div class="sec-n">S</div>
+    <div>
+      <div class="sec-t">Seguimiento de Actividades</div>
+      <div class="sec-s">Vista transversal de todas las cuarentenas activas</div>
+    </div>
+    <div class="sec-actions">
+      <button class="btn btn-gh btn-sm" onclick="renderSeguimientoTabla()">Actualizar</button>
+      <button class="btn btn-gh btn-sm" onclick="descargarExcelSeguimiento()">Excel</button>
+      <button class="btn btn-nv btn-sm" onclick="enviarCambioCondicionesSeguimiento()">Cambio Condiciones</button>
+    </div>
+  </div>
+  <div class="tab-body" style="border-radius:0 0 var(--r) var(--r);padding:14px">
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+      <input id="seg-buscar" placeholder="Buscar Res., Solicitud, importador, especie" style="flex:1;min-width:220px;padding:7px 10px;border-radius:6px;border:1.5px solid var(--bd)" oninput="renderSeguimientoTabla()">
+      <select id="seg-anio" style="padding:7px 10px;border-radius:6px;border:1.5px solid var(--bd)" onchange="renderSeguimientoTabla()">
+        <option value="2023" selected>Desde 2023</option>
+        <option value="2024">Desde 2024</option>
+        <option value="2025">Desde 2025</option>
+        <option value="0">Todos los años</option>
+      </select>
+      <select id="seg-analisis" style="padding:7px 10px;border-radius:6px;border:1.5px solid var(--bd)" onchange="renderSeguimientoTabla()">
+        <option value="">Todos los análisis</option>
+        <option value="Virus">Virus</option>
+        <option value="Hongo">Hongo</option>
+        <option value="Bacteria">Bacteria</option>
+        <option value="Normal">Normal (Fitopl./Entom./Nemat.)</option>
+      </select>
+      <label style="font-size:11px;color:var(--g600);display:flex;gap:5px;align-items:center;cursor:pointer">
+        <input type="checkbox" id="seg-ocultar-cerradas" onchange="renderSeguimientoTabla()">Ocultar cerradas
+      </label>
+    </div>
+    <div style="border:1px solid var(--g100);border-radius:8px;overflow:auto;max-height:60vh">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th style="width:30px">&nbsp;</th>
+            <th>Res./Sol.</th>
+            <th>Importador</th>
+            <th style="text-align:center">Cubículo</th>
+            <th>Especie</th>
+            <th style="text-align:center">Análisis</th>
+            <th style="text-align:center">CCAA est.</th>
+            <th style="text-align:center">Estado CCAA</th>
+            <th style="text-align:center">Muestreo est.</th>
+            <th style="text-align:center">Estado muestreo</th>
+          </tr>
+        </thead>
+        <tbody id="seg-tbody"></tbody>
+      </table>
+    </div>
+    <div id="seg-count" style="font-size:10px;color:var(--g400);margin-top:8px"></div>
+  </div>
+</div>
 
 <!-- ════════════════════════════════════
      STAGE ALERTAS — Vigilancia Activa
@@ -5295,6 +5355,7 @@ function goStage(n) {
   if(n===3) setTimeout(renderEstablecimientoTable, 80);
   if(n==='panel') { n='hist'; setTimeout(()=>{ showPanelTab(1); }, 50); }
   if(n==='alerts') { setTimeout(()=>{ buildAlerts(); renderAlertsStage(); }, 80); }
+  if(n==='seguimiento') { setTimeout(renderSeguimientoTabla, 80); }
   if(n==='usuarios') { setTimeout(recargarUsuarios, 80); }
   if(n==='bitacora') { setTimeout(()=>{ renderBitacoraStage(); }, 60); }
   if(n===6) setTimeout(()=>{ renderCierreTabs(); }, 50);
@@ -12770,6 +12831,178 @@ function renderAlertsSidebar() {
 }
 
 // ── MAIN STAGE render ──
+// ══════════════════════════════════════════════════════════════════════════
+// SEGUIMIENTO DE ACTIVIDADES — vista transversal de todas las cuarentenas
+// activas, una fila por análisis, con estado de CCAA y de muestreo lado a
+// lado. Reutiliza los mismos helpers de elegibilidad/exclusión ya definidos
+// para el módulo de Cambio de Condiciones (_condCodigoAnalisis,
+// _condCondicionRequerida, _condEsFiltro, _condAnioRegistro,
+// _condRegistroCerrado, _condActualGuardada) — no duplica esa lógica.
+// ══════════════════════════════════════════════════════════════════════════
+
+function _segBadge(label, kind) {
+  const map = {
+    ok:     ['#EAF3DE','#27500A'],
+    warn:   ['#FAEEDA','#854F0B'],
+    danger: ['#FCEBEB','#791F1F'],
+    done:   ['#F1EFE8','#444441']
+  };
+  const c = map[kind] || map.done;
+  return `<span style="background:${c[0]};color:${c[1]};padding:2px 8px;border-radius:6px;font-size:10px">${label}</span>`;
+}
+
+function _segBadgeAnalisis(cond) {
+  const map = {
+    'Virus':    ['#E6F1FB','#0C447C'],
+    'Hongo':    ['#EEEDFE','#3C3489'],
+    'Bacteria': ['#FAECE7','#993C1D'],
+    'Normal':   ['#F1EFE8','#444441']
+  };
+  const c = map[cond] || map['Normal'];
+  return `<span style="background:${c[0]};color:${c[1]};padding:2px 8px;border-radius:6px;font-size:10px">${cond}</span>`;
+}
+
+// { html, checkable } — checkable=false cuando ya hay Fecha Real de CCAA
+// (cambio ya confirmado, no tiene sentido volver a solicitarlo).
+function _segEstadoCCAA(r, requerida) {
+  const real = String(r['Fecha Real de CCAA']||'').trim();
+  if (real) return { html: _segBadge('Confirmada ' + fmtDisplay(real), 'done'), checkable: false };
+  const guardada = _condActualGuardada(r);
+  if (guardada && guardada.label === requerida) {
+    const diaMes = (guardada.fecha||'').split(' ')[0].split('-').slice(0,2).join('-');
+    return { html: _segBadge('Solicitada ' + diaMes, 'ok'), checkable: true };
+  }
+  const est = String(r['Fecha estimada de CCAA']||'').trim();
+  if (!est) return { html: '<span style="color:var(--g400)">—</span>', checkable: false };
+  const d = daysDiff(est);
+  if (d === null) return { html: '<span style="color:var(--g400)">—</span>', checkable: false };
+  if (d < 0) return { html: _segBadge('Vencida ' + d + 'd', 'danger'), checkable: true };
+  if (d <= 3) return { html: _segBadge('Próxima', 'warn'), checkable: true };
+  return { html: _segBadge('Pendiente', 'warn'), checkable: true };
+}
+
+function _segEstadoMuestreo(r) {
+  const m = String(r['Muestreada?']||'').trim().toLowerCase();
+  if (m === 'si' || m === 'sí') return _segBadge('Realizado', 'done');
+  const est = String(r['Fecha Estimada Muestreo']||'').trim();
+  if (!est) return '<span style="color:var(--g400)">—</span>';
+  const d = daysDiff(est);
+  if (d === null) return '<span style="color:var(--g400)">—</span>';
+  if (d < 0) return _segBadge('Vencido ' + Math.abs(d) + 'd', 'danger');
+  return _segBadge('Pendiente', 'warn');
+}
+
+function renderSeguimientoTabla() {
+  const tb = document.getElementById('seg-tbody');
+  if (!tb) return;
+  const buscar = (document.getElementById('seg-buscar')?.value || '').trim().toLowerCase();
+  const anioMin = parseInt(document.getElementById('seg-anio')?.value || '2023', 10) || 0;
+  const analisisFiltro = document.getElementById('seg-analisis')?.value || '';
+  const ocultarCerradas = document.getElementById('seg-ocultar-cerradas')?.checked;
+
+  const filas = [];
+  (gsData||[]).forEach((r, idx) => {
+    const codigo = _condCodigoAnalisis(r);
+    const requerida = _condCondicionRequerida(codigo);
+    if (!requerida) return;
+    if (_condEsFiltro(r)) return;
+    const anio = _condAnioRegistro(r);
+    if (anioMin && anio && anio < anioMin) return;
+    const cerrado = _condRegistroCerrado(r);
+    if (ocultarCerradas && cerrado) return;
+    if (analisisFiltro && requerida !== analisisFiltro) return;
+    const nsol = String(r['Solicitud']||'').trim();
+    if (!nsol) return;
+    const res = String(r['Res.']||'').trim();
+    const anioRes = fmtD(r['Fecha Res.']||'').substring(0,4);
+    const importador = String(r['Importador']||'').trim();
+    const cubiculo = String(r['Cubículo']||r['Cubiculo']||'').trim();
+    const especie = String(r['Especie']||'').trim();
+    if (buscar) {
+      const hay = [res, nsol, importador, especie].join(' ').toLowerCase();
+      if (hay.indexOf(buscar) === -1) return;
+    }
+    const disp = res ? ('Res. ' + res + (anioRes ? ('/' + anioRes) : '')) : ('Sol. ' + nsol + ' (sin res.)');
+    const estCCAA = _segEstadoCCAA(r, requerida);
+    filas.push({
+      nsol, res, importador, cubiculo, especie, requerida, disp,
+      ccaaEst: fmtDisplay(r['Fecha estimada de CCAA']||'') || '—',
+      muestreoEst: fmtDisplay(r['Fecha Estimada Muestreo']||'') || '—',
+      estCCAAHtml: estCCAA.html,
+      checkable: estCCAA.checkable,
+      estMuestreoHtml: _segEstadoMuestreo(r)
+    });
+  });
+
+  if (!filas.length) {
+    tb.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--g400)">No hay registros que coincidan con los filtros.</td></tr>';
+    const cEl = document.getElementById('seg-count'); if (cEl) cEl.textContent = '';
+    return;
+  }
+
+  tb.innerHTML = filas.map(f => {
+    const chk = f.checkable
+      ? `<input type="checkbox" class="seg-chk" data-res="${(f.res||('sol:'+f.nsol))}" data-cond="${f.requerida}">`
+      : `<input type="checkbox" disabled>`;
+    return `<tr>
+      <td>${chk}</td>
+      <td style="font-family:var(--mono)">${f.disp}</td>
+      <td>${f.importador||'—'}</td>
+      <td style="text-align:center">${f.cubiculo||'—'}</td>
+      <td style="font-style:italic">${f.especie||'—'}</td>
+      <td style="text-align:center">${_segBadgeAnalisis(f.requerida)}</td>
+      <td style="text-align:center">${f.ccaaEst}</td>
+      <td style="text-align:center">${f.estCCAAHtml}</td>
+      <td style="text-align:center">${f.muestreoEst}</td>
+      <td style="text-align:center">${f.estMuestreoHtml}</td>
+    </tr>`;
+  }).join('');
+  const cEl = document.getElementById('seg-count');
+  if (cEl) cEl.textContent = `Mostrando ${filas.length} fila(s).`;
+}
+
+// Junta las filas marcadas (Resolución+Condición) y abre el mismo cuadro de
+// confirmación que usa el resto del módulo de Cambio de Condiciones.
+function enviarCambioCondicionesSeguimiento() {
+  const marcadas = Array.from(document.querySelectorAll('.seg-chk:checked'));
+  if (!marcadas.length) { setS('Marque al menos una fila para solicitar el cambio.', 'warn'); return; }
+  const claves = marcadas
+    .map(cb => (cb.dataset.res && cb.dataset.cond) ? (cb.dataset.res + '|' + cb.dataset.cond) : null)
+    .filter(Boolean);
+  if (!claves.length) { setS('No se pudo determinar la condición de las filas marcadas.', 'warn'); return; }
+  abrirModalCondiciones(Array.from(new Set(claves)));
+}
+
+// Exporta la tabla visible (ya filtrada) a Excel, mismo patrón que el resto
+// del sistema (SheetJS ya cargado globalmente como XLSX).
+function descargarExcelSeguimiento() {
+  const filas = Array.from(document.querySelectorAll('#seg-tbody tr')).map(tr => {
+    const tds = tr.querySelectorAll('td');
+    if (tds.length < 10) return null;
+    return {
+      'Res./Sol.': tds[1].textContent.trim(),
+      'Importador': tds[2].textContent.trim(),
+      'Cubículo': tds[3].textContent.trim(),
+      'Especie': tds[4].textContent.trim(),
+      'Análisis': tds[5].textContent.trim(),
+      'CCAA est.': tds[6].textContent.trim(),
+      'Estado CCAA': tds[7].textContent.trim(),
+      'Muestreo est.': tds[8].textContent.trim(),
+      'Estado muestreo': tds[9].textContent.trim()
+    };
+  }).filter(Boolean);
+  if (!filas.length) { setS('No hay filas para exportar.', 'warn'); return; }
+  try {
+    const ws = XLSX.utils.json_to_sheet(filas);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Seguimiento');
+    XLSX.writeFile(wb, 'Seguimiento_Actividades_' + fmtDisplay(new Date()) + '.xlsx');
+  } catch (err) {
+    console.error('descargarExcelSeguimiento error:', err);
+    setS('No se pudo generar el Excel.', 'err');
+  }
+}
+
 function renderAlertsStage() {
   const fa   = filteredAlerts();
   const venc = fa.filter(a => a.severity === 'vencido');
