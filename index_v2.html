@@ -11392,12 +11392,22 @@ function _condAnioRegistro(r) {
   return 0;
 }
 
+// true si el campo tiene un valor que indica que SÍ ocurrió (fecha, 'SI', '1'),
+// false si está vacío o es explícitamente 'NO' (convención del Sheet para
+// campos booleanos: 'NO' = todavía no, no significa "sin dato").
+function _condCampoActivo(v) {
+  const s = String(v||'').trim();
+  if (!s) return false;
+  const norm = s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  return norm !== 'no';
+}
+
 // true si la cuarentena ya está cerrada en la práctica (entregada, liberada
 // o terminada), aunque el Status en Detalle no lo refleje formalmente.
 function _condRegistroCerrado(r) {
-  if (String(r['Entregada']||'').trim()) return true;
-  if (String(r['Liberada']||'').trim()) return true;
-  if (String(r['Terminada']||'').trim()) return true;
+  if (_condCampoActivo(r['Entregada'])) return true;
+  if (_condCampoActivo(r['Liberada'])) return true;
+  if (_condCampoActivo(r['Terminada'])) return true;
   return false;
 }
 
