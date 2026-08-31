@@ -11436,7 +11436,12 @@ function abrirModalCondiciones(filtroSolicitud) {
       const anio = _condAnioRegistro(r);
       if (anio && anio < COND_AMBIENTAL_ANIO_MINIMO) return; // cuarentena demasiado antigua
       if (_condRegistroCerrado(r)) return; // ya entregada/liberada/terminada
-      const key = nsol + '|' + requerida;
+      // Agrupar por Resolución (no por Solicitud): el mismo N° de Solicitud
+      // puede repetirse en varias Resoluciones distintas (cuarentenas físicas
+      // distintas) — agrupar solo por Solicitud las mezclaba en un mismo envío.
+      const resRow = String(r['Res.']||'').trim();
+      const idReg = resRow || ('sol:' + nsol);
+      const key = idReg + '|' + requerida;
       if (filtroArr) {
         const matchSolicitudCompleta = filtroArr.indexOf(nsol) !== -1;
         const matchCompuesto = filtroArr.indexOf(key) !== -1;
@@ -11449,7 +11454,7 @@ function abrirModalCondiciones(filtroSolicitud) {
         grupos[key] = {
           filas: [],
           solicitud: nsol,
-          resolucion: String(r['Res.']||'').trim(),
+          resolucion: resRow,
           anioRes: fmtD(r['Fecha Res.']||'').substring(0,4),
           cubiculo: String(r['Cubículo']||r['Cubiculo']||'').trim(),
           especies: [],
@@ -11478,17 +11483,21 @@ function abrirModalCondiciones(filtroSolicitud) {
 function cerrarModalCondiciones() { $('modal-cond').classList.remove('open'); }
 
 // Entrada desde el stage de Alertas. Si hay tarjetas CCAA marcadas con su
-// checkbox, usa solo esas (Solicitud + condición específica marcada, no la
-// cuarentena completa — una cuarentena puede tener Virus, Hongo y Bacteria a
-// la vez, y marcar solo la de Virus no debe traer las otras). Si no se marcó
-// ninguna, usa todas las cuarentenas con alerta CCAA activa hoy.
+// checkbox, usa solo esas (Resolución + condición específica marcada — no
+// Solicitud, porque el mismo N° de Solicitud puede repetirse en más de una
+// Resolución/cuarentena física distinta, y agrupar solo por Solicitud las
+// mezclaría). Si no se marcó ninguna, usa todas las cuarentenas con alerta
+// CCAA activa hoy.
 function enviarCorreoCCAAAlertas() {
   try {
     const marcados = Array.from(document.querySelectorAll('.al-ccaa-chk:checked'));
     let claves;
     if (marcados.length) {
       claves = marcados
-        .map(cb => (cb.dataset.sol && cb.dataset.cond) ? (cb.dataset.sol + '|' + cb.dataset.cond) : null)
+        .map(cb => {
+          const idReg = cb.dataset.res || (cb.dataset.sol ? ('sol:' + cb.dataset.sol) : '');
+          return (idReg && cb.dataset.cond) ? (idReg + '|' + cb.dataset.cond) : null;
+        })
         .filter(Boolean);
     } else {
       const ccaaAlertas = (typeof filteredAlerts === 'function' ? filteredAlerts() : _alerts)
@@ -11498,7 +11507,11 @@ function enviarCorreoCCAAAlertas() {
         return;
       }
       claves = ccaaAlertas
-        .map(a => { const c = _condCondicionRequerida(a.analysis); return c ? (a.solicitud + '|' + c) : null; })
+        .map(a => {
+          const c = _condCondicionRequerida(a.analysis);
+          const idReg = a.resolucion || (a.solicitud ? ('sol:' + a.solicitud) : '');
+          return (c && idReg) ? (idReg + '|' + c) : null;
+        })
         .filter(Boolean);
     }
     if (!claves.length) {
@@ -12354,8 +12367,8 @@ async function restaurarAlertas() {
   } catch(e) { console.error('No se pudo limpiar AlertasDescartadas en el Sheet:', e); }
 }
 
-function pushAlert(severity, reg, imp, cub, esp, analysis, action, tag, days, key, cub2, solicitud) {
-  const a = { severity, reg, imp, cub, cub2: cub2||'', esp, analysis, action, tag, days, key, solicitud: solicitud||'' };
+function pushAlert(severity, reg, imp, cub, esp, analysis, action, tag, days, key, cub2, solicitud, resolucion) {
+  const a = { severity, reg, imp, cub, cub2: cub2||'', esp, analysis, action, tag, days, key, solicitud: solicitud||'', resolucion: resolucion||'' };
   if (_alertaEstaOculta(_alertDiscardKey(a))) return;
   _alerts.push(a);
 }
@@ -12420,13 +12433,14 @@ function buildAlerts() {
       const fechaCCAA    = String(row['Fecha estimada de CCAA'] || '').trim();
       const fechaCCAArea = String(row['Fecha Real de CCAA'] || '').trim();
       const solCCAA      = String(row['Solicitud'] || '').trim();
+      const resCCAA      = String(row['Res.'] || '').trim();
       if (fechaCCAA && !fechaCCAArea) {
         const d = daysDiff(fechaCCAA);
         if (d !== null) {
           if (d < 0 && Math.abs(d) >= 1) {
-            pushAlert('vencido', reg, imp, cub, esp, analysis, 'CCAA vencida sin registrar', 'CCAA', d, key, cub2, solCCAA);
+            pushAlert('vencido', reg, imp, cub, esp, analysis, 'CCAA vencida sin registrar', 'CCAA', d, key, cub2, solCCAA, resCCAA);
           } else if (d >= 0 && d <= 3) {
-            pushAlert('proximo', reg, imp, cub, esp, analysis, 'Fecha estimada CCAA próxima', 'CCAA', d, key, cub2, solCCAA);
+            pushAlert('proximo', reg, imp, cub, esp, analysis, 'Fecha estimada CCAA próxima', 'CCAA', d, key, cub2, solCCAA, resCCAA);
           }
         }
       }
@@ -12829,7 +12843,7 @@ function renderCondPendientesLista(all) {
       : `faltan ${a.days} día(s)`;
     const condReqAlerta = a.tag === 'CCAA' ? (_condCondicionRequerida(a.analysis) || '') : '';
     const chk = (a.tag === 'CCAA' && a.solicitud && condReqAlerta)
-      ? `<input type="checkbox" class="al-ccaa-chk cond-pend-chk" data-sol="${String(a.solicitud).replace(/"/g,'&quot;')}" data-cond="${condReqAlerta}" onclick="event.stopPropagation()">`
+      ? `<input type="checkbox" class="al-ccaa-chk cond-pend-chk" data-sol="${String(a.solicitud).replace(/"/g,'&quot;')}" data-res="${String(a.resolucion||'').replace(/"/g,'&quot;')}" data-cond="${condReqAlerta}" onclick="event.stopPropagation()">`
       : '';
     const tdChkClick = chk ? ` onclick="const c=this.querySelector('input.cond-pend-chk'); if(c) c.checked=!c.checked;" style="padding:6px 8px;text-align:center;cursor:pointer"` : ` style="padding:6px 8px;text-align:center"`;
     return `<tr>
