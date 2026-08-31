@@ -1075,7 +1075,6 @@ input.field-blocked, select.field-blocked {
                 <option value="vencido">Vencido</option>
                 <option value="pendiente">Pendiente</option>
                 <option value="realizado">Realizado</option>
-                <option value="inconsistente">⚠ Marcada Sí (fecha futura)</option>
                 <option value="sinfecha">Sin fecha</option>
               </select>
             </th>
@@ -12942,19 +12941,14 @@ function _segEstadoCCAA(r, requerida) {
 }
 
 // { html, kind, fechaISO }
+// Se usa la FECHA REAL de muestreo, no el campo 'Muestreada?' — mismo criterio
+// ya establecido en otra parte del sistema ("Muestra tomada" se determina por
+// Fecha muestreo/Indexaje o Fecha de envío, no por la casilla Muestreada?,
+// que no tiene input propio y queda desincronizada).
 function _segEstadoMuestreo(r) {
   const fechaISO = fmtD(r['Fecha Estimada Muestreo']||'');
-  const m = String(r['Muestreada?']||'').trim().toLowerCase();
-  if (m === 'si' || m === 'sí') {
-    // Inconsistencia real de datos: marcada como muestreada pero la fecha
-    // estimada todavía no llega — se avisa en vez de mostrarlo como "Realizado"
-    // sin más, para no ocultar un dato que probablemente esté mal cargado.
-    const dFuturo = fechaISO ? daysDiff(r['Fecha Estimada Muestreo']) : null;
-    if (dFuturo !== null && dFuturo > 0) {
-      return { html: _segBadge('¿Muestreada? fecha futura', 'warn'), kind: 'inconsistente', fechaISO };
-    }
-    return { html: _segBadge('Realizado', 'done'), kind: 'realizado', fechaISO };
-  }
+  const real = String(r['Fecha muestreo/Indexaje']||'').trim() || String(r['Fecha de envío']||'').trim();
+  if (real) return { html: _segBadge('Realizado ' + fmtDisplay(real), 'done'), kind: 'realizado', fechaISO };
   const est = String(r['Fecha Estimada Muestreo']||'').trim();
   if (!est) return { html: '<span style="color:var(--g400)">—</span>', kind: 'sinfecha', fechaISO };
   const d = daysDiff(est);
@@ -13007,7 +13001,8 @@ function renderSeguimientoTabla() {
         cubiculo: String(r['Cubículo']||r['Cubiculo']||'').trim(),
         especies: [],
         requerida, analisisCanonico,
-        ccaaEstRaw: '', muestreoEstRaw: '', muestreadaSi: false,
+        ccaaEstRaw: '', muestreoEstRaw: '',
+        fechaMuestreoReal: '', fechaEnvio: '',
         fechaRealCCAA: '', condAmbientalSolicitada: '',
         sortKey: parseInt(nsol, 10) || 999999
       };
@@ -13019,7 +13014,8 @@ function renderSeguimientoTabla() {
     if (!g.muestreoEstRaw && r['Fecha Estimada Muestreo']) g.muestreoEstRaw = r['Fecha Estimada Muestreo'];
     if (!g.fechaRealCCAA && r['Fecha Real de CCAA']) g.fechaRealCCAA = r['Fecha Real de CCAA'];
     if (!g.condAmbientalSolicitada && r['Cond Ambiental Solicitada']) g.condAmbientalSolicitada = r['Cond Ambiental Solicitada'];
-    if (String(r['Muestreada?']||'').trim().toLowerCase().indexOf('si') === 0) g.muestreadaSi = true;
+    if (!g.fechaMuestreoReal && r['Fecha muestreo/Indexaje']) g.fechaMuestreoReal = r['Fecha muestreo/Indexaje'];
+    if (!g.fechaEnvio && r['Fecha de envío']) g.fechaEnvio = r['Fecha de envío'];
   });
 
   const filas = [];
@@ -13035,7 +13031,8 @@ function renderSeguimientoTabla() {
       'Fecha Real de CCAA': g.fechaRealCCAA,
       'Cond Ambiental Solicitada': g.condAmbientalSolicitada,
       'Fecha Estimada Muestreo': g.muestreoEstRaw,
-      'Muestreada?': g.muestreadaSi ? 'Si' : ''
+      'Fecha muestreo/Indexaje': g.fechaMuestreoReal,
+      'Fecha de envío': g.fechaEnvio
     };
     const estCCAA = _segEstadoCCAA(rSint, g.requerida);
     const estMuestreo = _segEstadoMuestreo(rSint);
