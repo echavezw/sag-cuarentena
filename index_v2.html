@@ -1009,7 +1009,7 @@ input.field-blocked, select.field-blocked {
     <div class="sec-actions">
       <button class="btn btn-gh btn-sm" onclick="buildAlerts();renderAlertsStage()">Actualizar</button>
       <button class="btn btn-gh btn-sm" onclick="restaurarAlertas()" title="Vuelve a mostrar todas las alertas que habías descartado con ✕">↩ Restaurar descartadas</button>
-      <button class="btn btn-gh btn-sm" onclick="enviarCorreoCCAAAlertas()" title="Solicita el cambio de condiciones ambientales solo para las cuarentenas con alerta CCAA activa (vencida o próxima)">📧 Cambio Condiciones (alertas CCAA)</button>
+      <button class="btn btn-gh btn-sm" onclick="enviarCorreoCCAAAlertas()" title="Si marcaste tarjetas CCAA con su checkbox, envía solo esas. Si no marcaste ninguna, envía todas las alertas CCAA activas (vencidas o próximas).">📧 Cambio Condiciones (alertas CCAA)</button>
     </div>
   </div>
   <div class="tab-body" style="border-radius:0 0 var(--r) var(--r);padding:14px">
@@ -11407,18 +11407,25 @@ function abrirModalCondiciones(filtroSolicitud) {
 
 function cerrarModalCondiciones() { $('modal-cond').classList.remove('open'); }
 
-// Entrada desde el stage de Alertas: solo las cuarentenas que tienen HOY una
-// alerta CCAA activa (vencida o próxima según buildAlerts/R2), no todas las
-// cuarentenas elegibles del Sheet. Requiere buildAlerts() ya ejecutado (se
-// llama siempre al entrar al stage de Alertas, así que _alerts está al día).
+// Entrada desde el stage de Alertas. Si hay tarjetas CCAA marcadas con su
+// checkbox, usa solo esas (selección manual). Si no se marcó ninguna, usa
+// todas las cuarentenas con alerta CCAA activa hoy (vencida o próxima),
+// mismo comportamiento que antes de agregar los checkboxes.
 function enviarCorreoCCAAAlertas() {
-  const ccaaAlertas = (typeof filteredAlerts === 'function' ? filteredAlerts() : _alerts)
-    .filter(a => a.tag === 'CCAA' && a.solicitud);
-  if (!ccaaAlertas.length) {
-    setS('No hay alertas de Cambio de Condiciones Ambientales (CCAA) vencidas o próximas en este momento.', 'warn');
-    return;
+  const marcados = Array.from(document.querySelectorAll('.al-ccaa-chk:checked'))
+    .map(cb => cb.dataset.sol).filter(Boolean);
+  let solicitudes;
+  if (marcados.length) {
+    solicitudes = Array.from(new Set(marcados));
+  } else {
+    const ccaaAlertas = (typeof filteredAlerts === 'function' ? filteredAlerts() : _alerts)
+      .filter(a => a.tag === 'CCAA' && a.solicitud);
+    if (!ccaaAlertas.length) {
+      setS('No hay alertas de Cambio de Condiciones Ambientales (CCAA) vencidas o próximas en este momento.', 'warn');
+      return;
+    }
+    solicitudes = Array.from(new Set(ccaaAlertas.map(a => a.solicitud)));
   }
-  const solicitudes = Array.from(new Set(ccaaAlertas.map(a => a.solicitud)));
   abrirModalCondiciones(solicitudes);
 }
 
@@ -12709,7 +12716,11 @@ function renderAlertsDarkSummary(venc, prox, pend) {
     const keyEsc = String(a.key).replace(/'/g, "\\'");
     const tagEsc = String(a.tag).replace(/'/g, "\\'");
     const dkEnc  = encodeURIComponent((a.key||'') + '||' + (a.tag||'') + '||' + (a.analysis||''));
+    const chkHtml = (a.tag === 'CCAA' && a.solicitud)
+      ? `<input type="checkbox" class="al-ccaa-chk" data-sol="${String(a.solicitud).replace(/"/g,'&quot;')}" onclick="event.stopPropagation()" title="Marcar para incluir en el envío de Cambio de Condiciones Ambientales" style="flex-shrink:0;cursor:pointer">`
+      : '';
     return `<div style="position:relative;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.03);border-left:3px solid ${sevBorder[a.severity]};border-radius:0 8px 8px 0;padding:10px 14px;padding-right:36px;cursor:pointer" onclick="goStageFromAlert('${keyEsc}','${tagEsc}')">
+      ${chkHtml}
       <span style="font-size:16px">${icon}</span>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:500;color:#E8ECF2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.action}${daysTxt ? ' — ' + daysTxt : ''}</div>
