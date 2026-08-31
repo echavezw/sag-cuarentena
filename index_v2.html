@@ -12688,6 +12688,23 @@ function _condPendMarcarTodas(marcar) {
   document.querySelectorAll('.cond-pend-chk').forEach(c => { c.checked = !!marcar; });
 }
 
+// Texto de actividad explícito por fila:
+// - CCAA: indica a qué condición hay que cambiar (Virus/Hongo/Bacteria/Normal),
+//   no solo "CCAA vencida/próxima" — es el dato que realmente hace falta ver
+//   de un vistazo para decidir el correo.
+// - Otros tags: agrega tipo de análisis y especie como contexto, cuando existan.
+function _condPendActionText(a) {
+  if (a.tag === 'CCAA') {
+    const condReq = _condCondicionRequerida(a.analysis) || '';
+    if (condReq) {
+      const verbo = a.severity === 'vencido' ? 'Cambio vencido a' : 'Próximo cambio a';
+      return `${verbo} Condiciones de ${condReq}` + (a.analysis ? ` (${a.analysis})` : '');
+    }
+  }
+  const ctx = [a.analysis, a.esp].filter(Boolean).join(' · ');
+  return a.action + (ctx ? ` — ${ctx}` : '');
+}
+
 function renderCondPendientesLista(all) {
   const el = document.getElementById('cond-pendientes-container');
   if (!el) return;
@@ -12716,7 +12733,7 @@ function renderCondPendientesLista(all) {
     return `<tr>
       <td${tdChkClick}>${chk}</td>
       <td style="padding:6px 8px;white-space:nowrap">${icon} ${a.tag}</td>
-      <td style="padding:6px 8px">${a.action}${daysTxt ? ' — ' + daysTxt : ''}</td>
+      <td style="padding:6px 8px">${_condPendActionText(a)}${daysTxt ? ' — ' + daysTxt : ''}</td>
       <td style="padding:6px 8px;font-family:var(--mono)">${a.reg || ''}</td>
       <td style="padding:6px 8px;text-align:center"><span style="font-size:10px;color:#fff;background:${sevColor[a.severity]||'#999'};padding:2px 8px;border-radius:6px">${sevLabel[a.severity]||a.severity}</span></td>
     </tr>`;
