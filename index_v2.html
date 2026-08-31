@@ -11374,47 +11374,54 @@ function _actualizarBadgeCondicionesFicha(rows) {
 //   traer Hongo/Bacteria de la misma cuarentena si no se marcaron.
 // - vacío/omitido: todas las cuarentenas elegibles (masivo desde panel general).
 function abrirModalCondiciones(filtroSolicitud) {
-  const filtroArr = Array.isArray(filtroSolicitud)
-    ? filtroSolicitud.map(s => String(s).trim()).filter(Boolean)
-    : (String(filtroSolicitud||'').trim() ? [String(filtroSolicitud).trim()] : null);
-  const grupos = {};
-  gsData.forEach((r, idx) => {
-    const codigo = _condCodigoAnalisis(r);
-    const requerida = _condCondicionRequerida(codigo);
-    if (!requerida) return; // código no elegible (sin análisis, u otro)
-    const nsol = String(r['Solicitud']||'').trim();
-    if (!nsol) return;
-    const key = nsol + '|' + requerida;
-    if (filtroArr) {
-      const matchSolicitudCompleta = filtroArr.indexOf(nsol) !== -1;
-      const matchCompuesto = filtroArr.indexOf(key) !== -1;
-      if (!matchSolicitudCompleta && !matchCompuesto) return;
-    }
-    const guardada = _condActualGuardada(r);
-    const actualLabel = guardada ? guardada.label : '—';
-    const especie = String(r['Especie']||'').trim();
-    if (!grupos[key]) {
-      grupos[key] = {
-        filas: [],
-        solicitud: nsol,
-        resolucion: String(r['Res.']||'').trim(),
-        anioRes: fmtD(r['Fecha Res.']||'').substring(0,4),
-        cubiculo: String(r['Cubículo']||r['Cubiculo']||'').trim(),
-        especies: [],
-        condicionActual: actualLabel,
-        condicionRequerida: requerida,
-        fija: !COND_AMBIENTAL_EDITABLES.includes(requerida),
-        yaCumplida: true
-      };
-    }
-    const g = grupos[key];
-    g.filas.push(idx + 2); // gsData[idx] = fila (idx+2) del Sheet
-    if (especie && g.especies.indexOf(especie) === -1) g.especies.push(especie);
-    if (actualLabel !== requerida) g.yaCumplida = false; // basta 1 fila desactualizada
-  });
-  _condItems = Object.values(grupos);
-  _renderCondTabla();
-  $('modal-cond').classList.add('open');
+  try {
+    const filtroArr = Array.isArray(filtroSolicitud)
+      ? filtroSolicitud.map(s => String(s).trim()).filter(Boolean)
+      : (String(filtroSolicitud||'').trim() ? [String(filtroSolicitud).trim()] : null);
+    const grupos = {};
+    (gsData||[]).forEach((r, idx) => {
+      const codigo = _condCodigoAnalisis(r);
+      const requerida = _condCondicionRequerida(codigo);
+      if (!requerida) return; // código no elegible (sin análisis, u otro)
+      const nsol = String(r['Solicitud']||'').trim();
+      if (!nsol) return;
+      const key = nsol + '|' + requerida;
+      if (filtroArr) {
+        const matchSolicitudCompleta = filtroArr.indexOf(nsol) !== -1;
+        const matchCompuesto = filtroArr.indexOf(key) !== -1;
+        if (!matchSolicitudCompleta && !matchCompuesto) return;
+      }
+      const guardada = _condActualGuardada(r);
+      const actualLabel = guardada ? guardada.label : '—';
+      const especie = String(r['Especie']||'').trim();
+      if (!grupos[key]) {
+        grupos[key] = {
+          filas: [],
+          solicitud: nsol,
+          resolucion: String(r['Res.']||'').trim(),
+          anioRes: fmtD(r['Fecha Res.']||'').substring(0,4),
+          cubiculo: String(r['Cubículo']||r['Cubiculo']||'').trim(),
+          especies: [],
+          condicionActual: actualLabel,
+          condicionRequerida: requerida,
+          fija: !COND_AMBIENTAL_EDITABLES.includes(requerida),
+          yaCumplida: true
+        };
+      }
+      const g = grupos[key];
+      g.filas.push(idx + 2); // gsData[idx] = fila (idx+2) del Sheet
+      if (especie && g.especies.indexOf(especie) === -1) g.especies.push(especie);
+      if (actualLabel !== requerida) g.yaCumplida = false; // basta 1 fila desactualizada
+    });
+    _condItems = Object.values(grupos);
+    _renderCondTabla();
+    const modalEl = $('modal-cond');
+    if (!modalEl) { setS('No se encontró el cuadro de Cambio de Condiciones en la página. Recarga y vuelve a intentar.', 'err'); return; }
+    modalEl.classList.add('open');
+  } catch (err) {
+    console.error('abrirModalCondiciones error:', err);
+    setS('Error al preparar el cambio de condiciones: ' + (err && err.message ? err.message : err), 'err');
+  }
 }
 
 function cerrarModalCondiciones() { $('modal-cond').classList.remove('open'); }
@@ -11425,28 +11432,33 @@ function cerrarModalCondiciones() { $('modal-cond').classList.remove('open'); }
 // la vez, y marcar solo la de Virus no debe traer las otras). Si no se marcó
 // ninguna, usa todas las cuarentenas con alerta CCAA activa hoy.
 function enviarCorreoCCAAAlertas() {
-  const marcados = Array.from(document.querySelectorAll('.al-ccaa-chk:checked'));
-  let claves;
-  if (marcados.length) {
-    claves = marcados
-      .map(cb => (cb.dataset.sol && cb.dataset.cond) ? (cb.dataset.sol + '|' + cb.dataset.cond) : null)
-      .filter(Boolean);
-  } else {
-    const ccaaAlertas = (typeof filteredAlerts === 'function' ? filteredAlerts() : _alerts)
-      .filter(a => a.tag === 'CCAA' && a.solicitud);
-    if (!ccaaAlertas.length) {
-      setS('No hay alertas de Cambio de Condiciones Ambientales (CCAA) vencidas o próximas en este momento.', 'warn');
+  try {
+    const marcados = Array.from(document.querySelectorAll('.al-ccaa-chk:checked'));
+    let claves;
+    if (marcados.length) {
+      claves = marcados
+        .map(cb => (cb.dataset.sol && cb.dataset.cond) ? (cb.dataset.sol + '|' + cb.dataset.cond) : null)
+        .filter(Boolean);
+    } else {
+      const ccaaAlertas = (typeof filteredAlerts === 'function' ? filteredAlerts() : _alerts)
+        .filter(a => a.tag === 'CCAA' && a.solicitud);
+      if (!ccaaAlertas.length) {
+        setS('No hay alertas de Cambio de Condiciones Ambientales (CCAA) vencidas o próximas en este momento.', 'warn');
+        return;
+      }
+      claves = ccaaAlertas
+        .map(a => { const c = _condCondicionRequerida(a.analysis); return c ? (a.solicitud + '|' + c) : null; })
+        .filter(Boolean);
+    }
+    if (!claves.length) {
+      setS('No se pudo determinar la condición requerida para las alertas seleccionadas.', 'warn');
       return;
     }
-    claves = ccaaAlertas
-      .map(a => { const c = _condCondicionRequerida(a.analysis); return c ? (a.solicitud + '|' + c) : null; })
-      .filter(Boolean);
+    abrirModalCondiciones(Array.from(new Set(claves)));
+  } catch (err) {
+    console.error('enviarCorreoCCAAAlertas error:', err);
+    setS('Error al abrir el cambio de condiciones: ' + (err && err.message ? err.message : err), 'err');
   }
-  if (!claves.length) {
-    setS('No se pudo determinar la condición requerida para las alertas seleccionadas.', 'warn');
-    return;
-  }
-  abrirModalCondiciones(Array.from(new Set(claves)));
 }
 
 function _renderCondTabla() {
