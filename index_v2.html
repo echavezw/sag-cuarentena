@@ -11365,10 +11365,14 @@ function _actualizarBadgeCondicionesFicha(rows) {
   el.style.display = 'inline-block';
 }
 
-// filtroSolicitud: opcional — string (una Solicitud, caso individual desde
-// Etapa IV) o array de strings (varias Solicitudes puntuales, caso alertas
-// CCAA); si viene vacío/omitido, todas las cuarentenas elegibles (masivo
-// desde el panel general).
+// filtroSolicitud: opcional —
+// - string: una Solicitud completa, TODAS sus condiciones (caso individual
+//   desde la ficha de Etapa IV).
+// - array de "NNNN" (solo N° Solicitud): esas Solicitudes completas.
+// - array de "NNNN|Condicion" (p.ej. "253|Virus"): Solicitud + condición
+//   específica solamente — caso alertas CCAA marcadas una por una, para no
+//   traer Hongo/Bacteria de la misma cuarentena si no se marcaron.
+// - vacío/omitido: todas las cuarentenas elegibles (masivo desde panel general).
 function abrirModalCondiciones(filtroSolicitud) {
   const filtroArr = Array.isArray(filtroSolicitud)
     ? filtroSolicitud.map(s => String(s).trim()).filter(Boolean)
@@ -11380,11 +11384,15 @@ function abrirModalCondiciones(filtroSolicitud) {
     if (!requerida) return; // código no elegible (sin análisis, u otro)
     const nsol = String(r['Solicitud']||'').trim();
     if (!nsol) return;
-    if (filtroArr && filtroArr.indexOf(nsol) === -1) return;
+    const key = nsol + '|' + requerida;
+    if (filtroArr) {
+      const matchSolicitudCompleta = filtroArr.indexOf(nsol) !== -1;
+      const matchCompuesto = filtroArr.indexOf(key) !== -1;
+      if (!matchSolicitudCompleta && !matchCompuesto) return;
+    }
     const guardada = _condActualGuardada(r);
     const actualLabel = guardada ? guardada.label : '—';
     const especie = String(r['Especie']||'').trim();
-    const key = nsol + '|' + requerida;
     if (!grupos[key]) {
       grupos[key] = {
         filas: [],
@@ -11412,15 +11420,17 @@ function abrirModalCondiciones(filtroSolicitud) {
 function cerrarModalCondiciones() { $('modal-cond').classList.remove('open'); }
 
 // Entrada desde el stage de Alertas. Si hay tarjetas CCAA marcadas con su
-// checkbox, usa solo esas (selección manual). Si no se marcó ninguna, usa
-// todas las cuarentenas con alerta CCAA activa hoy (vencida o próxima),
-// mismo comportamiento que antes de agregar los checkboxes.
+// checkbox, usa solo esas (Solicitud + condición específica marcada, no la
+// cuarentena completa — una cuarentena puede tener Virus, Hongo y Bacteria a
+// la vez, y marcar solo la de Virus no debe traer las otras). Si no se marcó
+// ninguna, usa todas las cuarentenas con alerta CCAA activa hoy.
 function enviarCorreoCCAAAlertas() {
-  const marcados = Array.from(document.querySelectorAll('.al-ccaa-chk:checked'))
-    .map(cb => cb.dataset.sol).filter(Boolean);
-  let solicitudes;
+  const marcados = Array.from(document.querySelectorAll('.al-ccaa-chk:checked'));
+  let claves;
   if (marcados.length) {
-    solicitudes = Array.from(new Set(marcados));
+    claves = marcados
+      .map(cb => (cb.dataset.sol && cb.dataset.cond) ? (cb.dataset.sol + '|' + cb.dataset.cond) : null)
+      .filter(Boolean);
   } else {
     const ccaaAlertas = (typeof filteredAlerts === 'function' ? filteredAlerts() : _alerts)
       .filter(a => a.tag === 'CCAA' && a.solicitud);
@@ -11428,9 +11438,15 @@ function enviarCorreoCCAAAlertas() {
       setS('No hay alertas de Cambio de Condiciones Ambientales (CCAA) vencidas o próximas en este momento.', 'warn');
       return;
     }
-    solicitudes = Array.from(new Set(ccaaAlertas.map(a => a.solicitud)));
+    claves = ccaaAlertas
+      .map(a => { const c = _condCondicionRequerida(a.analysis); return c ? (a.solicitud + '|' + c) : null; })
+      .filter(Boolean);
   }
-  abrirModalCondiciones(solicitudes);
+  if (!claves.length) {
+    setS('No se pudo determinar la condición requerida para las alertas seleccionadas.', 'warn');
+    return;
+  }
+  abrirModalCondiciones(Array.from(new Set(claves)));
 }
 
 function _renderCondTabla() {
@@ -12726,8 +12742,9 @@ function renderCondPendientesLista(all) {
       : a.days === null ? ''
       : a.days <= 0 ? `vencida hace ${Math.abs(a.days)} día(s)`
       : `faltan ${a.days} día(s)`;
-    const chk = (a.tag === 'CCAA' && a.solicitud)
-      ? `<input type="checkbox" class="al-ccaa-chk cond-pend-chk" data-sol="${String(a.solicitud).replace(/"/g,'&quot;')}" onclick="event.stopPropagation()">`
+    const condReqAlerta = a.tag === 'CCAA' ? (_condCondicionRequerida(a.analysis) || '') : '';
+    const chk = (a.tag === 'CCAA' && a.solicitud && condReqAlerta)
+      ? `<input type="checkbox" class="al-ccaa-chk cond-pend-chk" data-sol="${String(a.solicitud).replace(/"/g,'&quot;')}" data-cond="${condReqAlerta}" onclick="event.stopPropagation()">`
       : '';
     const tdChkClick = chk ? ` onclick="const c=this.querySelector('input.cond-pend-chk'); if(c) c.checked=!c.checked;" style="padding:6px 8px;text-align:center;cursor:pointer"` : ` style="padding:6px 8px;text-align:center"`;
     return `<tr>
