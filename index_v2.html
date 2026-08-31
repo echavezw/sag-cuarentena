@@ -236,15 +236,6 @@ input.auto-filled{animation:auto-flash .6s ease-out}
 input,select,textarea{padding:9px 11px;border:1px solid var(--bd);border-radius:var(--rs);
   font-size:14px;font-family:var(--font);width:100%;color:var(--ink);background:var(--wh);
   outline:none;-webkit-appearance:none;transition:border .12s,box-shadow .12s}
-/* La regla genérica de arriba (padding grande + appearance:none) deja los
-   checkboxes sin indicador visual de marcado fuera de .tbl (que tiene su
-   propio estilo con checkmark). Se restaura apariencia nativa + accent-color
-   para que se vea claramente el tick al marcar. */
-input[type="checkbox"]{
-  width:15px;height:15px;padding:0;border-radius:3px;
-  -webkit-appearance:checkbox;appearance:auto;
-  accent-color:var(--gd,#B8975A);cursor:pointer;flex-shrink:0;
-}
 input:focus,select:focus,textarea:focus{border-color:var(--nv);box-shadow:0 0 0 3px rgba(0,108,184,.14);background:#fff}
 input[readonly]{background:var(--g50);border-color:var(--g100);color:var(--g600);cursor:default;font-family:var(--mono);font-size:12px}
 input[readonly]:focus{box-shadow:none;border-color:var(--g100)}
@@ -925,7 +916,7 @@ input.field-blocked, select.field-blocked {
 <div class="top">
   <div class="top-logo"><img src="data:image/png;base64,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" alt="SAG"></div>
   <div>
-    <div class="top-title">Base de Datos | Estación de Cuarentena Vegetal | Departamento RED SAG de Laboratorios - ECA</div>
+    <div class="top-title">Base de Datos | Estación de Cuarentena Vegetal | RED Laboratorios SAG</div>
     <div style="font-size:9.5px;color:rgba(255,255,255,.3);font-family:var(--mono)">v2.0 · Google Sheets</div>
   </div>
   <div class="top-mid">
@@ -984,7 +975,6 @@ input.field-blocked, select.field-blocked {
   <div class="sb-item" id="nav-importadores" onclick="goStage('importadores');cargarImportadoresAcceso()"><span class="sb-num">I</span><span class="sb-lbl">Acceso Importadores</span></div>
   <div class="sb-actions">
     <button class="btn btn-gd btn-sm" onclick="nuevaSolicitud()">+ Nueva Solicitud</button>
-    <button class="btn btn-danger btn-sm" onclick="abrirModalDestruccion()" style="width:100%;justify-content:center;margin-bottom:6px" title="Registrar destrucción o eliminación de una cuarentena, en cualquier etapa">🗑 Destrucción/Eliminación</button>
     <button class="btn btn-gh btn-sm" id="compact-btn" onclick="toggleCompact()" title="Alternar modo compacto" style="width:100%;justify-content:center;margin-bottom:6px">⊟ Compacto</button>
     <div id="unsaved-banner">⬤ Cambios sin guardar</div>
     <button onclick="guardarTodo()" style="width:100%;padding:10px 0;background:linear-gradient(135deg,var(--nv),var(--nv2));color:#fff;border:1.5px solid #fff;border-radius:var(--rs);font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;transition:all .15s;font-family:var(--font)" onmouseover="this.style.background='var(--gd)';this.style.color='var(--inkv)'" onmouseout="this.style.background='linear-gradient(135deg,var(--nv),var(--nv2))';this.style.color='#fff'">Guardar</button>
@@ -1019,6 +1009,7 @@ input.field-blocked, select.field-blocked {
     <div class="sec-actions">
       <button class="btn btn-gh btn-sm" onclick="buildAlerts();renderAlertsStage()">Actualizar</button>
       <button class="btn btn-gh btn-sm" onclick="restaurarAlertas()" title="Vuelve a mostrar todas las alertas que habías descartado con ✕">↩ Restaurar descartadas</button>
+      <button class="btn btn-gh btn-sm" onclick="enviarCorreoCCAAAlertas()" title="Solicita el cambio de condiciones ambientales solo para las cuarentenas con alerta CCAA activa (vencida o próxima)">📧 Cambio Condiciones (alertas CCAA)</button>
     </div>
   </div>
   <div class="tab-body" style="border-radius:0 0 var(--r) var(--r);padding:14px">
@@ -1166,7 +1157,7 @@ input.field-blocked, select.field-blocked {
 
       </div>
       <div class="ff" style="grid-column:span 2"><label class="lbl">Fecha Recepcion</label><input type="date" id="f1-fech-rec"></div>
-      <div class="ff ff-secondary" style="grid-column:span 3"><label class="lbl">Oficina <span class="auto">FIJO</span></label><input id="f1-oficina" readonly value="Departamento RED SAG de Laboratorios - ECA"></div>
+      <div class="ff ff-secondary" style="grid-column:span 3"><label class="lbl">Oficina <span class="auto">FIJO</span></label><input id="f1-oficina" readonly value="Red Laboratorios SAG - ECA"></div>
       <div class="ff ff-secondary" style="grid-column:span 2"><label class="lbl">Region</label><input id="f1-region" value="Metropolitana"></div>
       <div class="ff" style="grid-column:span 3;justify-content:flex-start;align-items:flex-end"><label class="lbl" style="visibility:hidden">.</label><span class="timbre-wrap" id="f1-timbre-wrap" style="display:none;margin:0"><span id="f1-timbre" class="timbre-aprob timbre-alto"></span></span></div>
       <div class="ff" id="f1-fito-wrap" style="grid-column:span 12;justify-content:flex-start;display:none">
@@ -1447,8 +1438,6 @@ input.field-blocked, select.field-blocked {
           <option>No Recibida/Destruida en Punto de Ingreso</option>
           <option>Plantada</option><option>Recibida</option>
         </select></div>
-      <div class="ff c2"><label class="lbl">N° Res. Destrucción/Eliminación</label><input id="f3-resdestr" oninput="cacheField('f3-resdestr')" placeholder="ej. 300/2026"></div>
-      <div class="ff c2"><label class="lbl">Fecha Res. Destrucción/Eliminación</label><input type="date" id="f3-fresdestr" oninput="cacheField('f3-fresdestr')"></div>
     </div>
 
     <!-- Tabla fusionada: Verificación + Establecimiento -->
@@ -1540,21 +1529,6 @@ input.field-blocked, select.field-blocked {
       <button class="btn btn-nv btn-sm" onclick="autoCargarAnalisis()">Auto-cargar plagas</button>
       <button class="btn btn-gh btn-sm" onclick="abrirModalCondiciones(document.getElementById('f1-nsol')?.value||'')" title="Solicitar cambio de condiciones ambientales para esta solicitud">📧 Cambio Condiciones</button>
       <span id="cond-badge-ficha" class="badge badge-gd" style="display:none;font-size:10px"></span>
-    </div>
-  </div>
-  <div id="cond-bitacora-wrap" style="margin-bottom:14px">
-    <div style="display:flex;align-items:center;gap:8px;cursor:pointer" onclick="_toggleBitacoraCondiciones()">
-      <span id="cond-bit-toggle-icon" style="font-size:11px;transition:transform .15s">▶</span>
-      <span style="font-size:12px;font-weight:600;color:var(--g600)">🧪 Bitácora Condiciones Ambientales</span>
-      <span id="cond-bit-count" style="font-size:11px;color:var(--g400)"></span>
-    </div>
-    <div id="cond-bitacora-body" style="display:none;margin-top:8px;border:1px solid var(--g200);border-radius:var(--rs);overflow:auto;max-height:260px">
-      <table class="tbl" style="width:100%">
-        <thead><tr>
-          <th>Fecha Envío</th><th>Cambio</th><th>Enviado a</th><th>Fecha Real del Cambio</th><th>Confirmado por</th><th></th>
-        </tr></thead>
-        <tbody id="cond-bitacora-tbody"><tr><td colspan="6" style="text-align:center;padding:10px;color:var(--g400)">Sin registros.</td></tr></tbody>
-      </table>
     </div>
   </div>
   <div class="tabs" id="tabs-4">
@@ -1743,12 +1717,9 @@ input.field-blocked, select.field-blocked {
       <div class="ff c2"><label class="lbl">Status Final</label>
         <select id="f6-stat" onchange="updateStatusBadge();cacheField('f6-stat')" onchange="updateStatusBadge()">
           <option value="">—</option><option>A destruir</option><option>Destruida</option>
-          <option>Eliminada</option><option>Desistida</option>
           <option>Entregada</option><option>Liberada</option><option>No Recibida</option>
           <option>No Prosperó</option><option>Terminada</option>
         </select></div>
-      <div class="ff c2"><label class="lbl">N° Res. Destrucción/Eliminación</label><input id="f6-resdestr" oninput="cacheField('f6-resdestr')" placeholder="ej. 300/2026"></div>
-      <div class="ff c2"><label class="lbl">Fecha Res. Destrucción/Eliminación</label><input type="date" id="f6-fresdestr" oninput="cacheField('f6-fresdestr')"></div>
       <div class="ff c1">
         <label class="lbl">Status</label>
         <div id="f6-stat-badge" style="padding:6px 8px;min-height:34px;display:flex;align-items:center">
@@ -1851,7 +1822,6 @@ input.field-blocked, select.field-blocked {
     <button class="tab active" id="panel-tab-0" onclick="showPanelTab(0)">Todos los Registros</button>
     <button class="tab" id="panel-tab-1" onclick="showPanelTab(1)">Búsqueda Rápida</button>
     <button class="tab" id="panel-tab-2" onclick="showPanelTab(2)">Reportes PMG</button>
-    <button class="tab" id="panel-tab-3" onclick="showPanelTab(3)">Informe Mensual</button>
   </div>
   <div id="panel-content-0" class="tab-panel active">
   <div class="tab-body" style="border-radius:0 0 var(--r) var(--r);padding:14px">
@@ -1940,55 +1910,6 @@ input.field-blocked, select.field-blocked {
     </div>
   </div>
   </div><!-- /panel-content-2 -->
-
-  <!-- Tab: Informe Mensual -->
-  <div id="panel-content-3" class="tab-panel">
-  <div class="tab-body" style="border-radius:0 0 var(--r) var(--r);padding:18px">
-    <div class="info-box" style="margin-bottom:14px">Informe Mensual Cuarentena Posentrada (F-IIT-IMP-PA-018) para nivel central SAG. Muestra cuarentenas con resolución emitida en los últimos 24 meses hasta el fin del mes/año seleccionado (vigentes/pendientes) más las que se cerraron (Terminada/Caducada/Destruida/Desistida/Eliminada) durante este período. Una vez reportada como cerrada, deja de aparecer en informes siguientes.</div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px">
-      <div class="ff c1"><label class="lbl">Mes</label>
-        <select id="inf-mes">
-          <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
-          <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
-          <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
-          <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
-        </select></div>
-      <div class="ff c1"><label class="lbl">Año</label><input type="number" id="inf-anio" style="font-family:var(--mono)"></div>
-      <button class="btn btn-nv btn-sm" onclick="generarInformeMensual()">Generar</button>
-      <button class="btn btn-gh btn-sm" onclick="descargarExcelInformeMensual()">⬇ Excel</button>
-      <button class="btn btn-gh btn-sm" onclick="descargarPdfInformePrevia()">⬇ PDF</button>
-      <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--g600);margin-left:8px">
-        <input type="checkbox" id="inf-incluir-cerradas" style="width:14px;height:14px">
-        Incluir cerradas de meses anteriores (auditoría)
-      </label>
-    </div>
-    <div id="inf-resumen" style="margin-bottom:12px"></div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">
-      <div id="inf-info" style="font-size:11px;color:var(--g400);font-family:var(--mono)"></div>
-    </div>
-    <div id="inf-table-wrap" style="overflow:auto;height:440px;min-height:220px;max-height:70vh;resize:vertical;border:1px solid var(--g200);border-radius:var(--rs)">
-      <table class="tbl" id="inf-table"><thead id="inf-thead"></thead><tbody id="inf-tbody">
-        <tr><td style="text-align:center;padding:30px;color:var(--g400)">Seleccione mes/año y presione "Generar".</td></tr>
-      </tbody></table>
-    </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--g200);margin-top:14px;padding-top:14px;flex-wrap:wrap;gap:10px">
-      <label style="display:flex;align-items:center;gap:8px;font-size:12px">
-        <input type="checkbox" id="inf-enviar-check" style="width:15px;height:15px">
-        Enviar por correo a nivel central al guardar
-      </label>
-      <button class="btn btn-nv btn-sm" onclick="guardarInformeMensual()">Guardar informe</button>
-    </div>
-    <div style="margin-top:20px;border-top:1px solid var(--g200);padding-top:12px">
-      <div style="font-size:11px;color:var(--g400);font-family:var(--mono);margin-bottom:8px">Informes guardados</div>
-      <div style="overflow:auto;border:1px solid var(--g200);border-radius:var(--rs)">
-        <table class="tbl" id="inf-guardados-table">
-          <thead><tr><th>Mes/Año</th><th>Fecha Generación</th><th>Registros</th><th>Enviado</th><th>Acciones</th></tr></thead>
-          <tbody id="inf-guardados-tbody"><tr><td colspan="5" style="text-align:center;padding:14px;color:var(--g400)">Cargando...</td></tr></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-  </div><!-- /panel-content-3 -->
 </div>
 
 
@@ -2316,7 +2237,7 @@ input.field-blocked, select.field-blocked {
     </div>
     <div class="modal-actions" style="margin-top:12px">
       <button class="btn btn-gh btn-sm" onclick="cerrarModalCondiciones()">Cancelar</button>
-      <button class="btn btn-nv btn-sm" id="cond-enviar-btn" onclick="previsualizarCambioCondiciones()">📧 Ver borrador y enviar</button>
+      <button class="btn btn-nv btn-sm" id="cond-enviar-btn" onclick="enviarCambioCondiciones()">📧 Enviar Solicitud</button>
     </div>
   </div>
 </div>
@@ -2352,7 +2273,6 @@ input.field-blocked, select.field-blocked {
 <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()" defer></script>
 <script src="https://accounts.google.com/gsi/client" onload="onGISLoad()" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js" defer></script>
 
 <script>
 
@@ -2579,7 +2499,7 @@ const DATE_COLS_TO_CHECK = [
   'Fecha Real de CCAA','Fecha muestreo/Indexaje','Fecha de envío',
   'Fecha Informe Fitosanitario','Fecha Res.4','Entregada',
   'Fecha Ing. Solicitada','Fecha Ing. Asignada','Vigencia Desde',
-  'Fecha Recepcion','Fec. Mod.','Vigencia Final Desde','Vigencia Final Hasta','Prórroga'
+  'Fecha Recepcion','Fec. Mod.','Vigencia Final Desde','Vigencia Final Hasta'
 ];
 
 function _isCorruptDateString(s) {
@@ -3448,7 +3368,7 @@ function calcStatusAuto(rows) {
 
   // 1. Estado manual final (Etapa VII) tiene prioridad absoluta si está seteado
   const statusManual = String(first['Status'] || '').trim();
-  const ESTADOS_FINALES = ['A destruir', 'Destruida', 'Eliminada', 'Desistida', 'Entregada', 'Liberada', 'No Prosperó', 'Perdida', 'Terminada'];
+  const ESTADOS_FINALES = ['A destruir', 'Destruida', 'Entregada', 'Liberada', 'No Prosperó', 'Perdida', 'Terminada'];
   if (ESTADOS_FINALES.includes(statusManual)) return statusManual;
 
   // 2. Sin Fecha de Ingreso → aún no llegó a la ECA
@@ -3835,14 +3755,13 @@ function _especiesConsolidadas(r) {
   function _agregarPar(esp, vRaw, tipoAn) {
     esp = String(esp||'').trim();
     if (!esp) return;
-    // BUGFIX: antes se descartaban las especies "Género spp." salvo que la fila
-    // fuera de análisis entomológico — pero "Género spp." también se usa como
-    // especie real declarada (Vitis spp., Citrus spp., Actinidia spp., etc.) en
-    // análisis virológico/bacteriológico/micológico/fitoplasma, y quedaba fuera
-    // del panel aunque estuviera en Material/Detalle. Se agrega siempre; la
-    // redundancia frente a especies reales del mismo género ya se resuelve más
-    // abajo (bloque "Si para un género ya hay especies reales conocidas...").
-    especiesSet.add(esp);
+    const esSpp = /\bspp\.?$/i.test(esp);
+    if (esSpp) {
+      const esEntomologico = tipoAn === 'entomológico' || tipoAn === 'entomologico';
+      if (esEntomologico) especiesSet.add(esp);
+    } else {
+      especiesSet.add(esp);
+    }
     vRaw = String(vRaw||'').trim();
     if (vRaw) {
       if (!variedadesPorEspecie[esp]) variedadesPorEspecie[esp] = new Set();
@@ -4194,16 +4113,10 @@ function clearFieldCache() { window._fieldCache={}; }
 // Si se ingresa Fecha Entrega, el registro quedó entregado: el desplegable
 // "Status Final" (Etapa VII) se marca automáticamente como "Entregada",
 // salvo que ya estuviera puesto así manualmente (no hace nada distinto).
-// EXCEPCIÓN: si el Status ya es Destruida/Eliminada/Desistida (registrado vía
-// el botón global de Destrucción/Eliminación), esa determinación es más
-// específica y no debe pisarse solo porque exista una Fecha Entrega antigua
-// de antes de la destrucción.
-const _ESTADOS_DESTRUCCION = ['Destruida','Eliminada','Desistida'];
 function autoStatusPorEntrega() {
   const fent = document.getElementById('f6-fent');
   const stat = document.getElementById('f6-stat');
   if (!fent || !stat) return;
-  if (_ESTADOS_DESTRUCCION.includes(stat.value)) return;
   if (fent.value && stat.value !== 'Entregada') {
     stat.value = 'Entregada';
     cacheField('f6-stat');
@@ -4592,7 +4505,7 @@ async function init() {
 
 // ── NAVIGATION ──
 function showPanelTab(idx) {
-  [0,1,2,3].forEach(i => {
+  [0,1,2].forEach(i => {
     const tab = document.getElementById('panel-tab-'+i);
     const pnl = document.getElementById('panel-content-'+i);
     if(tab) tab.classList.toggle('active', i===idx);
@@ -4605,7 +4518,6 @@ function showPanelTab(idx) {
     buscarPanelDefault();
   }
   if(idx===2) { initReportePMG(); }
-  if(idx===3) { initInformeMensual(); }
 }
 
 let _panelYearFilter = null; // null = usa la ventana por defecto (últimos 4 años); si el usuario fija un año, se usa desde ahí sin límite superior
@@ -6206,7 +6118,6 @@ async function cargarFilaMulti(rows) {
   sv('f2-vfin-hasta', fmtD(r['Vigencia Final Hasta']||''));
   sv('f2-res-mod', r['Res. Modificacion']||'');
   sv('f2-fres-mod', fmtD(r['Fec. Mod.']||''));
-  sv('f2-prorroga', fmtD(r['Prórroga']||''));
   calcVigencia();
   autoProceso();
   autoEstadoRes();
@@ -6226,8 +6137,6 @@ async function cargarFilaMulti(rows) {
   sv('f3-finj', fmtD(r['Fecha Injertación']||r['Fecha Inyertacion']||''));
   sv('f3-flev', fmtD(r['Fecha aprox. Levant.']||''));
   selEl('f3-estado', r['Estado']||'');
-  sv('f3-resdestr', r['Res. Destrucción/Eliminación']||'');
-  sv('f3-fresdestr', fmtD(r['Fecha Res. Destrucción/Eliminación']||''));
   // Etapa VI
   sv('f6-nrest', r['Res. Término']||r['Res. Termino']||'');
   sv('f6-frterm', fmtD(r['Fecha Res.4']||''));
@@ -6235,8 +6144,6 @@ async function cargarFilaMulti(rows) {
   selEl('f6-term', r['Terminada']||'');
   selEl('f6-lib', r['Liberada']||'');
   selEl('f6-stat', r['Status']||'');
-  sv('f6-resdestr', r['Res. Destrucción/Eliminación']||'');
-  sv('f6-fresdestr', fmtD(r['Fecha Res. Destrucción/Eliminación']||''));
   // Corrige registros históricos: si ya tienen Fecha Entrega pero el Status
   // guardado no quedó como 'Entregada', se corrige al cargar la ficha.
   autoStatusPorEntrega();
@@ -6354,7 +6261,6 @@ async function cargarFilaMulti(rows) {
   setActiveRecord(res, yr, rows);
   clearDirty();
   if (typeof _actualizarBadgeCondicionesFicha === 'function') _actualizarBadgeCondicionesFicha(rows);
-  if (typeof cargarBitacoraCondiciones === 'function') cargarBitacoraCondiciones(sol);
   // Navigate to Etapa II if has resolution, otherwise Etapa I
   goStage(res ? 2 : 1);
 }
@@ -6380,7 +6286,7 @@ function limpiarFormSilent() {
    'f3-estado','f3-cub','f3-cub2','f6-term','f6-lib','f6-stat','f6-afirma']
     .forEach(id=>{ const e=$(id); if(e) e.value=''; });
   selEl('f1-proceso','Sin Res.');
-  sv('f1-oficina','Departamento RED SAG de Laboratorios - ECA');
+  sv('f1-oficina','Red Laboratorios SAG - ECA');
   sv('f1-region','Metropolitana');
   autoProceso();
   autoEstadoRes();
@@ -6415,7 +6321,7 @@ function limpiarFormSilent() {
 
 function nuevaSolicitud() {
   showModal('Nueva Solicitud',`Se limpiaran todos los campos. La proxima solicitud sera N° ${calcNextSol()}.`,
-    ()=>{ closeModal(); limpiarFormSilent(); clearActiveRecord(); sv('f1-nsol',String(calcNextSol())); sv('f1-oficina','Departamento RED SAG de Laboratorios - ECA'); goStage(1); setS('Listo para nueva Solicitud N° '+calcNextSol(),'ok'); },
+    ()=>{ closeModal(); limpiarFormSilent(); clearActiveRecord(); sv('f1-nsol',String(calcNextSol())); sv('f1-oficina','Red Laboratorios SAG - ECA'); goStage(1); setS('Listo para nueva Solicitud N° '+calcNextSol(),'ok'); },
     'Continuar','btn-nv');
 }
 
@@ -7810,28 +7716,13 @@ function makeAnRow(key,i,r,tecnica) {
   // Compute esRaiz from stored flag OR from via field
   const normVia = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
   let viaStr = r.via||'';
-  // If no via stored, look it up in PLAGAS_LOOKUP — SIEMPRE acotado a la especie de
-  // esta fila (y como respaldo, a su género "Genero spp."), nunca a toda la tabla.
-  // BUGFIX: antes buscaba el nombre del patógeno en TODAS las especies/zonas de
-  // PLAGAS_LOOKUP y se quedaba con la primera coincidencia — como varios patógenos
-  // (ej. "Tomato black ring virus", "Raspberry ringspot virus") se repiten en más
-  // de una especie con "via" distinta, esto podía traer la vía de una especie ajena
-  // (ej. Fragaria x ananassa, via "Plantas") y marcar el badge R en un registro de
-  // otra especie (ej. Prunus persica) donde esa plaga NO requiere material con raíz.
+  // If no via stored, look it up in PLAGAS_LOOKUP by patogeno name
   if(!viaStr && r.patogeno && typeof PLAGAS_LOOKUP!=='undefined') {
-    const espKey = r.especie || '';
-    const buscarEn = (zonas) => {
-      if(!zonas) return '';
+    outer: for(const zonas of Object.values(PLAGAS_LOOKUP)) {
       for(const items of Object.values(zonas)) {
         const match = items.find(p=>p.plaga===r.patogeno);
-        if(match) return match.via||'';
+        if(match){ viaStr=match.via||''; break outer; }
       }
-      return '';
-    };
-    viaStr = buscarEn(PLAGAS_LOOKUP[espKey]);
-    if(!viaStr && espKey) {
-      const genero = espKey.split(' ')[0] + ' spp.';
-      viaStr = buscarEn(PLAGAS_LOOKUP[genero]);
     }
   }
   // R indicator: plaga is for root material only AND current material has no roots
@@ -10548,18 +10439,7 @@ function buildRows(nsol,imp) {
     'Entregada':       fmtDisplay(getCached('f6-fent',v('f6-fent')))||_lastLoadedRow['Entregada']||'',
     'Obs.':            getCached('f6-obs',v('f6-obs'))||_lastLoadedRow['Obs.']||'',
     'Obs. Entrega Parcial': getCached('f6-var-pend',v('f6-var-pend'))||_lastLoadedRow['Obs. Entrega Parcial']||'',
-    'Res. Destrucción/Eliminación': getCached('f6-resdestr',v('f6-resdestr'))||getCached('f3-resdestr',v('f3-resdestr'))||_lastLoadedRow['Res. Destrucción/Eliminación']||'',
-    'Fecha Res. Destrucción/Eliminación': fmtDisplay(getCached('f6-fresdestr',v('f6-fresdestr'))||getCached('f3-fresdestr',v('f3-fresdestr')))||_lastLoadedRow['Fecha Res. Destrucción/Eliminación']||'',
     'Status':          (function(){
-      // Los estados de destrucción/eliminación/desistimiento son determinaciones
-      // administrativas específicas (registradas manualmente por SAG) y no deben
-      // ser pisadas por la regla automática de "Fecha Entrega ⇒ Entregada" — bug
-      // corregido: antes, guardar cualquier cambio en un registro ya marcado
-      // Destruida con una Fecha Entrega antigua lo revertía silenciosamente a
-      // 'Entregada' en el Sheet.
-      const _statPrimero = getCached('f6-stat',v('f6-stat'));
-      if(_ESTADOS_DESTRUCCION.includes(_statPrimero)) return _statPrimero;
-      if(_ESTADOS_DESTRUCCION.includes(_lastLoadedRow['Status']) && !_statPrimero) return _lastLoadedRow['Status'];
       // Fecha Entrega manda: si está presente, el registro quedó entregado.
       const _fechaEntrega = getCached('f6-fent',v('f6-fent'));
       if(_fechaEntrega) return 'Entregada';
@@ -10580,13 +10460,7 @@ function buildRows(nsol,imp) {
     })(),
     'A Firma Res. Termino': getCached('f6-afirma',v('f6-afirma'))||_lastLoadedRow['A Firma Res. Termino']||'',
     'Proveedor':       getCached('f1-prov',v('f1-prov'))||_lastLoadedRow['Proveedor']||'',
-    // f1-rep no tiene input real en el DOM (bug histórico) — v() siempre
-    // devuelve ''. Antes esto borraba la columna 'Representante' en cada
-    // Guardar. Ahora se preserva el valor ya guardado y, si está vacío, se
-    // completa con 'Nombre Representante' (declaración electrónica del
-    // portal en la etapa de importación) para que quede inscrito en el Acta
-    // de Recepción.
-    'Representante':   v('f1-rep')||_lastLoadedRow['Representante']||_lastLoadedRow['Nombre Representante']||'',
+    'Representante':   v('f1-rep'),
     'Tipo Material':   '',
     'Fecha Ing. Solicitada': fmtDisplay(v('f1-fing')),
     'Fecha Recepcion': fmtDisplay(v('f1-fech-rec')),
@@ -10614,7 +10488,6 @@ function buildRows(nsol,imp) {
     'Pto Ingreso':     v('f1-pto')||_lastLoadedRow['Pto Ingreso']||'',
     'Res. Modificacion': v('f2-res-mod')||_lastLoadedRow['Res. Modificacion']||'',
     'Fec. Mod.':       fmtDisplay(v('f2-fres-mod')),
-    'Prórroga':        fmtDisplay(v('f2-prorroga'))||_lastLoadedRow['Prórroga']||'',
     'N° Plantas Finales': (()=>{
       // Prefer live DOM sum; fallback to _loadedEspData sum; then f6-total-fin
       // Excluye filas marcadas como "no entregar" (checkbox pf-inc-{i} desmarcado)
@@ -10741,9 +10614,7 @@ const CANONICAL_HEADERS = [
   'N° CDA','N° Cert. Fitosanitario','Link Solicitud PDF','Link Resolucion PDF',
   'Link Timbre Recepcion','Fecha Aviso SPS','Fecha Aviso SPS Estadía',
   'Fecha Reserva','Fecha Hora Envío','Fecha Hora Cancelación','Obs. Entrega Parcial',
-  'Fecha Último Evento SAG','Tipo Último Evento SAG',
-  'Res. Destrucción/Eliminación','Fecha Res. Destrucción/Eliminación',
-  'Prórroga'
+  'Fecha Último Evento SAG','Tipo Último Evento SAG'
 ];
 
 // ══════════════════════════════════════════════
@@ -10930,716 +10801,6 @@ function descargarExcelReportePMG() {
   a.download='ECA_Reporte_PMG_'+new Date().toISOString().slice(0,10)+'.csv';
   a.click();
   setS('Reporte PMG descargado.','ok');
-}
-
-// ══════════════════════════════════════════════════════════════════════════
-// INFORME MENSUAL DE CUARENTENAS (ECA) — F-IIT-IMP-PA-018
-// Cumulativo por Res.+Fecha Res. <= fin del mes/año seleccionado. Un registro
-// único por Resolución (agrupa filas de Detalle repetidas por plaga/análisis),
-// igual patrón de deduplicación que Reportes PMG (_filasDelRegistro / merge).
-// ══════════════════════════════════════════════════════════════════════════
-const SHEET_INFORMES = 'InformesMensuales';
-const INFORMES_HEADERS = ['Mes','Año','Nombre Informe','Fecha Generación','Generado Por','Cant. Registros','Datos JSON','Enviado','Fecha Envío','Destinatario'];
-let _informesTabAsegurada = false;
-const MESES_NOMBRES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-
-const INF_COLS = [
-  {key:'resAnio',   label:'N° Resolución/año'},
-  {key:'estado',    label:'Estado Cuarentena'},
-  {key:'tipoCuar',  label:'Tipo de Cuarentena'},
-  {key:'tipoEC',    label:'Tipo Estación Cuarentenaria'},
-  {key:'importador',label:'Importador'},
-  {key:'especie',   label:'Especie(s)', align:'left'},
-  {key:'origen',    label:'País de origen'},
-  {key:'fechaRecep',label:'Fecha Recepción material vegetal'},
-  {key:'fechaEstab',label:'Fecha Establecimiento'},
-  {key:'cda',       label:'N° CDA / Aviso llegada'},
-  {key:'resTermino',label:'N° y Fecha Res. Término'},
-  {key:'resDestr',  label:'N° y Fecha Res. Destrucción/Eliminación'},
-  {key:'obs',       label:'Actividades/Observaciones', align:'left'}
-];
-function _infColAlign(key) {
-  const c = INF_COLS.find(x=>x.key===key);
-  return (c && c.align) ? c.align : 'center';
-}
-
-let _infRows = []; // último informe generado en memoria (antes de guardar)
-let _infGuardados = []; // filas leídas de InformesMensuales
-
-function initInformeMensual() {
-  const hoy = new Date();
-  const selMes = $('inf-mes'), inpAnio = $('inf-anio');
-  if(selMes && !selMes.dataset.init) { selMes.value = String(hoy.getMonth()+1); selMes.dataset.init='1'; }
-  if(inpAnio && !inpAnio.value) inpAnio.value = String(hoy.getFullYear());
-  cargarInformesGuardados();
-}
-
-// Regla de Estado Cuarentena — 7 casos definidos con Eduardo (ver hilo de diseño).
-// El resultado queda pre-cargado en un <select> editable por fila en la vista previa.
-function _estadoCuarentena(r) {
-  const resDestr = String(r['Res. Destrucción/Eliminación']||'').trim();
-  const statusRaw = String(r['Status']||'').trim();
-  const estado3 = String(r['Estado']||'').trim(); // Etapa III: Injertada/Plantada/Recibida/No Recibida/No Recibida-Destruida en Punto de Ingreso
-  // Se reconoce tanto por la columna dedicada (N° Res. Destrucción/Eliminación,
-  // cargada desde Etapa III/VII) como por el Status literal, y también si el
-  // material fue destruido directamente en el punto de ingreso (Etapa III) —
-  // cubre registros marcados antes de que existieran los campos de resolución
-  // dedicados, para que el informe no los pierda.
-  if(resDestr || ['Destruida','Eliminada','Desistida'].includes(statusRaw) || estado3==='No Recibida/Destruida en Punto de Ingreso') {
-    if(statusRaw==='Desistida') return 'Desistida';
-    if(statusRaw==='Eliminada') return 'Eliminada';
-    return 'Destruida';
-  }
-  const terminada = String(r['Terminada']||'').trim();
-  const liberada = String(r['Liberada']||'').trim();
-  if(/^s[ií]$/i.test(terminada) || /^s[ií]$/i.test(liberada)) return 'Terminada';
-
-  // 'Estado Res.' es un subestado administrativo interno de Etapa II (Sin
-  // Firma / Enviada a Firma Res. Ingreso / Vencida / Vigente / vacío) — NO es
-  // directamente uno de los 7 estados del informe oficial. Para el informe,
-  // lo único que importa es: ¿venció el plazo sin que entrara el material?, y
-  // si no, ¿ya entró y se estableció el material o sigue sin ingresar?
-  // "Sin Firma"/"Enviada a Firma" NO implican que la cuarentena no esté
-  // vigente — solo describen el trámite documental de la resolución.
-  //
-  // IMPORTANTE: 'Fecha Recepcion' registra cuándo SAG recibió la SOLICITUD
-  // (trámite electrónico del portal de importadores), NO cuándo llegó el
-  // material vegetal físicamente — usarla como señal de recepción física
-  // producía falsos "Vigente" en resoluciones vencidas sin material recibido
-  // (bug detectado en la 3814/2026). La señal correcta es el campo 'Estado'
-  // de Etapa III, que es donde SAG registra si el material efectivamente
-  // llegó y se estableció (Injertada/Plantada/Recibida).
-  // IMPORTANTE: 'Fecha Recepcion' registra cuándo SAG recibió la SOLICITUD
-  // (trámite electrónico del portal de importadores), NO cuándo llegó el
-  // material vegetal físicamente — usarla como señal de recepción física
-  // producía falsos "Vigente" en resoluciones vencidas sin material recibido
-  // (bug detectado en la 3814/2026). La señal correcta es 'Fecha de Ingreso'
-  // (fecha real en que el material llega desde el aeropuerto a ECA), el mismo
-  // campo que usa el resto del sistema como fuente de verdad de "recibida"
-  // (ver items.push 'Recepción' en la ficha resumen). Se respalda con el
-  // flag 'Recibida' y, en su defecto, el Estado de Etapa III / Fecha
-  // Injertación por si el dato quedó incompleto.
-  const estadoRes = String(r['Estado Res.']||'').trim();
-  const fechaIngreso = String(r['Fecha de Ingreso']||'').trim();
-  const fechaInjert = String(r['Fecha Injertación']||'').trim();
-  const recibidaFlag = String(r['Recibida']||'').trim().toLowerCase()==='si';
-  const recibido = recibidaFlag || !!fechaIngreso || ['Injertada','Plantada','Recibida'].includes(estado3) || !!fechaInjert;
-
-  const vigHasta = _plazoVigenciaISO(r);
-  const hoyISO = new Date().toISOString().slice(0,10);
-  const vencidaPorFecha = !!(vigHasta && vigHasta < hoyISO);
-  const vencidaPorEstado = /^vencida$/i.test(estadoRes);
-  if((vencidaPorFecha || vencidaPorEstado) && !recibido) return 'Caducada';
-
-  return recibido ? 'Vigente' : 'Pendiente';
-}
-
-// Replica exactamente la regla de autoEstadoRes() (Etapa II): el plazo real
-// de vigencia es Vigencia Desde + 30 días ('Vigencia Hasta', que se calcula
-// en pantalla pero NO se guarda como columna propia en el Sheet — por eso
-// hay que recalcularlo aquí), salvo que exista una 'Vigencia Final Hasta'
-// posterior (extensión/modificación de resolución), en cuyo caso manda esa.
-// BUG previo: se usaba 'Vigencia Desde' directamente como si fuera la fecha
-// de término cuando 'Vigencia Final Hasta' estaba vacía, marcando como
-// caducadas resoluciones que recién estaban empezando su plazo.
-function _plazoVigenciaISO(r) {
-  const vigDesde = fmtD(r['Vigencia Desde']||'');
-  const vfHasta  = fmtD(r['Vigencia Final Hasta']||'');
-  const prorroga = fmtD(r['Prórroga']||'');
-  // La Res. Modificación suele SER la prórroga (se emite justamente para
-  // extender el plazo), así que su fecha también entra como candidata.
-  const fecMod   = fmtD(r['Fec. Mod.']||'');
-  const candidatos = [];
-  if(vigDesde) {
-    const d = new Date(vigDesde+'T00:00:00');
-    if(!isNaN(d)) { d.setDate(d.getDate()+30); candidatos.push(d.toISOString().slice(0,10)); }
-  }
-  if(vfHasta) candidatos.push(vfHasta);
-  if(prorroga) candidatos.push(prorroga);
-  if(fecMod) candidatos.push(fecMod);
-  if(!candidatos.length) return '';
-  return candidatos.sort().pop(); // la más tardía manda, igual que autoEstadoRes()
-}
-
-const TERMINAL_STATES = ['Terminada','Caducada','Destruida','Desistida','Eliminada'];
-
-// Construye el set de N° Resolución/año que ya aparecieron con estado terminal
-// en algún informe guardado de un período ANTERIOR al seleccionado. Una vez que
-// un caso se reportó como cerrado, no vuelve a aparecer en informes siguientes
-// — el objetivo del informe es seguimiento de lo activo, no un archivo histórico
-// acumulativo. Se recalcula desde InformesMensuales (nunca desde memoria vieja)
-// para que sea correcto aunque se generen informes fuera de orden.
-function _construirSetCerradosAnteriores(mes, anio) {
-  const set = new Set();
-  const periodoActual = anio*100+mes;
-  _infGuardados.forEach(g=>{
-    const gMes = parseInt(g['Mes'],10), gAnio = parseInt(g['Año'],10);
-    if(!gMes || !gAnio) return;
-    if(gAnio*100+gMes >= periodoActual) return; // solo períodos estrictamente anteriores
-    let rows = [];
-    try { rows = JSON.parse(g['Datos JSON']||'[]'); } catch(e) { return; }
-    rows.forEach(r=>{
-      if(TERMINAL_STATES.includes(r.estado) && r.resAnio) set.add(r.resAnio);
-    });
-  });
-  return set;
-}
-
-async function generarInformeMensual() {
-  if(!gsData.length) { setS('Sin datos cargados.','warn'); return; }
-  const mes = parseInt($('inf-mes').value,10);
-  const anio = parseInt($('inf-anio').value,10);
-  if(!mes || !anio) { setS('Seleccione mes y año.','warn'); return; }
-  const finMesISO = new Date(anio, mes, 0).toISOString().slice(0,10); // último día del mes
-  // Ventana de 24 meses: si se pide agosto 2026, solo se considera desde
-  // agosto 2024 en adelante. Evita arrastrar cuarentenas antiguas (2017,
-  // 2018...) que ya perdieron relevancia práctica para el seguimiento mensual.
-  const desdeISO = new Date(anio-2, mes-1, 1).toISOString().slice(0,10);
-  const incluirCerradas = !!($('inf-incluir-cerradas') && $('inf-incluir-cerradas').checked);
-
-  try { await cargarInformesGuardados(); } catch(e) { /* si falla, sigue con lo que haya en memoria */ }
-  const cerradosAnteriores = incluirCerradas ? new Set() : _construirSetCerradosAnteriores(mes, anio);
-
-  const matchRows = gsData.filter(r=>{
-    const res = String(r['Res.']||'').trim();
-    if(!res) return false;
-    const fres = fmtD(r['Fecha Res.']||'');
-    if(!fres || fres > finMesISO) return false;
-    return fres >= desdeISO;
-  });
-
-  const groups = {};
-  matchRows.forEach(r=>{
-    const res = String(r['Res.']||'').trim();
-    const anioRes = fmtD(r['Fecha Res.']||'').substring(0,4);
-    const key = res+'|'+anioRes;
-    (groups[key]=groups[key]||[]).push(r);
-  });
-
-  const totalGrupos = Object.keys(groups).length;
-  const out = Object.values(groups).map(rows=>{
-    const merged = {};
-    CANONICAL_HEADERS.forEach(k=>{
-      if(k==='Especie') return;
-      let v='';
-      for(const r of rows){ const rv=r[k]; if(rv!==undefined && String(rv).trim()!==''){ v=rv; break; } }
-      merged[k]=v;
-    });
-    let especies=[...new Set(rows.map(r=>String(r['Especie']||'').trim()).filter(Boolean))];
-    const especiesReales = especies.filter(e => !/\bspp\.?\s*$/i.test(e));
-    if(especiesReales.length) especies = especiesReales;
-    merged['Especie']=especies.join('; ');
-
-    const anioRes = fmtD(merged['Fecha Res.']||'').substring(0,4) || String(new Date(merged['Fecha Res.']||'').getFullYear()||'');
-    const resTermTxt = merged['Res. Término'] ? (merged['Res. Término']+(merged['Fecha Res.4']?(' / '+fmtDisplay(merged['Fecha Res.4'])):'')) : '';
-    const resDestrTxt = merged['Res. Destrucción/Eliminación'] ? (merged['Res. Destrucción/Eliminación']+(merged['Fecha Res. Destrucción/Eliminación']?(' / '+fmtDisplay(merged['Fecha Res. Destrucción/Eliminación'])):'')) : '';
-
-    return {
-      resAnio:   merged['Res.'] + (anioRes?('/'+anioRes):''),
-      estado:    _estadoCuarentena(merged),
-      tipoCuar:  'Absoluta',
-      tipoEC:    '1',
-      importador: merged['Importador']||'',
-      especie:   merged['Especie']||'',
-      origen:    merged['Origen']||'',
-      // 'Fecha de Ingreso' = fecha real de llegada del material desde el
-      // aeropuerto a ECA (Etapa III) — es la fecha correcta para este campo
-      // del informe oficial, NO 'Fecha Recepcion' (que es la fecha en que
-      // SAG recibió la solicitud/trámite del portal, un concepto distinto).
-      fechaRecep: merged['Fecha de Ingreso'] ? fmtDisplay(merged['Fecha de Ingreso']) : '',
-      fechaEstab: merged['Fecha Injertación'] ? fmtDisplay(merged['Fecha Injertación']) : '',
-      cda:       merged['N° CDA']||'',
-      resTermino: resTermTxt,
-      resDestr:  resDestrTxt,
-      obs:       merged['Obs.']||'',
-      _importador: merged['Importador']||'',
-      _fechaResISO: fmtD(merged['Fecha Res.']||'')
-    };
-  }).filter(r => !cerradosAnteriores.has(r.resAnio));
-
-  const omitidos = totalGrupos - out.length;
-
-  out.sort((a,b)=>String(a._fechaResISO||'').localeCompare(String(b._fechaResISO||'')));
-  _infRows = out;
-  _renderInformeMensual(out);
-  const resumen = $('inf-resumen');
-  if(resumen) {
-    const cont = {}; out.forEach(r=>{ cont[r.estado]=(cont[r.estado]||0)+1; });
-    const badges = Object.keys(cont).map(k=>
-      `<span style="display:inline-block;margin:0 8px 6px 0;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;border:1px solid;${_infEstadoStyle(k)}">${k}: <b>${cont[k]}</b></span>`
-    ).join('');
-    const diag = `<div style="font-size:10px;color:var(--g400);font-family:var(--mono);margin-top:2px">
-      ${_infGuardados.length} informe(s) previo(s) encontrado(s) en InformesMensuales · ${omitidos} resolución(es) excluida(s) por cierre ya reportado · ventana: ${fmtDisplay(desdeISO)} a ${fmtDisplay(finMesISO)}
-      </div>`;
-    resumen.innerHTML = badges + diag;
-  }
-  setS(`${out.length} cuarentenas listadas a ${MESES_NOMBRES[mes]} ${anio}.`+(omitidos?` (${omitidos} cerradas en meses anteriores omitidas — marque "Incluir cerradas" para verlas).`:''),'ok');
-}
-
-// Colores de badge por Estado Cuarentena — según definición SAG:
-// rojo = cerrado con problema (Caducada/Destruida/Desistida/Eliminada/Terminada
-// también en rojo aquí, por convención del cuadro entregado), amarillo =
-// Pendiente, verde = Vigente.
-const INF_ESTADO_COLOR = {
-  'Caducada':  {bg:'#fdecea', fg:'#c0392b', border:'#e6a29c'},
-  'Destruida': {bg:'#fdecea', fg:'#c0392b', border:'#e6a29c'},
-  'Desistida': {bg:'#fdecea', fg:'#c0392b', border:'#e6a29c'},
-  'Eliminada': {bg:'#fdecea', fg:'#c0392b', border:'#e6a29c'},
-  'Terminada': {bg:'#fdecea', fg:'#c0392b', border:'#e6a29c'},
-  'Pendiente': {bg:'#fdf3d8', fg:'#8a6d1a', border:'#e8d18a'},
-  'Vigente':   {bg:'#e6f6ec', fg:'#1a7a3c', border:'#a3d9b8'}
-};
-function _infEstadoStyle(estado) {
-  const c = INF_ESTADO_COLOR[estado] || {bg:'#f0f0f0', fg:'#555', border:'#ccc'};
-  return `background:${c.bg};color:${c.fg};border-color:${c.border}`;
-}
-
-function _renderInformeMensual(rows) {
-  const thead=$('inf-thead'), tbody=$('inf-tbody'), info=$('inf-info');
-  if(!thead||!tbody) return;
-  if(info) info.textContent = `${rows.length} registros`;
-  thead.innerHTML = '<tr>'+INF_COLS.map(c=>`<th style="text-align:${_infColAlign(c.key)}">${c.label}</th>`).join('')+'</tr>';
-  if(!rows.length){ tbody.innerHTML = `<tr><td colspan="${INF_COLS.length}" style="text-align:center;padding:20px;color:var(--g400)">Sin cuarentenas en el período seleccionado.</td></tr>`; return; }
-  const estadosOpts = ['Vigente','Pendiente','Caducada','Destruida','Desistida','Eliminada','Terminada'];
-  tbody.innerHTML = rows.map((r,i)=>'<tr>'+INF_COLS.map(c=>{
-    if(c.key==='estado') {
-      return `<td style="text-align:center"><select onchange="_infRows[${i}].estado=this.value;this.style.cssText='font-size:11px;padding:2px 6px;border-radius:10px;border:1px solid;font-weight:600;text-align:center;text-align-last:center;'+_infEstadoStyle(this.value)" style="font-size:11px;padding:2px 6px;border-radius:10px;border:1px solid;font-weight:600;text-align:center;text-align-last:center;${_infEstadoStyle(r.estado)}">${
-        estadosOpts.map(o=>`<option value="${o}" ${o===r.estado?'selected':''}>${o}</option>`).join('')
-      }</select></td>`;
-    }
-    return `<td style="text-align:${_infColAlign(c.key)}">${r[c.key]||''}</td>`;
-  }).join('')+'</tr>').join('');
-}
-
-// Colores de fondo para .xlsx (mismos códigos hex que INF_ESTADO_COLOR, sin
-// '#', formato que espera xlsx-js-style). fg = texto, bg = fondo de celda.
-const INF_ESTADO_COLOR_XLSX = {
-  'Caducada':  {bg:'FDECEA', fg:'C0392B'},
-  'Destruida': {bg:'FDECEA', fg:'C0392B'},
-  'Desistida': {bg:'FDECEA', fg:'C0392B'},
-  'Eliminada': {bg:'FDECEA', fg:'C0392B'},
-  'Terminada': {bg:'FDECEA', fg:'C0392B'},
-  'Pendiente': {bg:'FDF3D8', fg:'8A6D1A'},
-  'Vigente':   {bg:'E6F6EC', fg:'1A7A3C'}
-};
-
-function descargarExcelInformeMensual() {
-  if(!_infRows.length){ setS('Genere el informe primero.','warn'); return; }
-  if(typeof XLSX === 'undefined') { setS('La librería de Excel aún está cargando, intente en unos segundos.','warn'); return; }
-  const mes = parseInt($('inf-mes').value,10), anio = parseInt($('inf-anio').value,10);
-  const nombre = `Informe Mensual de Cuarentenas (ECA) ${MESES_NOMBRES[mes]} ${anio}`;
-
-  // Encabezado
-  const aoa = [INF_COLS.map(c=>c.label)];
-  _infRows.forEach(r=> aoa.push(INF_COLS.map(c=>r[c.key]||'')));
-
-  const ws = XLSX.utils.aoa_to_sheet(aoa);
-
-  // Ancho de columna: según el contenido más largo de esa columna (incluido
-  // el encabezado), con un tope para Especie/Observaciones (columnas de
-  // texto libre) equivalente a ~2-3 celdas estándar, para que no se disparen.
-  const ANCHO_TOPE_LIBRE = 42; // ~2-3 celdas estándar
-  ws['!cols'] = INF_COLS.map(c=>{
-    let maxLen = c.label.length;
-    _infRows.forEach(r=>{ const v=String(r[c.key]||''); if(v.length>maxLen) maxLen=v.length; });
-    let wch = maxLen + 2;
-    if(c.align==='left') wch = Math.min(wch, ANCHO_TOPE_LIBRE); // Especie / Obs
-    return {wch: Math.max(wch, 8)};
-  });
-
-  // Encabezado: fondo navy, texto claro, negrita, centrado
-  const range = XLSX.utils.decode_range(ws['!ref']);
-  for(let c=range.s.c; c<=range.e.c; c++){
-    const cellRef = XLSX.utils.encode_cell({r:0, c});
-    if(!ws[cellRef]) continue;
-    ws[cellRef].s = {
-      fill:{fgColor:{rgb:'0A1628'}},
-      font:{color:{rgb:'E8E6DE'}, bold:true, sz:10},
-      alignment:{horizontal:'center', vertical:'center', wrapText:true}
-    };
-  }
-
-  // Filas de datos: alineación por columna (izquierda solo en
-  // Especie/Observaciones, centrado en el resto) y color de fondo/texto en
-  // la columna Estado Cuarentena según el código de badges (rojo/amarillo/verde).
-  const iEstado = INF_COLS.findIndex(c=>c.key==='estado');
-  _infRows.forEach((r,ri)=>{
-    INF_COLS.forEach((c,ci)=>{
-      const cellRef = XLSX.utils.encode_cell({r:ri+1, c:ci});
-      if(!ws[cellRef]) return;
-      const align = c.align==='left' ? 'left' : 'center';
-      const style = { alignment:{horizontal:align, vertical:'center', wrapText: c.align==='left'} };
-      if(ci===iEstado) {
-        const col = INF_ESTADO_COLOR_XLSX[r.estado] || {bg:'F0F0F0', fg:'555555'};
-        style.fill = {fgColor:{rgb:col.bg}};
-        style.font = {color:{rgb:col.fg}, bold:true};
-      }
-      ws[cellRef].s = style;
-    });
-  });
-
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Informe Mensual');
-  XLSX.writeFile(wb, nombre+'.xlsx');
-  setS('Informe descargado.','ok');
-}
-
-// Descarga/imprime en PDF el informe recién generado (aún no guardado): abre
-// el HTML en una ventana nueva y dispara el diálogo de impresión, donde el
-// usuario elige "Guardar como PDF". Mismo mecanismo que el PDF de informes
-// ya guardados, sin depender de que se haya guardado antes.
-function descargarPdfInformePrevia() {
-  if(!_infRows.length){ setS('Genere el informe primero.','warn'); return; }
-  const mes = parseInt($('inf-mes').value,10), anio = parseInt($('inf-anio').value,10);
-  const html = _construirHTMLInformeMensual(mes, anio, _infRows);
-  const w = window.open('', '_blank');
-  if(!w) { setS('El navegador bloqueó la ventana emergente. Habilite pop-ups para este sitio.','warn'); return; }
-  w.document.write(html);
-  w.document.close();
-  setTimeout(()=>{ try{ w.print(); }catch(e){} }, 400);
-}
-
-// Construye el HTML del informe (mismo estilo navy/gold del sistema) — se usa
-// tanto para la vista previa antes de enviar como para convertir a PDF en
-// Code.gs (reutiliza htmlBase64ToPdfBlob_, igual que el timbre de recepción).
-function _construirHTMLInformeMensual(mes, anio, rows) {
-  const filas = rows.map(r=>{
-    return '<tr>'+INF_COLS.map(c=>{
-      const align = _infColAlign(c.key);
-      if(c.key==='estado') {
-        const col = INF_ESTADO_COLOR[r.estado] || {bg:'#f0f0f0', fg:'#555', border:'#ccc'};
-        const badge = `<span style="display:inline-block;padding:2px 8px;border-radius:9px;font-weight:bold;text-align:center;background:${col.bg};color:${col.fg};border:1px solid ${col.border}">${r.estado||''}</span>`;
-        return `<td style="text-align:center">${badge}</td>`;
-      }
-      return `<td style="text-align:${align}">${r[c.key]||''}</td>`;
-    }).join('')+'</tr>';
-  }).join('');
-  return `<html><head><meta charset="utf-8"><style>
-    body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:26px;color:#0a1628;font-size:11px}
-    h1{font-size:16px;color:#0A1628;border-bottom:2px solid #B8975A;padding-bottom:8px;margin:0 0 4px}
-    .sub{font-size:11px;color:#556;margin-bottom:16px}
-    table{border-collapse:collapse;width:100%}
-    th{background:#0A1628;color:#E8E6DE;font-size:9.5px;padding:6px 5px}
-    td{border:1px solid #ccc;padding:5px;font-size:9.5px;vertical-align:top}
-    tr:nth-child(even) td{background:#f7f6f2}
-    .pie{margin-top:16px;font-size:9px;color:#667}
-  </style></head><body>
-  <h1>Informe Mensual de Cuarentenas (ECA)</h1>
-  <div class="sub">SAG — Estación de Cuarentena Agrícola (ECA), Región Metropolitana &nbsp;·&nbsp; Período: ${MESES_NOMBRES[mes]} ${anio} &nbsp;·&nbsp; ${rows.length} cuarentenas</div>
-  <table><thead><tr>${INF_COLS.map(c=>`<th style="text-align:${_infColAlign(c.key)}">${c.label}</th>`).join('')}</tr></thead><tbody>${filas}</tbody></table>
-  <div class="pie">Generado automáticamente por el sistema SAG Cuarentena Vegetal — F-IIT-IMP-PA-018.</div>
-  </body></html>`;
-}
-
-async function _asegurarTabInformes() {
-  if(_informesTabAsegurada) return;
-  const sheetMeta = await fetch(`${BASE_URL}/${GS.sheetId}?fields=sheets.properties&key=${GS.apiKey}`);
-  const sheetMetaJson = await sheetMeta.json();
-  if(!sheetMeta.ok) throw new Error('No se pudo leer la estructura del Sheet: '+(sheetMetaJson.error?.message||sheetMeta.status));
-  const tab = (sheetMetaJson.sheets||[]).find(s=>s.properties?.title===SHEET_INFORMES);
-  if(!tab) {
-    const rAdd = await fetch(`${BASE_URL}/${GS.sheetId}:batchUpdate`,
-      {method:'POST',
-       headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
-       body:JSON.stringify({requests:[{addSheet:{properties:{title:SHEET_INFORMES}}}]})});
-    if(!rAdd.ok) { const j=await rAdd.json().catch(()=>({})); throw new Error('No se pudo crear la pestaña InformesMensuales: '+(j.error?.message||rAdd.status)); }
-    const rHdr = await fetch(
-      `${BASE_URL}/${GS.sheetId}/values/${SHEET_INFORMES}!A1?valueInputOption=USER_ENTERED`,
-      {method:'PUT',
-       headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
-       body:JSON.stringify({values:[INFORMES_HEADERS]})});
-    if(!rHdr.ok) { const j=await rHdr.json().catch(()=>({})); throw new Error('No se pudo escribir el encabezado de InformesMensuales: '+(j.error?.message||rHdr.status)); }
-  }
-  _informesTabAsegurada = true;
-}
-
-async function cargarInformesGuardados() {
-  const tbody = $('inf-guardados-tbody');
-  if(!tbody) return;
-  try {
-    await ensureToken();
-    await _asegurarTabInformes();
-    const r = await fetch(`${BASE_URL}/${GS.sheetId}/values/${SHEET_INFORMES}?key=${GS.apiKey}`,
-      {headers:{Authorization:`Bearer ${accessToken}`}});
-    const d = await r.json();
-    if(!r.ok) throw new Error(d.error?.message || ('HTTP '+r.status));
-    const vals = d.values||[];
-    if(vals.length<2) { tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:14px;color:var(--g400)">Sin informes guardados.</td></tr>`; _infGuardados=[]; return; }
-    const hdr = vals[0];
-    _infGuardados = vals.slice(1).map(row=>{ const o={}; hdr.forEach((h,i)=>o[h]=row[i]||''); return o; }).reverse();
-    tbody.innerHTML = _infGuardados.map((g,i)=>`<tr>
-      <td>${MESES_NOMBRES[parseInt(g['Mes'],10)]||g['Mes']} ${g['Año']}</td>
-      <td>${g['Fecha Generación']}</td>
-      <td>${g['Cant. Registros']}</td>
-      <td>${/^s[ií]$/i.test(g['Enviado']||'')?'Sí — '+(g['Fecha Envío']||''):'No'}</td>
-      <td><button class="btn btn-gh btn-sm" onclick="verInformeGuardado(${i})">Ver</button> <button class="btn btn-gh btn-sm" onclick="descargarPdfInformeGuardado(${i})" title="Descargar/Imprimir PDF">PDF</button> <button class="btn btn-err btn-sm" onclick="eliminarInformeGuardado(${i})" title="Eliminar este informe">🗑</button></td>
-    </tr>`).join('');
-  } catch(e) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:14px;color:var(--g400)">Error al cargar: ${e.message}</td></tr>`;
-  }
-}
-
-// Descarga/imprime en PDF un informe ya guardado: abre el HTML ya construido
-// en una ventana nueva y dispara el diálogo de impresión del navegador (el
-// usuario elige "Guardar como PDF"). No requiere librerías adicionales.
-function descargarPdfInformeGuardado(i) {
-  const g = _infGuardados[i]; if(!g) return;
-  let rows = [];
-  try { rows = JSON.parse(g['Datos JSON']||'[]'); } catch(e) {}
-  const mes = parseInt(g['Mes'],10), anio = parseInt(g['Año'],10);
-  const html = _construirHTMLInformeMensual(mes, anio, rows);
-  const w = window.open('', '_blank');
-  if(!w) { setS('El navegador bloqueó la ventana emergente. Habilite pop-ups para este sitio.','warn'); return; }
-  w.document.write(html);
-  w.document.close();
-  setTimeout(()=>{ try{ w.print(); }catch(e){} }, 400);
-}
-
-// Elimina definitivamente un informe guardado — localiza la fila real en
-// InformesMensuales (por Fecha Generación + Nombre Informe, combinación
-// única) y la borra con deleteDimension, mismo patrón que eliminarRegistrosCompletos.
-async function eliminarInformeGuardado(i) {
-  const g = _infGuardados[i]; if(!g) return;
-  if(!confirm('¿Eliminar definitivamente el informe "'+(g['Nombre Informe']||'')+'"? Esta acción no se puede deshacer.')) return;
-  try {
-    await ensureToken();
-    const r = await fetch(`${BASE_URL}/${GS.sheetId}/values/${SHEET_INFORMES}?key=${GS.apiKey}`,
-      {headers:{Authorization:`Bearer ${accessToken}`}});
-    const d = await r.json();
-    if(!r.ok) throw new Error(d.error?.message || ('HTTP '+r.status));
-    const vals = d.values||[];
-    const hdr = vals[0]||[];
-    const iFecha = hdr.indexOf('Fecha Generación'), iNombre = hdr.indexOf('Nombre Informe');
-    let rowIdx = null; // índice 0-based dentro de vals
-    for(let idx=1; idx<vals.length; idx++){
-      if(vals[idx][iFecha]===g['Fecha Generación'] && vals[idx][iNombre]===g['Nombre Informe']){ rowIdx = idx; break; }
-    }
-    if(rowIdx===null) throw new Error('No se encontró la fila en la hoja (puede que ya se haya eliminado).');
-
-    const sheetMeta = await fetch(`${BASE_URL}/${GS.sheetId}?fields=sheets.properties&key=${GS.apiKey}`);
-    const sheetMetaJson = await sheetMeta.json();
-    if(!sheetMeta.ok) throw new Error(sheetMetaJson.error?.message || ('HTTP '+sheetMeta.status));
-    const tab = (sheetMetaJson.sheets||[]).find(s=>s.properties?.title===SHEET_INFORMES);
-    const gridId = tab?.properties?.sheetId ?? null;
-    if(gridId===null) throw new Error('No se encontró la pestaña InformesMensuales.');
-
-    const rDel = await fetch(`${BASE_URL}/${GS.sheetId}:batchUpdate`,
-      {method:'POST',
-       headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
-       body:JSON.stringify({requests:[{deleteDimension:{range:{sheetId:gridId, dimension:'ROWS', startIndex:rowIdx, endIndex:rowIdx+1}}}]})});
-    if(!rDel.ok) { const j=await rDel.json().catch(()=>({})); throw new Error(j.error?.message || rDel.status); }
-
-    setS('Informe eliminado.','ok');
-    cargarInformesGuardados();
-  } catch(e) {
-    setS('Error al eliminar: '+e.message,'err');
-  }
-}
-
-function verInformeGuardado(i) {
-  const g = _infGuardados[i]; if(!g) return;
-  let rows = [];
-  try { rows = JSON.parse(g['Datos JSON']||'[]'); } catch(e) {}
-  const html = `<div style="font-family:var(--serif);font-size:16px;color:var(--gd,#B8975A);margin-bottom:10px">
-      ${g['Nombre Informe']||('Informe '+g['Mes']+'/'+g['Año'])}</div>
-    <div style="overflow:auto;max-height:60vh;border:1px solid var(--g200);border-radius:var(--rs)">
-      <table class="tbl"><thead><tr>${INF_COLS.map(c=>`<th style="text-align:${_infColAlign(c.key)}">${c.label}</th>`).join('')}</tr></thead>
-      <tbody>${rows.map(r=>'<tr>'+INF_COLS.map(c=>{
-        if(c.key==='estado') return `<td style="text-align:center"><span style="display:inline-block;padding:2px 8px;border-radius:9px;font-weight:600;font-size:11px;text-align:center;border:1px solid;${_infEstadoStyle(r.estado)}">${r.estado||''}</span></td>`;
-        return `<td style="text-align:${_infColAlign(c.key)}">${r[c.key]||''}</td>`;
-      }).join('')+'</tr>').join('')}</tbody></table>
-    </div>
-    <div style="margin-top:12px;text-align:right"><button class="btn btn-gh btn-sm" onclick="cerrarModal()">Cerrar</button></div>`;
-  abrirModal(html);
-}
-
-// Abre la ventana de confirmación de envío — nada se manda hasta que el
-// usuario haga clic en "Enviar correo" dentro de esta ventana.
-function _abrirModalEnvioInforme(mes, anio, rows) {
-  const nombreInforme = `Informe Mensual de Cuarentenas (ECA) ${MESES_NOMBRES[mes]} ${anio}`;
-  const html = `<div style="font-family:var(--serif);font-size:16px;color:var(--gd,#B8975A);margin-bottom:4px">${nombreInforme}</div>
-    <div style="font-size:11px;color:var(--g400);margin-bottom:16px">${rows.length} cuarentenas listadas</div>
-    <div class="ff" style="margin-bottom:10px"><label class="lbl">Para</label>
-      <input id="inf-mail-to" type="email" placeholder="nivelcentral@sag.gob.cl" style="width:100%"></div>
-    <div class="ff" style="margin-bottom:10px"><label class="lbl">Asunto</label>
-      <input id="inf-mail-subject" value="${nombreInforme}" style="width:100%"></div>
-    <div class="ff" style="margin-bottom:16px"><label class="lbl">Adjunto</label>
-      <div style="font-size:12px;padding:8px 10px;border:1px solid var(--g200);border-radius:var(--rs);background:var(--g50,#f8f8f6)">📄 ${nombreInforme}.pdf</div></div>
-    <div id="inf-mail-status" style="font-size:12px;margin-bottom:10px"></div>
-    <div style="text-align:right;display:flex;gap:8px;justify-content:flex-end">
-      <button class="btn btn-gh btn-sm" onclick="cerrarModal()">Cancelar</button>
-      <button class="btn btn-nv btn-sm" id="inf-mail-send-btn" onclick="_confirmarEnvioInforme(${mes},${anio})">Enviar correo</button>
-    </div>`;
-  abrirModal(html);
-}
-
-async function _confirmarEnvioInforme(mes, anio) {
-  const to = ($('inf-mail-to')?.value||'').trim();
-  const subject = ($('inf-mail-subject')?.value||'').trim();
-  const statusEl = $('inf-mail-status');
-  if(!to) { if(statusEl) statusEl.innerHTML='<span style="color:var(--err,#c0392b)">Ingrese un destinatario.</span>'; return; }
-  const btn = $('inf-mail-send-btn'); if(btn) { btn.disabled=true; btn.textContent='Enviando...'; }
-  try {
-    const htmlInforme = _construirHTMLInformeMensual(mes, anio, _infRows);
-    const htmlBase64 = btoa(unescape(encodeURIComponent(htmlInforme)));
-    const nombreArchivo = `Informe Mensual de Cuarentenas (ECA) ${MESES_NOMBRES[mes]} ${anio}.pdf`;
-    const resp = await fetch(_PORTAL_ENDPOINT, {method:'POST', body: JSON.stringify({
-      action:'enviarInformeMensual', adminToken:_ADMIN_TOKEN,
-      correo:to, asunto:subject||nombreArchivo, nombreArchivo, htmlBase64
-    })});
-    const data = await resp.json();
-    if(data.ok) {
-      await _guardarInformeMensualEnSheet(mes, anio, _infRows, true, to);
-      if(statusEl) statusEl.innerHTML='<span style="color:var(--ok,#1a7a3c)">Correo enviado.</span>';
-      setS('Informe enviado y guardado.','ok');
-      setTimeout(cerrarModal, 900);
-      cargarInformesGuardados();
-    } else {
-      if(statusEl) statusEl.innerHTML='<span style="color:var(--err,#c0392b)">'+(data.error||'Error al enviar.')+'</span>';
-      if(btn) { btn.disabled=false; btn.textContent='Enviar correo'; }
-    }
-  } catch(e) {
-    if(statusEl) statusEl.innerHTML='<span style="color:var(--err,#c0392b)">Error de conexión: '+e.message+'</span>';
-    if(btn) { btn.disabled=false; btn.textContent='Enviar correo'; }
-  }
-}
-
-async function _guardarInformeMensualEnSheet(mes, anio, rows, enviado, destinatario) {
-  await ensureToken();
-  await _asegurarTabInformes();
-  const nombreInforme = `Informe Mensual de Cuarentenas (ECA) ${MESES_NOMBRES[mes]} ${anio}`;
-  const rowsLimpias = rows.map(r=>{ const o={}; Object.keys(r).forEach(k=>{ if(!k.startsWith('_')) o[k]=r[k]; }); return o; });
-  const fila = [
-    String(mes), String(anio), nombreInforme, _nowStrSAG(),
-    (_currentUserEmail || (typeof _obtenerUsuarioActual==='function' ? await _obtenerUsuarioActual() : '')),
-    String(rows.length), JSON.stringify(rowsLimpias),
-    enviado ? 'SI' : 'NO', enviado ? _nowStrSAG() : '', destinatario || ''
-  ];
-  const rApp = await fetch(`${BASE_URL}/${GS.sheetId}/values/${SHEET_INFORMES}!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
-    {method:'POST',
-     headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
-     body:JSON.stringify({values:[fila]})});
-  if(!rApp.ok) { const j=await rApp.json().catch(()=>({})); throw new Error('No se pudo guardar el informe en la hoja: '+(j.error?.message||rApp.status)); }
-  _informesTabAsegurada = true; // ya confirmado que la pestaña existe y acepta escritura
-}
-
-async function guardarInformeMensual() {
-  if(!_infRows.length) { setS('Genere el informe primero.','warn'); return; }
-  const mes = parseInt($('inf-mes').value,10), anio = parseInt($('inf-anio').value,10);
-  const enviarCheck = $('inf-enviar-check');
-  if(enviarCheck && enviarCheck.checked) {
-    _abrirModalEnvioInforme(mes, anio, _infRows);
-    return;
-  }
-  try {
-    await _guardarInformeMensualEnSheet(mes, anio, _infRows, false, '');
-    setS('Informe guardado.','ok');
-    cargarInformesGuardados();
-  } catch(e) {
-    setS('Error al guardar: '+e.message,'err');
-  }
-}
-
-// ══════════════════════════════════════════════════════════════════════════
-// DESTRUCCIÓN / ELIMINACIÓN — acción global, disponible en cualquier etapa
-// (la destrucción u orden de eliminación de una cuarentena puede resolverse
-// en cualquier momento del proceso, no solo al término en Etapa VII).
-// Requiere que 'Res. Destrucción/Eliminación' y 'Fecha Res. Destrucción/
-// Eliminación' existan como columnas en Detalle (agregadas manualmente por
-// Eduardo — ver instrucciones de despliegue).
-// ══════════════════════════════════════════════════════════════════════════
-function abrirModalDestruccion() {
-  const html = `<div style="font-family:var(--serif);font-size:16px;color:var(--gd,#B8975A);margin-bottom:14px">Registrar Destrucción / Eliminación</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-      <div class="ff"><label class="lbl">N° Resolución</label><input id="dx-res" placeholder="ej. 1590" style="font-family:var(--mono)"></div>
-      <div class="ff"><label class="lbl">Año Resolución</label><input id="dx-anio" placeholder="2025" style="font-family:var(--mono)"></div>
-    </div>
-    <div style="font-size:10px;color:var(--g400);margin-bottom:10px">O, si aún no tiene resolución:</div>
-    <div class="ff" style="margin-bottom:14px"><label class="lbl">N° Solicitud</label><input id="dx-sol" placeholder="ej. 263" style="font-family:var(--mono)"></div>
-    <button class="btn btn-gh btn-sm" onclick="_buscarRegistroDestruccion()" style="margin-bottom:14px">Buscar registro</button>
-    <div id="dx-preview"></div>`;
-  abrirModal(html);
-}
-
-function _buscarRegistroDestruccion() {
-  const res = ($('dx-res')?.value||'').trim();
-  const anio = ($('dx-anio')?.value||'').trim();
-  const sol = ($('dx-sol')?.value||'').trim();
-  const preview = $('dx-preview');
-  let rows = [];
-  if(res) {
-    rows = gsData.filter(r=>String(r['Res.']||'').trim()===res && (!anio || fmtD(r['Fecha Res.']||'').substring(0,4)===anio));
-  } else if(sol) {
-    rows = gsData.filter(r=>String(r['Solicitud']||'').trim()===sol);
-  }
-  if(!rows.length) { preview.innerHTML = '<div style="color:var(--err,#c0392b);font-size:12px">No se encontró ningún registro.</div>'; return; }
-  const r0 = rows[0];
-  preview.innerHTML = `
-    <div style="background:var(--g50,#f8f8f6);border:1px solid var(--g200);border-radius:var(--rs);padding:12px;margin-bottom:14px;font-size:12px">
-      <b>${r0['Importador']||'—'}</b> · ${r0['Especie']||''} · ${r0['Origen']||''}<br>
-      <span style="color:var(--g400)">${rows.length} fila(s) afectada(s) en Detalle · Status actual: ${r0['Status']||'—'}</span>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-      <div class="ff"><label class="lbl">Motivo</label>
-        <select id="dx-motivo">
-          <option value="Destruida">Destruida por orden de SAG</option>
-          <option value="Eliminada">Eliminada a solicitud del importador</option>
-          <option value="Desistida">Desistida (no ingresó, con aviso del importador)</option>
-        </select></div>
-      <div class="ff"><label class="lbl">N° Resolución Destr./Elim.</label><input id="dx-res-destr" placeholder="ej. 300/2026"></div>
-    </div>
-    <div class="ff" style="margin-bottom:12px"><label class="lbl">Fecha Resolución Destr./Elim.</label><input type="date" id="dx-fecha-destr"></div>
-    <div class="ff" style="margin-bottom:14px"><label class="lbl">Observación (se agrega a Obs.)</label><textarea id="dx-obs" rows="3" style="width:100%"></textarea></div>
-    <div id="dx-confirm-status" style="font-size:12px;margin-bottom:8px"></div>
-    <div style="text-align:right"><button class="btn btn-err btn-sm" id="dx-confirm-btn" onclick='_confirmarDestruccion(${JSON.stringify(res)},${JSON.stringify(anio)},${JSON.stringify(sol)})'>Confirmar</button></div>`;
-}
-
-async function _filasIndicesPorRegistro(res, anio, sol) {
-  const rows = await fetchAllRows();
-  const hdr = rows[0]||[];
-  const iRes = hdr.indexOf('Res.'), iFres = hdr.indexOf('Fecha Res.'), iSol = hdr.indexOf('Solicitud');
-  const out = [];
-  for(let i=1;i<rows.length;i++){
-    if(res) {
-      const xr = String(rows[i][iRes]||'').trim();
-      const xa = fmtD(rows[i][iFres]||'').substring(0,4);
-      if(xr===res && (!anio || xa===anio)) out.push(i+1);
-    } else if(sol) {
-      if(String(rows[i][iSol]||'').trim()===sol) out.push(i+1);
-    }
-  }
-  return out;
-}
-
-async function _confirmarDestruccion(res, anio, sol) {
-  const motivo = $('dx-motivo').value;
-  const resDestr = ($('dx-res-destr')?.value||'').trim();
-  const fechaDestr = $('dx-fecha-destr').value;
-  const obsTxt = ($('dx-obs')?.value||'').trim();
-  if(!resDestr || !fechaDestr) { $('dx-confirm-status').innerHTML='<span style="color:var(--err,#c0392b)">Complete N° Resolución y fecha.</span>'; return; }
-  const btn = $('dx-confirm-btn'); if(btn){ btn.disabled=true; btn.textContent='Procesando...'; }
-  try {
-    await ensureToken();
-    const filas = await _filasIndicesPorRegistro(res, anio, sol);
-    if(!filas.length) throw new Error('No se encontraron filas para actualizar.');
-    const fechaDestrDisplay = fmtDisplay(fechaDestr);
-    for(const fila of filas) {
-      await _escribirCeldaDetalle(fila, 'Res. Destrucción/Eliminación', resDestr);
-      await _escribirCeldaDetalle(fila, 'Fecha Res. Destrucción/Eliminación', fechaDestrDisplay);
-      await _escribirCeldaDetalle(fila, 'Status', motivo);
-      if(obsTxt) await _escribirCeldaDetalle(fila, 'Obs.', obsTxt);
-      await _escribirCeldaDetalle(fila, 'Fecha Último Evento SAG', _nowStrSAG());
-      await _escribirCeldaDetalle(fila, 'Tipo Último Evento SAG', motivo);
-    }
-    await registrarEventoHistorial(sol||'', res||'', '', motivo+' — '+resDestr, 'SAG interno');
-    $('dx-confirm-status').innerHTML='<span style="color:var(--ok,#1a7a3c)">Registrado. Actualizando datos...</span>';
-    setS(`Cuarentena marcada como "${motivo}" (${filas.length} fila(s)).`,'ok');
-    setTimeout(cerrarModal, 900);
-    recargar();
-  } catch(e) {
-    $('dx-confirm-status').innerHTML='<span style="color:var(--err,#c0392b)">Error: '+e.message+'</span>';
-    if(btn){ btn.disabled=false; btn.textContent='Confirmar'; }
-  }
 }
 
 // ── Historial completo de eventos de badge (a diferencia de "Fecha/Tipo
@@ -12200,17 +11361,14 @@ function _actualizarBadgeCondicionesFicha(rows) {
   el.style.display = 'inline-block';
 }
 
-// filtroSolicitud: opcional, string N° Solicitud — si viene, solo esa solicitud
-// (caso individual desde la ficha de Etapa IV); si viene vacío, todas (masivo).
-//
-// IMPORTANTE: una cuarentena (Solicitud/Res.) puede tener varias filas en
-// Detalle (una por plaga/patógeno analizado). El cambio de condiciones
-// ambientales es UNO SOLO por cuarentena+condición requerida, no uno por
-// plaga — de lo contrario se repite la misma línea en el correo tantas veces
-// como plagas tenga. Por eso se agrupa por (Solicitud + Condición Requerida)
-// antes de mostrar la lista y antes de enviar.
+// filtroSolicitud: opcional — string (una Solicitud, caso individual desde
+// Etapa IV) o array de strings (varias Solicitudes puntuales, caso alertas
+// CCAA); si viene vacío/omitido, todas las cuarentenas elegibles (masivo
+// desde el panel general).
 function abrirModalCondiciones(filtroSolicitud) {
-  const filtro = String(filtroSolicitud||'').trim();
+  const filtroArr = Array.isArray(filtroSolicitud)
+    ? filtroSolicitud.map(s => String(s).trim()).filter(Boolean)
+    : (String(filtroSolicitud||'').trim() ? [String(filtroSolicitud).trim()] : null);
   const grupos = {};
   gsData.forEach((r, idx) => {
     const codigo = _condCodigoAnalisis(r);
@@ -12218,7 +11376,7 @@ function abrirModalCondiciones(filtroSolicitud) {
     if (!requerida) return; // código no elegible (sin análisis, u otro)
     const nsol = String(r['Solicitud']||'').trim();
     if (!nsol) return;
-    if (filtro && nsol !== filtro) return;
+    if (filtroArr && filtroArr.indexOf(nsol) === -1) return;
     const guardada = _condActualGuardada(r);
     const actualLabel = guardada ? guardada.label : '—';
     const especie = String(r['Especie']||'').trim();
@@ -12248,6 +11406,21 @@ function abrirModalCondiciones(filtroSolicitud) {
 }
 
 function cerrarModalCondiciones() { $('modal-cond').classList.remove('open'); }
+
+// Entrada desde el stage de Alertas: solo las cuarentenas que tienen HOY una
+// alerta CCAA activa (vencida o próxima según buildAlerts/R2), no todas las
+// cuarentenas elegibles del Sheet. Requiere buildAlerts() ya ejecutado (se
+// llama siempre al entrar al stage de Alertas, así que _alerts está al día).
+function enviarCorreoCCAAAlertas() {
+  const ccaaAlertas = (typeof filteredAlerts === 'function' ? filteredAlerts() : _alerts)
+    .filter(a => a.tag === 'CCAA' && a.solicitud);
+  if (!ccaaAlertas.length) {
+    setS('No hay alertas de Cambio de Condiciones Ambientales (CCAA) vencidas o próximas en este momento.', 'warn');
+    return;
+  }
+  const solicitudes = Array.from(new Set(ccaaAlertas.map(a => a.solicitud)));
+  abrirModalCondiciones(solicitudes);
+}
 
 function _renderCondTabla() {
   const tb = $('cond-tbody');
@@ -12283,42 +11456,7 @@ function _condToggleAll(checked) {
   document.querySelectorAll('.cond-chk').forEach(cb => { if (!cb.disabled) cb.checked = checked; });
 }
 
-let _condItemsParaEnvio = [];
-
-// Construye la tabla HTML del correo — una FILA por cuarentena (no por
-// plaga/análisis), así nunca se parte en dos líneas visuales como pasaba
-// con el texto plano largo. Se usa tanto en la vista previa como, si el
-// backend la recibe, para el envío real (mismo contenido exacto).
-function _construirHTMLCambioCondiciones(items) {
-  const filas = items.map(it => {
-    const disp = it.resolucion
-      ? ('Res. ' + it.resolucion + (it.anioRes ? ('/' + it.anioRes) : ''))
-      : ('Sol. ' + it.solicitud + ' (sin resolución)');
-    return `<tr>
-      <td style="padding:5px 8px;border:1px solid #ccc;font-family:monospace;white-space:nowrap">${disp}</td>
-      <td style="padding:5px 8px;border:1px solid #ccc;text-align:center;white-space:nowrap">${it.cubiculo||'—'}</td>
-      <td style="padding:5px 8px;border:1px solid #ccc;font-style:italic">${it.especies||'—'}</td>
-      <td style="padding:5px 8px;border:1px solid #ccc;text-align:center;white-space:nowrap">${it.condicionActual||'—'}</td>
-      <td style="padding:5px 8px;border:1px solid #ccc;text-align:center;white-space:nowrap;font-weight:bold;color:#0A1628">${it.condicionRequerida}</td>
-    </tr>`;
-  }).join('');
-  return `<table style="border-collapse:collapse;width:100%;font-size:12px">
-    <thead><tr style="background:#0A1628;color:#E8E6DE">
-      <th style="padding:6px 8px;text-align:left">Resolución/Solicitud</th>
-      <th style="padding:6px 8px">Cubículo</th>
-      <th style="padding:6px 8px;text-align:left">Especie(s)</th>
-      <th style="padding:6px 8px">Condición actual</th>
-      <th style="padding:6px 8px">Cambiar a</th>
-    </tr></thead>
-    <tbody>${filas}</tbody>
-  </table>`;
-}
-
-// Reemplaza el envío directo: junta los ítems marcados, arma el borrador
-// del correo (destinatario/asunto/tabla editables) y lo muestra en una
-// ventana de confirmación — nada se envía hasta que el usuario haga clic
-// en "Enviar correo" ahí dentro.
-function previsualizarCambioCondiciones() {
+async function enviarCambioCondiciones() {
   const marcados = Array.from(document.querySelectorAll('.cond-chk:checked'));
   if (!marcados.length) { setS('Seleccione al menos una cuarentena.', 'warn'); return; }
 
@@ -12338,42 +11476,13 @@ function previsualizarCambioCondiciones() {
       condicionRequerida: condicionRequerida
     };
   });
-  _condItemsParaEnvio = items;
 
-  const htmlTabla = _construirHTMLCambioCondiciones(items);
-  cerrarModalCondiciones();
-
-  const previewHtml = `<div style="font-family:var(--serif);font-size:16px;color:var(--gd,#B8975A);margin-bottom:4px">Solicitud de Cambio de Condiciones Ambientales</div>
-    <div style="font-size:11px;color:var(--g400);margin-bottom:14px">${items.length} cuarentena(s) seleccionada(s)</div>
-    <div class="ff" style="margin-bottom:10px"><label class="lbl">Para</label>
-      <input id="cond-mail-to" value="eduardo.ferrada@sag.gob.cl" style="width:100%"></div>
-    <div class="ff" style="margin-bottom:10px"><label class="lbl">CC</label>
-      <input id="cond-mail-cc" value="eduardo.chavez@sag.gob.cl" style="width:100%" readonly></div>
-    <div class="ff" style="margin-bottom:14px"><label class="lbl">Asunto</label>
-      <input id="cond-mail-subject" value="Solicitud de cambio de condiciones ambientales — ${items.length} cuarentena(s)" style="width:100%"></div>
-    <div style="border:1px solid var(--g200);border-radius:var(--rs);padding:2px;max-height:300px;overflow:auto;margin-bottom:14px">${htmlTabla}</div>
-    <div id="cond-mail-status" style="font-size:12px;margin-bottom:8px"></div>
-    <div style="text-align:right;display:flex;gap:8px;justify-content:flex-end">
-      <button class="btn btn-gh btn-sm" onclick="cerrarModal()">Cancelar</button>
-      <button class="btn btn-nv btn-sm" id="cond-mail-send-btn" onclick="_confirmarEnvioCondiciones()">Enviar correo</button>
-    </div>`;
-  abrirModal(previewHtml);
-}
-
-// Envío real, disparado solo desde el botón "Enviar correo" de la vista previa.
-async function _confirmarEnvioCondiciones() {
-  const items = _condItemsParaEnvio;
-  const to = ($('cond-mail-to')?.value||'').trim();
-  const subject = ($('cond-mail-subject')?.value||'').trim();
-  const statusEl = $('cond-mail-status');
-  if (!to) { if(statusEl) statusEl.innerHTML='<span style="color:var(--err,#c0392b)">Ingrese un destinatario.</span>'; return; }
-  const btn = $('cond-mail-send-btn');
+  const btn = $('cond-enviar-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
   try {
-    const htmlBody = _construirHTMLCambioCondiciones(items);
     const resp = await fetch(_PORTAL_ENDPOINT, {
       method: 'POST',
-      body: JSON.stringify({ action: 'solicitarCambioCondiciones', adminToken: _ADMIN_TOKEN, items, correoTo: to, asunto: subject, htmlBody })
+      body: JSON.stringify({ action: 'solicitarCambioCondiciones', adminToken: _ADMIN_TOKEN, items: items })
     });
     const data = await resp.json();
     if (data.ok) {
@@ -12386,26 +11495,22 @@ async function _confirmarEnvioCondiciones() {
           if (gsData[idxGs]) gsData[idxGs]['Cond Ambiental Solicitada'] = it.condicionRequerida + ' | ' + hoy;
         });
       });
+      // Refresca el badge de la ficha si el registro cargado está entre los enviados
       const nsolActual = (document.getElementById('f1-nsol')?.value||'').trim();
       if (nsolActual && items.some(it => it.solicitud === nsolActual)) {
         const rowsActuales = gsData.filter(r => String(r['Solicitud']||'').trim() === nsolActual);
         _actualizarBadgeCondicionesFicha(rowsActuales);
       }
-      await _registrarBitacoraCambiosCond(items, to);
-      if (nsolActual && items.some(it => it.solicitud === nsolActual) && typeof cargarBitacoraCondiciones === 'function') {
-        cargarBitacoraCondiciones(nsolActual);
-      }
-      if (statusEl) statusEl.innerHTML = '<span style="color:var(--ok,#1a7a3c)">Correo enviado.</span>';
       setS(`Solicitud de cambio de condiciones enviada (${items.length} cuarentena(s)).`, 'ok');
-      setTimeout(cerrarModal, 900);
+      cerrarModalCondiciones();
     } else {
-      if (statusEl) statusEl.innerHTML = '<span style="color:var(--err,#c0392b)">'+(data.error||'Error al enviar.')+'</span>';
-      if (btn) { btn.disabled = false; btn.textContent = 'Enviar correo'; }
+      setS('No se pudo enviar la solicitud: ' + (data.error || 'error desconocido'), 'err');
     }
   } catch (err) {
     console.error('Error enviando cambio de condiciones:', err);
-    if (statusEl) statusEl.innerHTML = '<span style="color:var(--err,#c0392b)">Error de conexión: '+err.message+'</span>';
-    if (btn) { btn.disabled = false; btn.textContent = 'Enviar correo'; }
+    setS('Falló la conexión al enviar la solicitud de cambio de condiciones.', 'err');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '📧 Enviar Solicitud'; }
   }
 }
 
@@ -12756,152 +11861,6 @@ function isActive(row) {
 function getAnalysisLabel(row) {
   const tipo = String(row['Análisis'] || row['Analisis'] || '').toUpperCase().trim();
   return AN_TYPE_LABEL[tipo] || tipo || '—';
-}
-
-// ── Bitácora de Cambios de Condiciones Ambientales — pestaña dedicada,
-// registra CADA solicitud de cambio enviada (no solo la última, a diferencia
-// de la columna 'Cond Ambiental Solicitada' que se sobrescribe). Cada fila
-// guarda la fecha de ENVÍO de la solicitud (automática) y permite editar
-// después la fecha REAL en que se confirmó el cambio (cuando llega el correo
-// de confirmación del encargado) — son dos datos distintos a propósito.
-// ══════════════════════════════════════════════════════════════════════════
-const SHEET_CAMBIOS_COND = 'CambiosCondicionAmbiental';
-const CAMBIOS_COND_HEADERS = ['ID','Solicitud','Res.','Cubículo','Condición Anterior','Condición Nueva','Fecha Envío','Enviado A','Fecha Real Cambio','Confirmado Por','Fecha Hora Registro','Usuario'];
-let _cambiosCondTabAsegurada = false;
-
-async function _asegurarTabCambiosCond() {
-  if (_cambiosCondTabAsegurada) return;
-  try {
-    const meta = await fetch(`${BASE_URL}/${GS.sheetId}?fields=sheets.properties&key=${GS.apiKey}`);
-    const metaJson = await meta.json();
-    const existe = (metaJson.sheets||[]).some(s=>s.properties?.title===SHEET_CAMBIOS_COND);
-    if (!existe) {
-      await fetch(`${BASE_URL}/${GS.sheetId}:batchUpdate`,
-        {method:'POST',
-         headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
-         body:JSON.stringify({requests:[{addSheet:{properties:{title:SHEET_CAMBIOS_COND}}}]})});
-      await fetch(
-        `${BASE_URL}/${GS.sheetId}/values/${SHEET_CAMBIOS_COND}!A1?valueInputOption=USER_ENTERED`,
-        {method:'PUT',
-         headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
-         body:JSON.stringify({values:[CAMBIOS_COND_HEADERS]})});
-    }
-    _cambiosCondTabAsegurada = true;
-  } catch(e) { console.error('No se pudo asegurar la pestaña CambiosCondicionAmbiental:', e); }
-}
-
-// Se llama tras un envío exitoso de solicitud de cambio (uno o varios items):
-// agrega una fila por cuarentena, con Fecha Real Cambio vacía (se completa
-// después manualmente).
-async function _registrarBitacoraCambiosCond(items, correoTo) {
-  try {
-    await ensureToken();
-    await _asegurarTabCambiosCond();
-    const hoy = (typeof _nowStrSAG === 'function' ? _nowStrSAG() : new Date().toLocaleDateString('es-CL'));
-    const usuario = (_currentUserEmail || (typeof _obtenerUsuarioActual==='function' ? await _obtenerUsuarioActual() : '')) || '';
-    const filas = items.map(it => {
-      const disp = it.resolucion ? ('Res. ' + it.resolucion + (it.anioRes?('/'+it.anioRes):'')) : ('Sol. ' + it.solicitud);
-      const id = 'cc_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
-      return [id, it.solicitud||'', it.resolucion||'', it.cubiculo||'', it.condicionActual||'', it.condicionRequerida||'',
-        hoy, correoTo||'', '', '', hoy, usuario];
-    });
-    await fetch(`${BASE_URL}/${GS.sheetId}/values/${SHEET_CAMBIOS_COND}!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
-      {method:'POST',
-       headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
-       body:JSON.stringify({values:filas})});
-  } catch(e) { console.error('No se pudo registrar en CambiosCondicionAmbiental:', e); }
-}
-
-let _cambiosCondActuales = []; // [{rowIndex1based, ...datos}] del Solicitud cargado
-
-function _toggleBitacoraCondiciones() {
-  const body = $('cond-bitacora-body');
-  const icon = $('cond-bit-toggle-icon');
-  if (!body) return;
-  const abrir = body.style.display === 'none';
-  body.style.display = abrir ? '' : 'none';
-  if (icon) icon.style.transform = abrir ? 'rotate(90deg)' : 'rotate(0deg)';
-}
-
-// Carga y muestra las filas de CambiosCondicionAmbiental para la Solicitud
-// dada (registro cargado en el formulario).
-async function cargarBitacoraCondiciones(nSolicitud) {
-  const tbody = $('cond-bitacora-tbody');
-  const countEl = $('cond-bit-count');
-  if (!tbody) return;
-  const sol = String(nSolicitud||'').trim();
-  if (!sol) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:10px;color:var(--g400)">Sin registro cargado.</td></tr>'; if(countEl) countEl.textContent=''; return; }
-  try {
-    await ensureToken();
-    await _asegurarTabCambiosCond();
-    const r = await fetch(`${BASE_URL}/${GS.sheetId}/values/${SHEET_CAMBIOS_COND}?key=${GS.apiKey}`,
-      {headers:{Authorization:`Bearer ${accessToken}`}});
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.error?.message || ('HTTP '+r.status));
-    const vals = d.values||[];
-    if (vals.length < 2) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:10px;color:var(--g400)">Sin registros.</td></tr>'; if(countEl) countEl.textContent=''; return; }
-    const hdr = vals[0];
-    const iSol = hdr.indexOf('Solicitud');
-    _cambiosCondActuales = [];
-    vals.slice(1).forEach((row, idx) => {
-      if (String(row[iSol]||'').trim() !== sol) return;
-      const o = {}; hdr.forEach((h,i)=>o[h]=row[i]||'');
-      o._rowIndex1 = idx + 2; // fila real en el Sheet (1-based, +1 por encabezado)
-      _cambiosCondActuales.push(o);
-    });
-    if (countEl) countEl.textContent = _cambiosCondActuales.length ? `(${_cambiosCondActuales.length})` : '';
-    if (!_cambiosCondActuales.length) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:10px;color:var(--g400)">Sin registros para esta solicitud.</td></tr>';
-      return;
-    }
-    tbody.innerHTML = _cambiosCondActuales.map((o,i) => `<tr>
-      <td style="white-space:nowrap">${o['Fecha Envío']||''}</td>
-      <td>${o['Condición Anterior']||'—'} → <b>${o['Condición Nueva']||''}</b></td>
-      <td style="font-size:10px">${o['Enviado A']||''}</td>
-      <td><input type="date" id="cond-bit-freal-${i}" value="${_isoFromFechaHora(o['Fecha Real Cambio'])}" style="font-size:11px;padding:2px 4px"></td>
-      <td><input type="text" id="cond-bit-conf-${i}" value="${o['Confirmado Por']||''}" placeholder="nombre" style="font-size:11px;padding:2px 4px;width:90px"></td>
-      <td><button class="btn btn-gh btn-sm" onclick="_guardarFechaRealCondicion(${i})" title="Guardar">💾</button></td>
-    </tr>`).join('');
-  } catch(e) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:10px;color:var(--g400)">Error: ${e.message}</td></tr>`;
-  }
-}
-
-// Convierte 'DD-MM-YYYY' o 'DD-MM-YYYY HH:MM' (formato del sistema) a
-// 'YYYY-MM-DD' para precargar un <input type="date">.
-function _isoFromFechaHora(s) {
-  const str = String(s||'').trim();
-  const m = str.match(/^(\d{2})-(\d{2})-(\d{4})/);
-  if (!m) return '';
-  return `${m[3]}-${m[2]}-${m[1]}`;
-}
-
-async function _guardarFechaRealCondicion(i) {
-  const o = _cambiosCondActuales[i];
-  if (!o) return;
-  const fechaInput = $('cond-bit-freal-' + i);
-  const confInput = $('cond-bit-conf-' + i);
-  const fechaISO = fechaInput ? fechaInput.value : '';
-  const confirmadoPor = confInput ? confInput.value.trim() : '';
-  const fechaDisplay = fechaISO ? fmtDisplay(fechaISO) : '';
-  try {
-    await ensureToken();
-    const hdr = CAMBIOS_COND_HEADERS;
-    const colFecha = hdr.indexOf('Fecha Real Cambio') + 1;
-    const colConf  = hdr.indexOf('Confirmado Por') + 1;
-    const colLetterFecha = String.fromCharCode(64 + colFecha);
-    const colLetterConf  = String.fromCharCode(64 + colConf);
-    await fetch(`${BASE_URL}/${GS.sheetId}/values:batchUpdate`,
-      {method:'POST',
-       headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
-       body:JSON.stringify({valueInputOption:'USER_ENTERED', data:[
-         {range:`${SHEET_CAMBIOS_COND}!${colLetterFecha}${o._rowIndex1}`, values:[[fechaDisplay]]},
-         {range:`${SHEET_CAMBIOS_COND}!${colLetterConf}${o._rowIndex1}`, values:[[confirmadoPor]]}
-       ]})});
-    setS('Fecha real del cambio guardada.', 'ok');
-  } catch(e) {
-    setS('No se pudo guardar: ' + e.message, 'err');
-  }
 }
 
 // ── Bitácora de Manejo — pestaña Bitacora en el Sheet, append-only ──────────
@@ -13287,8 +12246,8 @@ async function restaurarAlertas() {
   } catch(e) { console.error('No se pudo limpiar AlertasDescartadas en el Sheet:', e); }
 }
 
-function pushAlert(severity, reg, imp, cub, esp, analysis, action, tag, days, key, cub2) {
-  const a = { severity, reg, imp, cub, cub2: cub2||'', esp, analysis, action, tag, days, key };
+function pushAlert(severity, reg, imp, cub, esp, analysis, action, tag, days, key, cub2, solicitud) {
+  const a = { severity, reg, imp, cub, cub2: cub2||'', esp, analysis, action, tag, days, key, solicitud: solicitud||'' };
   if (_alertaEstaOculta(_alertDiscardKey(a))) return;
   _alerts.push(a);
 }
@@ -13348,13 +12307,14 @@ function buildAlerts() {
     once('ccaa', () => {
       const fechaCCAA    = String(row['Fecha estimada de CCAA'] || '').trim();
       const fechaCCAArea = String(row['Fecha Real de CCAA'] || '').trim();
+      const solCCAA      = String(row['Solicitud'] || '').trim();
       if (fechaCCAA && !fechaCCAArea) {
         const d = daysDiff(fechaCCAA);
         if (d !== null) {
           if (d < 0 && Math.abs(d) >= 1) {
-            pushAlert('vencido', reg, imp, cub, esp, analysis, 'CCAA vencida sin registrar', 'CCAA', d, key, cub2);
+            pushAlert('vencido', reg, imp, cub, esp, analysis, 'CCAA vencida sin registrar', 'CCAA', d, key, cub2, solCCAA);
           } else if (d >= 0 && d <= 3) {
-            pushAlert('proximo', reg, imp, cub, esp, analysis, 'Fecha estimada CCAA próxima', 'CCAA', d, key, cub2);
+            pushAlert('proximo', reg, imp, cub, esp, analysis, 'Fecha estimada CCAA próxima', 'CCAA', d, key, cub2, solCCAA);
           }
         }
       }
@@ -13749,13 +12709,7 @@ function renderAlertsDarkSummary(venc, prox, pend) {
     const keyEsc = String(a.key).replace(/'/g, "\\'");
     const tagEsc = String(a.tag).replace(/'/g, "\\'");
     const dkEnc  = encodeURIComponent((a.key||'') + '||' + (a.tag||'') + '||' + (a.analysis||''));
-    const esCCAA = a.tag === 'CCAA';
-    const keyAttr = String(a.key).replace(/"/g,'&quot;');
-    const ccaaChk = esCCAA
-      ? `<input type="checkbox" class="al-ccaa-chk" data-key="${keyAttr}" onclick="event.stopPropagation();actualizarBotonEnvioCondiciones()" title="Seleccionar para enviar cambio de condiciones ambientales" style="width:15px;height:15px;flex-shrink:0;accent-color:#B8975A">`
-      : '';
     return `<div style="position:relative;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.03);border-left:3px solid ${sevBorder[a.severity]};border-radius:0 8px 8px 0;padding:10px 14px;padding-right:36px;cursor:pointer" onclick="goStageFromAlert('${keyEsc}','${tagEsc}')">
-      ${ccaaChk}
       <span style="font-size:16px">${icon}</span>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:500;color:#E8ECF2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.action}${daysTxt ? ' — ' + daysTxt : ''}</div>
@@ -13772,8 +12726,6 @@ function renderAlertsDarkSummary(venc, prox, pend) {
         onmouseout="this.style.color='rgba(232,236,242,0.4)';this.style.background='none'">✕</button>
     </div>`;
   }).join('') : `<div style="text-align:center;padding:20px;color:#E8ECF2;opacity:0.5;font-size:12px">Sin alertas activas ✓</div>`;
-
-  const hayCCAA = top.some(a => a.tag === 'CCAA');
 
   el.innerHTML = `
   <div style="font-family:'Inter',sans-serif;background:#0A1628;border-radius:16px;padding:24px;color:#E8ECF2">
@@ -13801,80 +12753,7 @@ function renderAlertsDarkSummary(venc, prox, pend) {
     </div>
     <div style="display:flex;flex-direction:column;gap:8px;max-height:480px;overflow-y:auto;padding-right:4px;scrollbar-width:thin;scrollbar-color:#B8975A #0A1628">${itemsHtml}</div>
     ${top.length > 0 ? `<div style="margin-top:8px;text-align:right;font-size:11px;color:#E8ECF2;opacity:0.45">${top.length} alerta(s) — usa ✕ para descartar</div>` : ''}
-    ${hayCCAA ? `<div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(184,151,90,0.25);display:flex;align-items:center;justify-content:space-between;gap:10px">
-      <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:#E8ECF2;opacity:0.85;cursor:pointer">
-        <input type="checkbox" onclick="document.querySelectorAll('.al-ccaa-chk').forEach(cb=>cb.checked=this.checked);actualizarBotonEnvioCondiciones()" style="width:14px;height:14px;accent-color:#B8975A">
-        Seleccionar todas las 🧪 CCAA
-      </label>
-      <button id="btn-enviar-condiciones-alertas" disabled onclick="abrirModalCondicionesDesdeAlertas()"
-        style="background:#B8975A;color:#0A1628;border:none;padding:8px 16px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;opacity:.4"
-        >📧 Enviar cambio de condiciones</button>
-    </div>` : ''}
   </div>`;
-}
-
-// Habilita/actualiza el botón de envío según cuántas alertas CCAA estén
-// marcadas en el panel de Vigilancia Activa.
-function actualizarBotonEnvioCondiciones() {
-  const n = document.querySelectorAll('.al-ccaa-chk:checked').length;
-  const btn = document.getElementById('btn-enviar-condiciones-alertas');
-  if (!btn) return;
-  btn.disabled = n === 0;
-  btn.style.opacity = n === 0 ? '.4' : '1';
-  btn.textContent = n === 0 ? '📧 Enviar cambio de condiciones' : `📧 Enviar cambio de condiciones (${n})`;
-}
-
-// Construye _condItems SOLO a partir de las alertas CCAA marcadas en
-// Vigilancia Activa (en vez de escanear todo gsData como abrirModalCondiciones)
-// y abre el mismo modal/flujo ya existente — reutiliza _renderCondTabla,
-// enviarCambioCondiciones y el backend 'solicitarCambioCondiciones' sin
-// duplicar lógica.
-function abrirModalCondicionesDesdeAlertas() {
-  const keys = Array.from(document.querySelectorAll('.al-ccaa-chk:checked')).map(cb => cb.dataset.key);
-  if (!keys.length) { setS('Seleccione al menos una alerta CCAA.', 'warn'); return; }
-
-  const grupos = {};
-  keys.forEach(key => {
-    let rows;
-    if (key.startsWith('|sol:')) {
-      const sol = key.replace('|sol:', '');
-      rows = gsData.filter(r => String(r['Solicitud'] || '').trim() === sol);
-    } else {
-      const resNum = key.replace('Res.', '').split('/')[0].trim();
-      rows = gsData.filter(r => String(r['Res.'] || '').trim() === resNum);
-    }
-    rows.forEach((r, idx0) => {
-      const codigo = _condCodigoAnalisis(r);
-      const requerida = _condCondicionRequerida(codigo);
-      if (!requerida) return;
-      const nsol = String(r['Solicitud']||'').trim();
-      if (!nsol) return;
-      const idx = gsData.indexOf(r);
-      const guardada = _condActualGuardada(r);
-      const actualLabel = guardada ? guardada.label : '—';
-      const especie = String(r['Especie']||'').trim();
-      const gkey = nsol + '|' + requerida;
-      if (!grupos[gkey]) {
-        grupos[gkey] = {
-          filas: [], solicitud: nsol,
-          resolucion: String(r['Res.']||'').trim(),
-          anioRes: fmtD(r['Fecha Res.']||'').substring(0,4),
-          cubiculo: String(r['Cubículo']||r['Cubiculo']||'').trim(),
-          especies: [], condicionActual: actualLabel, condicionRequerida: requerida,
-          fija: !COND_AMBIENTAL_EDITABLES.includes(requerida), yaCumplida: true
-        };
-      }
-      const g = grupos[gkey];
-      g.filas.push(idx + 2);
-      if (especie && g.especies.indexOf(especie) === -1) g.especies.push(especie);
-      if (actualLabel !== requerida) g.yaCumplida = false;
-    });
-  });
-
-  _condItems = Object.values(grupos);
-  if (!_condItems.length) { setS('Las alertas seleccionadas no tienen análisis elegibles para cambio de condiciones.', 'warn'); return; }
-  _renderCondTabla();
-  $('modal-cond').classList.add('open');
 }
 
 function scrollToGroup(id) {
@@ -14724,7 +13603,7 @@ function _openDoc(html, title, formTitle) {
   const w = window.open('', '_blank', 'width=900,height=700');
   const ft = formTitle || title;
   const footer = `<div style="text-align:center;font-size:7.5pt;color:#888;margin-top:16px;line-height:1.5;border-top:1px solid #ddd;padding-top:8px">
-    Servicio Agrícola y Ganadero | Departamento RED SAG de Laboratorios - ECA<br>
+    Servicio Agrícola y Ganadero | Departamento RED de Laboratorios SAG | Estación de Cuarentena Agrícola (ECA)<br>
     Formulario "${ft}"<br>
     <span style="font-size:6pt;color:#ccc">Desarrollado por EChW, 2026</span>
   </div>`;
@@ -15686,11 +14565,6 @@ function generarActaRecepcion() {
   if(!_v('f1-imp')){ setS('Complete datos del registro primero.','warn'); return; }
   const rows = mat.map(r=>`<tr><td>${r.esp}</td><td>${r.vari}</td><td>${r.cantR||r.cant}</td><td>${r.obs}</td></tr>`).join('') ||
     '<tr><td colspan="4" style="text-align:center;color:#888">Sin filas</td></tr>';
-  // El Acta muestra la Contraparte de Importación (campo real, presente en
-  // todos los registros), no el Representante. f1-cp1-nombre sí tiene input
-  // en el DOM, pero se usa el mismo patrón de fallback a _lastLoadedRow por
-  // si el campo aún no está renderizado al momento de generar el PDF.
-  const _repActa = _v('f1-cp1-nombre') || (_lastLoadedRow && _lastLoadedRow['Contraparte Importacion']) || '';
   const html = `<div class="doc">
     <div class="hdr-logo">
       <img class="sag-logo" src="data:image/png;base64,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" alt="SAG">
@@ -15704,7 +14578,7 @@ function generarActaRecepcion() {
     </table>
     <div class="section-title">ANTECEDENTES IMPORTADOR</div>
     <table>
-      <tr><th>NOMBRE COMPLETO</th><td>${_v('f1-imp')}</td><th>REPRESENTANTE</th><td>${_repActa}</td></tr>
+      <tr><th>NOMBRE COMPLETO</th><td>${_v('f1-imp')}</td><th>REPRESENTANTE</th><td>${_v('f1-rep')}</td></tr>
       <tr><th>RUT</th><td>${_v('f1-rut')}</td><th>PAÍS ORIGEN</th><td>${_v('f1-pais')}</td></tr>
     </table>
     <div class="section-title">DETALLE MATERIAL RECEPCIONADO</div>
