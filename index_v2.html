@@ -1030,23 +1030,51 @@ input.field-blocked, select.field-blocked {
         <option value="Normal">Normal (Fitopl./Entom./Nemat.)</option>
       </select>
       <label style="font-size:11px;color:var(--g600);display:flex;gap:5px;align-items:center;cursor:pointer">
-        <input type="checkbox" id="seg-ocultar-cerradas" onchange="renderSeguimientoTabla()">Ocultar cerradas
+        <input type="checkbox" id="seg-ocultar-cerradas" checked onchange="renderSeguimientoTabla()">Ocultar cerradas
       </label>
     </div>
     <div style="border:1px solid var(--g100);border-radius:8px;overflow:auto;max-height:60vh">
-      <table class="tbl">
+      <table class="tbl" id="seg-tabla">
         <thead>
-          <tr>
-            <th style="width:30px">&nbsp;</th>
-            <th>Res./Sol.</th>
-            <th>Importador</th>
-            <th style="text-align:center">Cubículo</th>
-            <th>Especie</th>
-            <th style="text-align:center">Análisis</th>
-            <th style="text-align:center">CCAA est.</th>
-            <th style="text-align:center">Estado CCAA</th>
-            <th style="text-align:center">Muestreo est.</th>
-            <th style="text-align:center">Estado muestreo</th>
+          <tr id="seg-thead-row">
+            <th data-segcol="chk" style="width:30px;position:relative">&nbsp;<span class="cobro-col-resize" data-col="chk"></span></th>
+            <th data-segcol="res" style="position:relative">Res./Sol.<span class="cobro-col-resize" data-col="res"></span></th>
+            <th data-segcol="imp" style="position:relative">Importador<span class="cobro-col-resize" data-col="imp"></span></th>
+            <th data-segcol="cub" style="text-align:center;position:relative">Cubículo<span class="cobro-col-resize" data-col="cub"></span></th>
+            <th data-segcol="esp" style="position:relative">Especie<span class="cobro-col-resize" data-col="esp"></span></th>
+            <th data-segcol="an" style="text-align:center;position:relative">Análisis<span class="cobro-col-resize" data-col="an"></span></th>
+            <th data-segcol="ccaaest" style="text-align:center;position:relative">
+              CCAA est.<span class="cobro-col-resize" data-col="ccaaest"></span><br>
+              <input type="date" id="seg-f-ccaa-desde" onchange="renderSeguimientoTabla()" onclick="event.stopPropagation()" style="width:78px;font-size:9px;padding:1px" title="Desde">
+              <input type="date" id="seg-f-ccaa-hasta" onchange="renderSeguimientoTabla()" onclick="event.stopPropagation()" style="width:78px;font-size:9px;padding:1px" title="Hasta">
+            </th>
+            <th data-segcol="estccaa" style="text-align:center;position:relative">
+              Estado CCAA<span class="cobro-col-resize" data-col="estccaa"></span><br>
+              <select id="seg-f-estado-ccaa" onchange="renderSeguimientoTabla()" onclick="event.stopPropagation()" style="font-size:9px;padding:1px">
+                <option value="">Todos</option>
+                <option value="vencida">Vencida</option>
+                <option value="proxima">Próxima</option>
+                <option value="pendiente">Pendiente</option>
+                <option value="solicitada">Solicitada</option>
+                <option value="confirmada">Confirmada</option>
+                <option value="sinfecha">Sin fecha</option>
+              </select>
+            </th>
+            <th data-segcol="muestreoest" style="text-align:center;position:relative">
+              Muestreo est.<span class="cobro-col-resize" data-col="muestreoest"></span><br>
+              <input type="date" id="seg-f-muestreo-desde" onchange="renderSeguimientoTabla()" onclick="event.stopPropagation()" style="width:78px;font-size:9px;padding:1px" title="Desde">
+              <input type="date" id="seg-f-muestreo-hasta" onchange="renderSeguimientoTabla()" onclick="event.stopPropagation()" style="width:78px;font-size:9px;padding:1px" title="Hasta">
+            </th>
+            <th data-segcol="estmuestreo" style="text-align:center;position:relative">
+              Estado muestreo<span class="cobro-col-resize" data-col="estmuestreo"></span><br>
+              <select id="seg-f-estado-muestreo" onchange="renderSeguimientoTabla()" onclick="event.stopPropagation()" style="font-size:9px;padding:1px">
+                <option value="">Todos</option>
+                <option value="vencido">Vencido</option>
+                <option value="pendiente">Pendiente</option>
+                <option value="realizado">Realizado</option>
+                <option value="sinfecha">Sin fecha</option>
+              </select>
+            </th>
           </tr>
         </thead>
         <tbody id="seg-tbody"></tbody>
@@ -12862,34 +12890,38 @@ function _segBadgeAnalisis(cond) {
   return `<span style="background:${c[0]};color:${c[1]};padding:2px 8px;border-radius:6px;font-size:10px">${cond}</span>`;
 }
 
-// { html, checkable } — checkable=false cuando ya hay Fecha Real de CCAA
-// (cambio ya confirmado, no tiene sentido volver a solicitarlo).
+// { html, checkable, kind, fechaISO } — checkable=false cuando ya hay Fecha
+// Real de CCAA (cambio ya confirmado, no tiene sentido volver a solicitarlo).
+// kind/fechaISO se usan para los filtros de encabezado (estado y rango de fecha).
 function _segEstadoCCAA(r, requerida) {
+  const fechaISO = fmtD(r['Fecha estimada de CCAA']||'');
   const real = String(r['Fecha Real de CCAA']||'').trim();
-  if (real) return { html: _segBadge('Confirmada ' + fmtDisplay(real), 'done'), checkable: false };
+  if (real) return { html: _segBadge('Confirmada ' + fmtDisplay(real), 'done'), checkable: false, kind: 'confirmada', fechaISO };
   const guardada = _condActualGuardada(r);
   if (guardada && guardada.label === requerida) {
     const diaMes = (guardada.fecha||'').split(' ')[0].split('-').slice(0,2).join('-');
-    return { html: _segBadge('Solicitada ' + diaMes, 'ok'), checkable: true };
+    return { html: _segBadge('Solicitada ' + diaMes, 'ok'), checkable: true, kind: 'solicitada', fechaISO };
   }
   const est = String(r['Fecha estimada de CCAA']||'').trim();
-  if (!est) return { html: '<span style="color:var(--g400)">—</span>', checkable: false };
+  if (!est) return { html: '<span style="color:var(--g400)">—</span>', checkable: false, kind: 'sinfecha', fechaISO };
   const d = daysDiff(est);
-  if (d === null) return { html: '<span style="color:var(--g400)">—</span>', checkable: false };
-  if (d < 0) return { html: _segBadge('Vencida ' + d + 'd', 'danger'), checkable: true };
-  if (d <= 3) return { html: _segBadge('Próxima', 'warn'), checkable: true };
-  return { html: _segBadge('Pendiente', 'warn'), checkable: true };
+  if (d === null) return { html: '<span style="color:var(--g400)">—</span>', checkable: false, kind: 'sinfecha', fechaISO };
+  if (d < 0) return { html: _segBadge('Vencida ' + d + 'd', 'danger'), checkable: true, kind: 'vencida', fechaISO };
+  if (d <= 3) return { html: _segBadge('Próxima', 'warn'), checkable: true, kind: 'proxima', fechaISO };
+  return { html: _segBadge('Pendiente', 'warn'), checkable: true, kind: 'pendiente', fechaISO };
 }
 
+// { html, kind, fechaISO }
 function _segEstadoMuestreo(r) {
+  const fechaISO = fmtD(r['Fecha Estimada Muestreo']||'');
   const m = String(r['Muestreada?']||'').trim().toLowerCase();
-  if (m === 'si' || m === 'sí') return _segBadge('Realizado', 'done');
+  if (m === 'si' || m === 'sí') return { html: _segBadge('Realizado', 'done'), kind: 'realizado', fechaISO };
   const est = String(r['Fecha Estimada Muestreo']||'').trim();
-  if (!est) return '<span style="color:var(--g400)">—</span>';
+  if (!est) return { html: '<span style="color:var(--g400)">—</span>', kind: 'sinfecha', fechaISO };
   const d = daysDiff(est);
-  if (d === null) return '<span style="color:var(--g400)">—</span>';
-  if (d < 0) return _segBadge('Vencido ' + Math.abs(d) + 'd', 'danger');
-  return _segBadge('Pendiente', 'warn');
+  if (d === null) return { html: '<span style="color:var(--g400)">—</span>', kind: 'sinfecha', fechaISO };
+  if (d < 0) return { html: _segBadge('Vencido ' + Math.abs(d) + 'd', 'danger'), kind: 'vencido', fechaISO };
+  return { html: _segBadge('Pendiente', 'warn'), kind: 'pendiente', fechaISO };
 }
 
 function renderSeguimientoTabla() {
@@ -12899,6 +12931,12 @@ function renderSeguimientoTabla() {
   const anioMin = parseInt(document.getElementById('seg-anio')?.value || '2023', 10) || 0;
   const analisisFiltro = document.getElementById('seg-analisis')?.value || '';
   const ocultarCerradas = document.getElementById('seg-ocultar-cerradas')?.checked;
+  const fEstadoCCAA = document.getElementById('seg-f-estado-ccaa')?.value || '';
+  const fEstadoMuestreo = document.getElementById('seg-f-estado-muestreo')?.value || '';
+  const fCCAADesde = document.getElementById('seg-f-ccaa-desde')?.value || '';
+  const fCCAAHasta = document.getElementById('seg-f-ccaa-hasta')?.value || '';
+  const fMuestreoDesde = document.getElementById('seg-f-muestreo-desde')?.value || '';
+  const fMuestreoHasta = document.getElementById('seg-f-muestreo-hasta')?.value || '';
 
   const filas = [];
   (gsData||[]).forEach((r, idx) => {
@@ -12922,17 +12960,30 @@ function renderSeguimientoTabla() {
       const hay = [res, nsol, importador, especie].join(' ').toLowerCase();
       if (hay.indexOf(buscar) === -1) return;
     }
-    const disp = res ? ('Res. ' + res + (anioRes ? ('/' + anioRes) : '')) : ('Sol. ' + nsol + ' (sin res.)');
     const estCCAA = _segEstadoCCAA(r, requerida);
+    const estMuestreo = _segEstadoMuestreo(r);
+    if (fEstadoCCAA && estCCAA.kind !== fEstadoCCAA) return;
+    if (fEstadoMuestreo && estMuestreo.kind !== fEstadoMuestreo) return;
+    if (fCCAADesde && (!estCCAA.fechaISO || estCCAA.fechaISO < fCCAADesde)) return;
+    if (fCCAAHasta && (!estCCAA.fechaISO || estCCAA.fechaISO > fCCAAHasta)) return;
+    if (fMuestreoDesde && (!estMuestreo.fechaISO || estMuestreo.fechaISO < fMuestreoDesde)) return;
+    if (fMuestreoHasta && (!estMuestreo.fechaISO || estMuestreo.fechaISO > fMuestreoHasta)) return;
+    const disp = res ? ('Res. ' + res + (anioRes ? ('/' + anioRes) : '')) : ('Sol. ' + nsol + ' (sin res.)');
     filas.push({
       nsol, res, importador, cubiculo, especie, requerida, disp,
+      sortKey: parseInt(nsol, 10) || 999999,
       ccaaEst: fmtDisplay(r['Fecha estimada de CCAA']||'') || '—',
       muestreoEst: fmtDisplay(r['Fecha Estimada Muestreo']||'') || '—',
       estCCAAHtml: estCCAA.html,
       checkable: estCCAA.checkable,
-      estMuestreoHtml: _segEstadoMuestreo(r)
+      estMuestreoHtml: estMuestreo.html
     });
   });
+
+  // Orden inicial estable: por N° de Solicitud (no se muestra como columna
+  // propia, solo determina el orden) — así las cuarentenas activas aparecen
+  // agrupadas de forma predecible sin depender de que el usuario ordene.
+  filas.sort((a, b) => a.sortKey - b.sortKey);
 
   if (!filas.length) {
     tb.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--g400)">No hay registros que coincidan con los filtros.</td></tr>';
@@ -12959,6 +13010,57 @@ function renderSeguimientoTabla() {
   }).join('');
   const cEl = document.getElementById('seg-count');
   if (cEl) cEl.textContent = `Mostrando ${filas.length} fila(s).`;
+  _applySegColWidths();
+  _initSegColResize();
+}
+
+// ── REDIMENSIONAR COLUMNAS seg-tabla — mismo patrón que cobro-tbl, clave propia ──
+const _SEG_COL_STORAGE = 'eca_seg_col_widths';
+(function _restoreSegColWidths() {
+  try { window._segColWidths = JSON.parse(localStorage.getItem(_SEG_COL_STORAGE)||'null')||{}; }
+  catch(e) { window._segColWidths = {}; }
+})();
+
+function _applySegColWidths() {
+  const row = document.getElementById('seg-thead-row');
+  if(!row) return;
+  const saved = window._segColWidths||{};
+  row.querySelectorAll('th[data-segcol]').forEach(th => {
+    const col = th.dataset.segcol;
+    if(saved[col]) th.style.width = saved[col]+'px';
+  });
+}
+
+function _initSegColResize() {
+  const row = document.getElementById('seg-thead-row');
+  if(!row || row.dataset.resizeInit) return;
+  row.dataset.resizeInit = '1';
+  row.querySelectorAll('.cobro-col-resize').forEach(handle => {
+    handle.addEventListener('mousedown', function(e) {
+      e.preventDefault(); e.stopPropagation();
+      const th = handle.closest('th');
+      const col = handle.dataset.col;
+      const startX = e.clientX;
+      const startW = th.offsetWidth;
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      function onMove(ev) {
+        const w = Math.max(40, startW + ev.clientX - startX);
+        th.style.width = w + 'px';
+      }
+      function onUp() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        if(!window._segColWidths) window._segColWidths = {};
+        window._segColWidths[col] = th.offsetWidth;
+        try { localStorage.setItem(_SEG_COL_STORAGE, JSON.stringify(window._segColWidths)); } catch(err) {}
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  });
 }
 
 // Junta las filas marcadas (Resolución+Condición) y abre el mismo cuadro de
