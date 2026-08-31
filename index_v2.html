@@ -11430,6 +11430,20 @@ function _condCondicionRequerida(codigoLabel) {
   if (t.indexOf('nemat')>=0) return 'Normal';
   return null;
 }
+// Nombre real del tipo de análisis (para mostrar en pantalla) — distinto de
+// la condición ambiental requerida: Entomológico/Fitoplasma/Nematológico
+// todos requieren condición "Normal", pero son análisis distintos y no deben
+// mostrarse todos como "Normal" en una columna de tipo de análisis.
+function _condAnalisisCanonico(codigoLabel) {
+  const t = String(codigoLabel||'').toLowerCase();
+  if (t.indexOf('virus')>=0 || t.indexOf('virol')>=0 || t.indexOf('indexaje')>=0) return 'Virológico';
+  if (t.indexOf('hong')>=0 || t.indexOf('micol')>=0 || t.indexOf('fungo')>=0) return 'Micológico';
+  if (t.indexOf('bacter')>=0) return 'Bacteriológico';
+  if (t.indexOf('fitop')>=0 || t.indexOf('micopl')>=0) return 'Fitoplasma';
+  if (t.indexOf('entom')>=0) return 'Entomológico';
+  if (t.indexOf('nemat')>=0) return 'Nematológico';
+  return codigoLabel || '—';
+}
 let _condItems = []; // {filas:[], solicitud, resolucion, anioRes, cubiculo, especies:[], condicionActual, condicionRequerida, fija, yaCumplida}
 
 function _condCodigoAnalisis(r) {
@@ -12894,15 +12908,15 @@ function _segBadge(label, kind) {
   return `<span style="background:${c[0]};color:${c[1]};padding:2px 8px;border-radius:6px;font-size:10px">${label}</span>`;
 }
 
-function _segBadgeAnalisis(cond) {
+function _segBadgeAnalisis(nombreCanonico, condicion) {
   const map = {
     'Virus':    ['#E6F1FB','#0C447C'],
     'Hongo':    ['#EEEDFE','#3C3489'],
     'Bacteria': ['#FAECE7','#993C1D'],
     'Normal':   ['#F1EFE8','#444441']
   };
-  const c = map[cond] || map['Normal'];
-  return `<span style="background:${c[0]};color:${c[1]};padding:2px 8px;border-radius:6px;font-size:10px">${cond}</span>`;
+  const c = map[condicion] || map['Normal'];
+  return `<span style="background:${c[0]};color:${c[1]};padding:2px 8px;border-radius:6px;font-size:10px">${nombreCanonico}</span>`;
 }
 
 // { html, checkable, kind, fechaISO } — checkable=false cuando ya hay Fecha
@@ -12953,7 +12967,13 @@ function renderSeguimientoTabla() {
   const fMuestreoDesde = document.getElementById('seg-f-muestreo-desde')?.value || '';
   const fMuestreoHasta = document.getElementById('seg-f-muestreo-hasta')?.value || '';
 
-  const filas = [];
+  // Agrupar por Resolución(o Solicitud)+Análisis: Detalle tiene una fila por
+  // especie dentro de cada análisis, pero la fecha de CCAA/muestreo es una
+  // sola por Resolución+Análisis — mostrar una fila por especie duplicaba
+  // innecesariamente. Se combinan las especies y se toma la primera fecha
+  // no vacía encontrada entre las filas del grupo (algunas quedan con el
+  // campo vacío por carga incompleta, no por fechas realmente distintas).
+  const grupos = {};
   (gsData||[]).forEach((r, idx) => {
     const codigo = _condCodigoAnalisis(r);
     const requerida = _condCondicionRequerida(codigo);
@@ -12967,28 +12987,61 @@ function renderSeguimientoTabla() {
     const nsol = String(r['Solicitud']||'').trim();
     if (!nsol) return;
     const res = String(r['Res.']||'').trim();
-    const anioRes = fmtD(r['Fecha Res.']||'').substring(0,4);
-    const importador = String(r['Importador']||'').trim();
-    const cubiculo = String(r['Cubículo']||r['Cubiculo']||'').trim();
+    const analisisCanonico = _condAnalisisCanonico(codigo);
+    const key = (res || ('sol:'+nsol)) + '|' + analisisCanonico;
+    if (!grupos[key]) {
+      grupos[key] = {
+        nsol, res,
+        anioRes: fmtD(r['Fecha Res.']||'').substring(0,4),
+        importador: String(r['Importador']||'').trim(),
+        cubiculo: String(r['Cubículo']||r['Cubiculo']||'').trim(),
+        especies: [],
+        requerida, analisisCanonico,
+        ccaaEstRaw: '', muestreoEstRaw: '', muestreadaSi: false,
+        fechaRealCCAA: '', condAmbientalSolicitada: '',
+        sortKey: parseInt(nsol, 10) || 999999
+      };
+    }
+    const g = grupos[key];
     const especie = String(r['Especie']||'').trim();
+    if (especie && g.especies.indexOf(especie) === -1) g.especies.push(especie);
+    if (!g.ccaaEstRaw && r['Fecha estimada de CCAA']) g.ccaaEstRaw = r['Fecha estimada de CCAA'];
+    if (!g.muestreoEstRaw && r['Fecha Estimada Muestreo']) g.muestreoEstRaw = r['Fecha Estimada Muestreo'];
+    if (!g.fechaRealCCAA && r['Fecha Real de CCAA']) g.fechaRealCCAA = r['Fecha Real de CCAA'];
+    if (!g.condAmbientalSolicitada && r['Cond Ambiental Solicitada']) g.condAmbientalSolicitada = r['Cond Ambiental Solicitada'];
+    if (String(r['Muestreada?']||'').trim().toLowerCase().indexOf('si') === 0) g.muestreadaSi = true;
+  });
+
+  const filas = [];
+  Object.values(grupos).forEach(g => {
     if (buscar) {
-      const hay = [res, nsol, importador, especie].join(' ').toLowerCase();
+      const hay = [g.res, g.nsol, g.importador, g.especies.join(' ')].join(' ').toLowerCase();
       if (hay.indexOf(buscar) === -1) return;
     }
-    const estCCAA = _segEstadoCCAA(r, requerida);
-    const estMuestreo = _segEstadoMuestreo(r);
+    // Reconstruye un objeto "fila sintética" con los datos ya fusionados del
+    // grupo, para reutilizar _segEstadoCCAA/_segEstadoMuestreo sin duplicar lógica.
+    const rSint = {
+      'Fecha estimada de CCAA': g.ccaaEstRaw,
+      'Fecha Real de CCAA': g.fechaRealCCAA,
+      'Cond Ambiental Solicitada': g.condAmbientalSolicitada,
+      'Fecha Estimada Muestreo': g.muestreoEstRaw,
+      'Muestreada?': g.muestreadaSi ? 'Si' : ''
+    };
+    const estCCAA = _segEstadoCCAA(rSint, g.requerida);
+    const estMuestreo = _segEstadoMuestreo(rSint);
     if (fEstadoCCAA && estCCAA.kind !== fEstadoCCAA) return;
     if (fEstadoMuestreo && estMuestreo.kind !== fEstadoMuestreo) return;
     if (fCCAADesde && (!estCCAA.fechaISO || estCCAA.fechaISO < fCCAADesde)) return;
     if (fCCAAHasta && (!estCCAA.fechaISO || estCCAA.fechaISO > fCCAAHasta)) return;
     if (fMuestreoDesde && (!estMuestreo.fechaISO || estMuestreo.fechaISO < fMuestreoDesde)) return;
     if (fMuestreoHasta && (!estMuestreo.fechaISO || estMuestreo.fechaISO > fMuestreoHasta)) return;
-    const disp = res ? ('Res. ' + res + (anioRes ? ('/' + anioRes) : '')) : ('Sol. ' + nsol + ' (sin res.)');
+    const disp = g.res ? ('Res. ' + g.res + (g.anioRes ? ('/' + g.anioRes) : '')) : ('Sol. ' + g.nsol + ' (sin res.)');
     filas.push({
-      nsol, res, importador, cubiculo, especie, requerida, disp,
-      sortKey: parseInt(nsol, 10) || 999999,
-      ccaaEst: fmtDisplay(r['Fecha estimada de CCAA']||'') || '—',
-      muestreoEst: fmtDisplay(r['Fecha Estimada Muestreo']||'') || '—',
+      nsol: g.nsol, res: g.res, importador: g.importador, cubiculo: g.cubiculo,
+      especie: g.especies.join(', '), requerida: g.requerida, analisisCanonico: g.analisisCanonico,
+      disp, sortKey: g.sortKey,
+      ccaaEst: fmtDisplay(g.ccaaEstRaw) || '—',
+      muestreoEst: fmtDisplay(g.muestreoEstRaw) || '—',
       estCCAAHtml: estCCAA.html,
       checkable: estCCAA.checkable,
       estMuestreoHtml: estMuestreo.html
@@ -13016,7 +13069,7 @@ function renderSeguimientoTabla() {
       <td>${f.importador||'—'}</td>
       <td style="text-align:center">${f.cubiculo||'—'}</td>
       <td style="font-style:italic">${f.especie||'—'}</td>
-      <td style="text-align:center">${_segBadgeAnalisis(f.requerida)}</td>
+      <td style="text-align:center">${_segBadgeAnalisis(f.analisisCanonico, f.requerida)}</td>
       <td style="text-align:center">${f.ccaaEst}</td>
       <td style="text-align:center">${f.estCCAAHtml}</td>
       <td style="text-align:center">${f.muestreoEst}</td>
