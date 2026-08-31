@@ -12684,6 +12684,10 @@ function renderAlertsStage() {
 // Envío Lab, etc., cualquier tag activo), con checkbox solo en las filas CCAA
 // (única acción con correo automático por ahora). Se muestra al tope del stage
 // de Alertas, siempre visible, sin depender de abrir ningún modal.
+function _condPendMarcarTodas(marcar) {
+  document.querySelectorAll('.cond-pend-chk').forEach(c => { c.checked = !!marcar; });
+}
+
 function renderCondPendientesLista(all) {
   const el = document.getElementById('cond-pendientes-container');
   if (!el) return;
@@ -12706,10 +12710,11 @@ function renderCondPendientesLista(all) {
       : a.days <= 0 ? `vencida hace ${Math.abs(a.days)} día(s)`
       : `faltan ${a.days} día(s)`;
     const chk = (a.tag === 'CCAA' && a.solicitud)
-      ? `<input type="checkbox" class="al-ccaa-chk cond-pend-chk" data-sol="${String(a.solicitud).replace(/"/g,'&quot;')}">`
+      ? `<input type="checkbox" class="al-ccaa-chk cond-pend-chk" data-sol="${String(a.solicitud).replace(/"/g,'&quot;')}" onclick="event.stopPropagation()">`
       : '';
+    const tdChkClick = chk ? ` onclick="const c=this.querySelector('input.cond-pend-chk'); if(c) c.checked=!c.checked;" style="padding:6px 8px;text-align:center;cursor:pointer"` : ` style="padding:6px 8px;text-align:center"`;
     return `<tr>
-      <td style="padding:6px 8px;text-align:center">${chk}</td>
+      <td${tdChkClick}>${chk}</td>
       <td style="padding:6px 8px;white-space:nowrap">${icon} ${a.tag}</td>
       <td style="padding:6px 8px">${a.action}${daysTxt ? ' — ' + daysTxt : ''}</td>
       <td style="padding:6px 8px;font-family:var(--mono)">${a.reg || ''}</td>
@@ -12721,10 +12726,9 @@ function renderCondPendientesLista(all) {
     <div style="background:#fff;border:1.5px solid var(--g100);border-radius:var(--r);padding:14px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
         <div style="font-family:'Cormorant Garamond',serif;font-size:18px;color:var(--nv);font-weight:600">📋 Actividades Pendientes</div>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <label style="font-size:11px;display:flex;gap:5px;align-items:center;cursor:pointer">
-            <input type="checkbox" id="cond-pend-sel-all" onchange="document.querySelectorAll('.cond-pend-chk').forEach(c=>c.checked=this.checked)"> Marcar todas las CCAA
-          </label>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-gh btn-sm" onclick="_condPendMarcarTodas(true)">☑ Marcar todas CCAA</button>
+          <button class="btn btn-gh btn-sm" onclick="_condPendMarcarTodas(false)">☐ Desmarcar todas</button>
           <button class="btn btn-nv btn-sm" onclick="enviarCorreoCCAAAlertas()">📧 Enviar Cambio Condiciones</button>
         </div>
       </div>
