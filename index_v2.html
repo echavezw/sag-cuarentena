@@ -13152,31 +13152,33 @@ function enviarCambioCondicionesSeguimiento() {
 
 // Exporta la tabla visible (ya filtrada) a Excel, mismo patrón que el resto
 // del sistema (SheetJS ya cargado globalmente como XLSX).
+// Se genera CSV en vez de .xlsx: SheetJS (XLSX) nunca se carga en esta página
+// (verificado — no hay <script src> que la traiga), así que depender de ella
+// fallaba en silencio. CSV lo abre Excel sin problema y no requiere librerías.
 function descargarExcelSeguimiento() {
+  const columnas = ['Res./Sol.','Importador','Cubículo','Especie','Análisis','CCAA est.','Estado CCAA','Muestreo est.','Estado muestreo'];
   const filas = Array.from(document.querySelectorAll('#seg-tbody tr')).map(tr => {
     const tds = tr.querySelectorAll('td');
     if (tds.length < 10) return null;
-    return {
-      'Res./Sol.': tds[1].textContent.trim(),
-      'Importador': tds[2].textContent.trim(),
-      'Cubículo': tds[3].textContent.trim(),
-      'Especie': tds[4].textContent.trim(),
-      'Análisis': tds[5].textContent.trim(),
-      'CCAA est.': tds[6].textContent.trim(),
-      'Estado CCAA': tds[7].textContent.trim(),
-      'Muestreo est.': tds[8].textContent.trim(),
-      'Estado muestreo': tds[9].textContent.trim()
-    };
+    return [1,2,3,4,5,6,7,8,9].map(i => tds[i].textContent.trim());
   }).filter(Boolean);
   if (!filas.length) { setS('No hay filas para exportar.', 'warn'); return; }
   try {
-    const ws = XLSX.utils.json_to_sheet(filas);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Seguimiento');
-    XLSX.writeFile(wb, 'Seguimiento_Actividades_' + fmtDisplay(new Date()) + '.xlsx');
+    const esc = v => '"' + String(v||'').replace(/"/g,'""') + '"';
+    const lineas = [columnas.map(esc).join(';')].concat(filas.map(f => f.map(esc).join(';')));
+    const csv = '\uFEFF' + lineas.join('\r\n'); // BOM para que Excel detecte UTF-8 correctamente
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'Seguimiento_Actividades_' + fmtDisplay(new Date()) + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   } catch (err) {
     console.error('descargarExcelSeguimiento error:', err);
-    setS('No se pudo generar el Excel.', 'err');
+    setS('No se pudo generar el archivo.', 'err');
   }
 }
 
