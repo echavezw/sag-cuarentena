@@ -1381,6 +1381,9 @@ input.field-blocked, select.field-blocked {
     <button type="button" class="btn btn-gh btn-sm" onclick="generarBorradorResolucion()" title="Genera borrador Word de Resolución de Internación">📄 Generar Borrador Res.</button>
     <button type="button" class="btn btn-gh btn-sm" onclick="generarTimbreRecepcion()" title="Genera un PDF de timbre de recepción con la fecha de recepción, anexo a la solicitud">🏷️ Generar Timbre Recepción</button>
   </div>
+  <div style="margin-top:8px;padding:0 2px">
+    <button type="button" class="btn btn-gd btn-sm" onclick="abrirEnvioResolucionIngreso()" title="Envía por correo al importador la Resolución de Ingreso firmada, adjuntando el documento">📧 Enviar Resolución al Importador</button>
+  </div>
   <div class="stage-nav">
     <span></span>
     <span class="stage-pg">1 / 7</span>
@@ -6198,7 +6201,89 @@ async function notificarEnvioFirma(nsol, correo, nombre) {
   }
 }
 
-// Mapea el Status de un registro sin resolución a {label, cls} de badge.
+// ── Enviar Resolución de Ingreso al importador ───────────────────────────────
+// A diferencia de notificarEnvioFirma (que solo avisa que está EN TRÁMITE de
+// firma), esto se usa una vez que la Resolución YA está firmada e incorporada
+// en la ficha (N° Resolución + Fecha Res. completados): adjunta el documento
+// firmado (PDF/Word que Eduardo suba, ya que el generador Word del sistema
+// solo produce un BORRADOR, no el documento firmado real) y avisa al
+// importador que su material vegetal quedó autorizado para internación.
+function abrirEnvioResolucionIngreso() {
+  const nres = (v('f2-nres')||'').trim();
+  const fres = (v('f2-fres')||'').trim();
+  if(!nres || !fres) { setS('Complete N° Resolución y Fecha Res. antes de enviar la notificación.','warn'); return; }
+  const nsol = (v('f1-nsol')||'').trim();
+  const nombre = v('f1-imp')||_lastLoadedRow['Importador']||'';
+  const correo = _lastLoadedRow['Email Importacion']||_lastLoadedRow['Correo']||'';
+  const anio = (v('f2-anio-res')||'').trim() || fres.substring(0,4);
+  const folioDisplay = anio ? `${nres}/${anio}` : nres;
+
+  const correoTxt = correo
+    ? `<div style="font-size:12px;color:var(--g400);margin-bottom:10px">Se enviará a: <strong>${correo}</strong> (${nombre})</div>`
+    : `<div style="font-size:12px;color:var(--err,#c0392b);margin-bottom:10px">⚠ Este importador no tiene "Email Importacion" registrado. Complete el correo en Etapa I antes de continuar, o el envío fallará.</div>`;
+
+  const html = `<div style="font-family:var(--serif);font-size:16px;color:var(--gd,#B8975A);margin-bottom:4px">Enviar Resolución de Ingreso N° ${folioDisplay}</div>
+    ${correoTxt}
+    <div class="ff" style="margin-bottom:12px">
+      <label class="lbl">Documento firmado (PDF o Word) — obligatorio</label>
+      <input type="file" id="res-ing-file" accept=".pdf,.doc,.docx" style="width:100%">
+    </div>
+    <div id="res-ing-status" style="font-size:12px;margin-bottom:8px"></div>
+    <div style="text-align:right;display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-gh btn-sm" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn btn-nv btn-sm" id="res-ing-confirm-btn" onclick="_enviarResolucionIngresoAplicar()">Enviar</button>
+    </div>`;
+  window._resIngresoDatos = { nres, fres, anio, folioDisplay, nsol, nombre, correo };
+  abrirModal(html);
+}
+
+function _fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function _enviarResolucionIngresoAplicar() {
+  const d = window._resIngresoDatos || {};
+  const statusEl = $('res-ing-status');
+  const btn = $('res-ing-confirm-btn');
+  const fileInput = $('res-ing-file');
+  const file = fileInput && fileInput.files && fileInput.files[0];
+  if(!file) { if(statusEl) statusEl.innerHTML = '<span style="color:var(--err,#c0392b)">Adjunte el documento firmado.</span>'; return; }
+  if(!d.correo) { if(statusEl) statusEl.innerHTML = '<span style="color:var(--err,#c0392b)">El importador no tiene correo registrado. Complete "Email Importacion" en Etapa I primero.</span>'; return; }
+  if(btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
+  if(statusEl) statusEl.innerHTML = '<span style="color:var(--g400)">Preparando adjunto...</span>';
+  try {
+    const pdfBase64 = await _fileToBase64(file);
+    if(statusEl) statusEl.innerHTML = '<span style="color:var(--g400)">Enviando correo...</span>';
+    const resp = await fetch(_PORTAL_ENDPOINT, {
+      method:'POST',
+      body: JSON.stringify({
+        action:'enviarResolucionIngreso', adminToken:_ADMIN_TOKEN,
+        correo:d.correo, nombre:d.nombre, folio:d.nres, anio:d.anio, fecha:d.fres,
+        solicitud:d.nsol, pdfBase64, pdfNombre:file.name
+      })
+    });
+    const data = await resp.json();
+    if(data.ok) {
+      cerrarModal();
+      setS(`Resolución N° ${d.folioDisplay} enviada a ${d.correo}.`,'ok');
+      await _registrarCorreoHistorial(d.nsol, d.nres, d.nombre, 'Resolución de Ingreso Enviada', true);
+    } else {
+      if(statusEl) statusEl.innerHTML = `<span style="color:var(--err,#c0392b)">${data.error||'Error desconocido'}</span>`;
+      await _registrarCorreoHistorial(d.nsol, d.nres, d.nombre, 'Resolución de Ingreso Enviada', false);
+      if(btn) { btn.disabled = false; btn.textContent = 'Enviar'; }
+    }
+  } catch(e) {
+    if(statusEl) statusEl.innerHTML = `<span style="color:var(--err,#c0392b)">Error de conexión: ${e.message}</span>`;
+    if(btn) { btn.disabled = false; btn.textContent = 'Enviar'; }
+  }
+}
+
+
 // Devuelve null si el Status no es un estado de Etapa I (para caer a la lógica normal).
 function badgeEstadoEntrada(status, res) {
   const st = String(status||'').trim();
