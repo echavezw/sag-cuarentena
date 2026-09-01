@@ -1052,7 +1052,7 @@ input.field-blocked, select.field-blocked {
       <table class="tbl" id="seg-tabla">
         <thead>
           <tr id="seg-thead-row">
-            <th data-segcol="chk" style="width:30px">&nbsp;<span class="cobro-col-resize" data-col="chk"></span></th>
+            <th data-segcol="chk" style="width:30px"><input type="checkbox" id="seg-chk-all" title="Marcar/desmarcar todas las filas visibles" onchange="toggleSegChkAll(this)"><span class="cobro-col-resize" data-col="chk"></span></th>
             <th data-segcol="res">Res./Sol.<span class="cobro-col-resize" data-col="res"></span></th>
             <th data-segcol="imp">Importador<span class="cobro-col-resize" data-col="imp"></span></th>
             <th data-segcol="cub" style="text-align:center">Cubículo<span class="cobro-col-resize" data-col="cub"></span></th>
@@ -14146,6 +14146,8 @@ function renderSeguimientoTabla() {
   // usan los botones de confirmación masiva (✓ Cambio Efectuado / ✓ Muestra
   // Tomada) para saber qué filas reales de Detalle actualizar.
   window._segFilasCache = filas.map(f => f.filasSheet);
+  const _segChkAllEl = document.getElementById('seg-chk-all');
+  if (_segChkAllEl) _segChkAllEl.checked = false;
 
   tb.innerHTML = filas.map((f, i) => {
     // El checkbox ya no se deshabilita cuando el cambio de condiciones está
@@ -14239,6 +14241,12 @@ function enviarCambioCondicionesSeguimiento() {
 // de una sola vez en todas las filas de Detalle de las cuarentenas marcadas.
 // tipo: 'ccaa' → columna 'Fecha Real de CCAA' · 'muestreo' → columna
 // 'Fecha muestreo/Indexaje' (misma columna que usa _segEstadoMuestreo).
+// Checkbox maestro del encabezado (junto a Res./Sol.): marca/desmarca todas
+// las filas visibles (ya filtradas) de un solo clic.
+function toggleSegChkAll(master) {
+  document.querySelectorAll('#seg-tbody .seg-chk').forEach(cb => { cb.checked = master.checked; });
+}
+
 function confirmarSeguimientoBulk(tipo) {
   const marcadas = Array.from(document.querySelectorAll('.seg-chk:checked'));
   if (!marcadas.length) { setS('Marque al menos una fila.', 'warn'); return; }
