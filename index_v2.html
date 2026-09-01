@@ -12387,6 +12387,10 @@ function _condRegistroCerrado(r) {
   if (_condCampoActivo(r['Liberada'])) return true;
   if (_condCampoActivo(r['Terminada'])) return true;
   if (_statusIndicaCierre(r['Status'])) return true;
+  // Material nunca llegó a ECA (Etapa III, campo 'Estado') — no hay nada
+  // físico que requiera cambio de condiciones ambientales ni toma de muestra.
+  const estado3 = String(r['Estado']||'').trim();
+  if (estado3 === 'No Recibida' || estado3 === 'No Recibida/Destruida en Punto de Ingreso') return true;
   return false;
 }
 
