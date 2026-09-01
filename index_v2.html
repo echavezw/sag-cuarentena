@@ -6216,6 +6216,33 @@ function badgeEstadoEntrada(status, res) {
   return null;
 }
 
+// Los patógenos están asociados a la ESPECIE, no a la variedad — pero Detalle
+// puede tener una fila por cada combinación (especie, variedad, patógeno) en
+// registros antiguos/masivos. Al cargar la ficha, colapsa a una sola entrada
+// por (especie, patógeno) dentro de cada tipo de análisis, fusionando campos
+// (folio/resultado/técnica/etc.) por si el avance real quedó repartido entre
+// las filas duplicadas — se conserva el primer valor no vacío encontrado.
+function _dedupAnByType(anByType) {
+  const camposMerge = ['folio','corr_desde','corr_hasta','n_muestras','estado','resultado',
+    'tecnica','fecha_inf','obs','via','sps','core','aviso','ccaa_est','ccaa_real','tdm','tdm_est'];
+  Object.keys(anByType).forEach(k => {
+    const vistos = new Map();
+    const resultado = [];
+    (anByType[k]||[]).forEach(row => {
+      const key = (row.especie||'') + '||' + (row.patogeno||'');
+      const previo = vistos.get(key);
+      if(!previo) {
+        vistos.set(key, row);
+        resultado.push(row);
+      } else {
+        camposMerge.forEach(c => { if(!previo[c] && row[c]) previo[c] = row[c]; });
+      }
+    });
+    anByType[k] = resultado;
+  });
+  return anByType;
+}
+
 async function cargarFilaMulti(rows) {
   if(!rows||!rows.length) return;
   limpiarFormSilent();
@@ -6439,7 +6466,7 @@ async function cargarFilaMulti(rows) {
             tipo.includes('FITOPLASMA')?'F':tipo.includes('ENTOMOL')?'E':tipo.includes('NEMATOL')?'N':'V';
     anByType[k].push(row);
   });
-  anRows=anByType;
+  anRows=_dedupAnByType(anByType);
   // Etapas refs
   updateReadonlyRefs();
   updateResBars();
@@ -10773,7 +10800,7 @@ function buildRows(nsol,imp) {
           fecha_inf:x['Fecha Informe Fitosanitario']||'',
         });
       });
-      Object.assign(anRows, anByType);
+      Object.assign(anRows, _dedupAnByType(anByType));
       allAn = Object.values(anRows).flat().filter(a=>a.patogeno||a.especie);
     }
   }
