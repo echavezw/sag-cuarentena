@@ -1024,6 +1024,8 @@ input.field-blocked, select.field-blocked {
       <button class="btn btn-gh btn-sm" onclick="renderSeguimientoTabla()">Actualizar</button>
       <button class="btn btn-gh btn-sm" onclick="descargarExcelSeguimiento()">Excel</button>
       <button class="btn btn-nv btn-sm" onclick="enviarCambioCondicionesSeguimiento()">Cambio Condiciones</button>
+      <button class="btn btn-gd btn-sm" onclick="confirmarSeguimientoBulk('ccaa')" title="Marca el cambio de condiciones como efectuado, con la fecha que indiques, en todas las filas marcadas">✓ Cambio Efectuado</button>
+      <button class="btn btn-gd btn-sm" onclick="confirmarSeguimientoBulk('muestreo')" title="Marca la toma de muestra como efectuada, con la fecha que indiques, en todas las filas marcadas">✓ Muestra Tomada</button>
     </div>
   </div>
   <div class="tab-body" style="border-radius:0 0 var(--r) var(--r);padding:14px">
@@ -13996,7 +13998,7 @@ function _segBadgeAnalisis(nombreCanonico, condicion) {
 function _segEstadoCCAA(r, requerida) {
   const fechaISO = fmtD(r['Fecha estimada de CCAA']||'');
   const real = String(r['Fecha Real de CCAA']||'').trim();
-  if (real) return { html: _segBadge('Confirmada ' + fmtDisplay(real), 'done'), checkable: false, kind: 'confirmada', fechaISO };
+  if (real) return { html: _segBadge('Efectuado el ' + fmtDisplay(real), 'done'), checkable: false, kind: 'confirmada', fechaISO };
   const guardada = _condActualGuardada(r);
   if (guardada && guardada.label === requerida) {
     const diaMes = (guardada.fecha||'').split(' ')[0].split('-').slice(0,2).join('-');
@@ -14075,10 +14077,12 @@ function renderSeguimientoTabla() {
         ccaaEstRaw: '', muestreoEstRaw: '',
         fechaMuestreoReal: '', fechaEnvio: '',
         fechaRealCCAA: '', condAmbientalSolicitada: '',
-        sortKey: parseInt(nsol, 10) || 999999
+        sortKey: parseInt(nsol, 10) || 999999,
+        filas: [] // N° de fila real en Detalle (1-based) de cada registro del grupo
       };
     }
     const g = grupos[key];
+    g.filas.push(idx + 2); // gsData[idx] = fila (idx+2) del Sheet
     const especie = String(r['Especie']||'').trim();
     if (especie && g.especies.indexOf(especie) === -1) g.especies.push(especie);
     if (!g.ccaaEstRaw && r['Fecha estimada de CCAA']) g.ccaaEstRaw = r['Fecha estimada de CCAA'];
@@ -14122,7 +14126,8 @@ function renderSeguimientoTabla() {
       muestreoEst: fmtDisplay(g.muestreoEstRaw) || '—',
       estCCAAHtml: estCCAA.html,
       checkable: estCCAA.checkable,
-      estMuestreoHtml: estMuestreo.html
+      estMuestreoHtml: estMuestreo.html,
+      filasSheet: g.filas
     });
   });
 
@@ -14137,10 +14142,16 @@ function renderSeguimientoTabla() {
     return;
   }
 
-  tb.innerHTML = filas.map(f => {
-    const chk = f.checkable
-      ? `<input type="checkbox" class="seg-chk" data-res="${(f.res||('sol:'+f.nsol))}" data-cond="${f.requerida}">`
-      : `<input type="checkbox" disabled>`;
+  // Caché global: filasSheet por fila renderizada, en el mismo orden — lo
+  // usan los botones de confirmación masiva (✓ Cambio Efectuado / ✓ Muestra
+  // Tomada) para saber qué filas reales de Detalle actualizar.
+  window._segFilasCache = filas.map(f => f.filasSheet);
+
+  tb.innerHTML = filas.map((f, i) => {
+    // El checkbox ya no se deshabilita cuando el cambio de condiciones está
+    // confirmado — sirve también para seleccionar filas hacia los botones de
+    // confirmación masiva, que aplican independientemente del estado CCAA.
+    const chk = `<input type="checkbox" class="seg-chk" data-idx="${i}" data-res="${(f.res||('sol:'+f.nsol))}" data-cond="${f.requerida}">`;
     return `<tr>
       <td>${chk}</td>
       <td style="font-family:var(--mono)">${f.disp}</td>
@@ -14219,6 +14230,79 @@ function enviarCambioCondicionesSeguimiento() {
     .filter(Boolean);
   if (!claves.length) { setS('No se pudo determinar la condición de las filas marcadas.', 'warn'); return; }
   abrirModalCondiciones(Array.from(new Set(claves)));
+}
+
+// ── CONFIRMACIÓN MASIVA (Cambio Condiciones / Toma de Muestra) ──────────────
+// A diferencia de "Cambio Condiciones" (que solo ENVÍA el correo de solicitud
+// y guarda 'Cond Ambiental Solicitada'), estos botones marcan directamente que
+// la actividad YA SE HIZO, con la fecha real que indique el usuario, escrita
+// de una sola vez en todas las filas de Detalle de las cuarentenas marcadas.
+// tipo: 'ccaa' → columna 'Fecha Real de CCAA' · 'muestreo' → columna
+// 'Fecha muestreo/Indexaje' (misma columna que usa _segEstadoMuestreo).
+function confirmarSeguimientoBulk(tipo) {
+  const marcadas = Array.from(document.querySelectorAll('.seg-chk:checked'));
+  if (!marcadas.length) { setS('Marque al menos una fila.', 'warn'); return; }
+  const filasCache = window._segFilasCache || [];
+  const filasTotales = [];
+  marcadas.forEach(cb => {
+    const idx = parseInt(cb.dataset.idx, 10);
+    if (!isNaN(idx) && filasCache[idx]) filasTotales.push(...filasCache[idx]);
+  });
+  const filasUnicas = Array.from(new Set(filasTotales));
+  if (!filasUnicas.length) { setS('No se pudo determinar las filas del Sheet para la selección.', 'warn'); return; }
+
+  window._segBulkTipo = tipo;
+  window._segBulkFilas = filasUnicas;
+  const etiqueta = tipo === 'ccaa' ? 'Cambio de Condiciones Ambientales' : 'Toma de Muestra';
+  const hoyISO = new Date().toISOString().substring(0, 10);
+  const html = `<div style="font-family:var(--serif);font-size:16px;color:var(--gd,#B8975A);margin-bottom:4px">Confirmar ${etiqueta}</div>
+    <div style="font-size:11px;color:var(--g400);margin-bottom:14px">${marcadas.length} cuarentena(s) seleccionada(s) — ${filasUnicas.length} fila(s) de Detalle</div>
+    <div class="ff" style="margin-bottom:16px"><label class="lbl">Fecha en que se efectuó</label>
+      <input type="date" id="seg-bulk-fecha" value="${hoyISO}" style="width:100%"></div>
+    <div id="seg-bulk-status" style="font-size:12px;margin-bottom:8px"></div>
+    <div style="text-align:right;display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-gh btn-sm" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn btn-nv btn-sm" id="seg-bulk-confirm-btn" onclick="_confirmarSeguimientoBulkAplicar()">Confirmar</button>
+    </div>`;
+  abrirModal(html);
+}
+
+async function _confirmarSeguimientoBulkAplicar() {
+  const tipo = window._segBulkTipo;
+  const filas = window._segBulkFilas || [];
+  const fechaInput = $('seg-bulk-fecha');
+  const statusEl = $('seg-bulk-status');
+  const fechaISO = fechaInput ? fechaInput.value : '';
+  if (!fechaISO) { if (statusEl) statusEl.innerHTML = '<span style="color:var(--err,#c0392b)">Ingrese una fecha.</span>'; return; }
+  const fechaDisplay = fmtDisplay(fechaISO);
+  const btn = $('seg-bulk-confirm-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+  try {
+    await ensureToken();
+    const nombreCol = tipo === 'ccaa' ? 'Fecha Real de CCAA' : 'Fecha muestreo/Indexaje';
+    const colLetter = await getColumnLetter(SHEET_DETALLE, nombreCol);
+    const data = filas.map(fila => ({ range: `${SHEET_DETALLE}!${colLetter}${fila}`, values: [[fechaDisplay]] }));
+    // Se trocea de a 200 rangos por llamada para no exceder límites de la API.
+    const LOTE = 200;
+    for (let i = 0; i < data.length; i += LOTE) {
+      const parte = data.slice(i, i + LOTE);
+      await fetch(`${BASE_URL}/${GS.sheetId}/values:batchUpdate`,
+        { method: 'POST',
+          headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data: parte }) });
+    }
+    // Refleja en memoria (gsData) para que la tabla se actualice sin recargar todo.
+    filas.forEach(fila => {
+      const idxGs = fila - 2;
+      if (gsData[idxGs]) gsData[idxGs][nombreCol] = fechaDisplay;
+    });
+    cerrarModal();
+    setS(`${tipo === 'ccaa' ? 'Cambio de condiciones' : 'Toma de muestra'} marcado como efectuado en ${filas.length} fila(s).`, 'ok');
+    renderSeguimientoTabla();
+  } catch (e) {
+    if (statusEl) statusEl.innerHTML = `<span style="color:var(--err,#c0392b)">Error: ${e.message}</span>`;
+    if (btn) { btn.disabled = false; btn.textContent = 'Confirmar'; }
+  }
 }
 
 // Exporta la tabla visible (ya filtrada) a Excel, mismo patrón que el resto
