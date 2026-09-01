@@ -6463,7 +6463,8 @@ async function cargarFilaMulti(rows) {
       fecha_inf:fmtD(x['Fecha Informe Fitosanitario']||''),obs:x['Obs.']||'',
       via:x['Via']||'',
       sps:x['SPS análisis']||x['SPS analisis']||'',core:x['CORE/Factura']||'',
-      aviso:x['Fecha Aviso SPS']||''};
+      aviso:x['Fecha Aviso SPS']||'',
+      condSolicitada:x['Cond Ambiental Solicitada']||''};
     const k=tipo.includes('VIROL')?'V':tipo.includes('MICOL')?'H':tipo.includes('BACTERIOL')?'B':
             tipo.includes('FITOPLASMA')?'F':tipo.includes('ENTOMOL')?'E':tipo.includes('NEMATOL')?'N':'V';
     anByType[k].push(row);
@@ -10800,6 +10801,7 @@ function buildRows(nsol,imp) {
           ccaa_est:x['Fecha estimada de CCAA']||'',ccaa_real:x['Fecha Real de CCAA']||'',
           tdm:x['Fecha muestreo/Indexaje']||'',tdm_est:x['Fecha Estimada Muestreo']||'',
           fecha_inf:x['Fecha Informe Fitosanitario']||'',
+          condSolicitada:x['Cond Ambiental Solicitada']||'',
         });
       });
       Object.assign(anRows, _dedupAnByType(anByType));
@@ -10823,6 +10825,13 @@ function buildRows(nsol,imp) {
       'Fecha estimada de CCAA':a.ccaa_est||'','Fecha Real de CCAA':a.ccaa_real||'',
       'Fecha muestreo/Indexaje':a.tdm||'','Fecha Estimada Muestreo':a.tdm_est||'',
       'Fecha Informe Fitosanitario':a.fecha_inf||'',
+      // Preserva la marca de 'cambio de condiciones solicitado' — este campo
+      // nunca se edita desde ningún formulario de index_v2, así que si no se
+      // transporta aquí, cada Guardar la borra silenciosamente (bug real:
+      // Res. 7544 volvió a verse como vencida el día siguiente de solicitarse
+      // el cambio). Se limpia sola una vez que el cambio queda efectuado
+      // (Fecha Real de CCAA con valor), ya que en ese punto pierde sentido.
+      'Cond Ambiental Solicitada': a.ccaa_real ? '' : (a.condSolicitada||''),
       'Obs.':a.obs||_lastLoadedRow['Obs.']||'',
       'SPS análisis':a.sps||'','CORE/Factura':a.core||'','Fecha Aviso SPS':a.aviso||'',
     }));
