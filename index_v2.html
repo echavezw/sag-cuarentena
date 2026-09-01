@@ -7906,14 +7906,18 @@ function makeAnRow(key,i,r,tecnica) {
   // Compute esRaiz from stored flag OR from via field
   const normVia = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
   let viaStr = r.via||'';
-  // If no via stored, look it up in PLAGAS_LOOKUP by patogeno name
-  if(!viaStr && r.patogeno && typeof PLAGAS_LOOKUP!=='undefined') {
-    outer: for(const zonas of Object.values(PLAGAS_LOOKUP)) {
-      for(const items of Object.values(zonas)) {
-        const match = items.find(p=>p.plaga===r.patogeno);
-        if(match){ viaStr=match.via||''; break outer; }
-      }
-    }
+  // If no via stored, look it up in PLAGAS_LOOKUP scoped to this row's especie
+  // (and its genus as fallback) — NEVER scan other host species, since the same
+  // patógeno name can have a different vía (con/sin raíz) depending on el huésped.
+  if(!viaStr && r.patogeno && typeof PLAGAS_LOOKUP!=='undefined' && r.especie) {
+    const espKeyLookup = typeof resolveEspecieCanonica==='function' ? resolveEspecieCanonica(r.especie) : r.especie;
+    const genusKeyLookup = r.especie.split(' ')[0] + ' spp.';
+    const candidatos = [
+      ...(Object.values(PLAGAS_LOOKUP[espKeyLookup] || {})).flat(),
+      ...(Object.values(PLAGAS_LOOKUP[genusKeyLookup] || {})).flat()
+    ];
+    const match = candidatos.find(p=>p.plaga===r.patogeno);
+    if(match){ viaStr=match.via||''; }
   }
   // R indicator: plaga is for root material only AND current material has no roots
   // If already flagged in row data, use that directly (set by autoCargarAnalisis)
@@ -8240,12 +8244,20 @@ function onAnEspChange(key, i, newEsp) {
 // Called when a patógeno is selected — updates R badge, obs, and row via/esRaiz
 function onAnPatChange(key, i, patVal) {
   if(typeof PLAGAS_LOOKUP==='undefined') return;
+  const espValLookup = document.getElementById(`ae-esp-${key}-${i}`)?.value || '';
   let viaFound = '';
-  outer: for(const zonas of Object.values(PLAGAS_LOOKUP)) {
-    for(const items of Object.values(zonas)) {
-      const match = items.find(p=>p.plaga===patVal);
-      if(match){ viaFound=match.via||''; break outer; }
-    }
+  // Scope the vía lookup to this row's especie (and its genus) — never scan
+  // other host species, since the same patógeno name can have a distinct vía
+  // (con/sin raíz) según el huésped.
+  if(espValLookup) {
+    const espKeyLookup = typeof resolveEspecieCanonica==='function' ? resolveEspecieCanonica(espValLookup) : espValLookup;
+    const genusKeyLookup = espValLookup.split(' ')[0] + ' spp.';
+    const candidatos = [
+      ...(Object.values(PLAGAS_LOOKUP[espKeyLookup] || {})).flat(),
+      ...(Object.values(PLAGAS_LOOKUP[genusKeyLookup] || {})).flat()
+    ];
+    const match = candidatos.find(p=>p.plaga===patVal);
+    if(match){ viaFound=match.via||''; }
   }
   const normStr = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
   const normV = normStr(viaFound);
@@ -8254,7 +8266,7 @@ function onAnPatChange(key, i, patVal) {
     (normV.includes('plantas') && !normV.includes('ramilla') && !normV.includes('estaca') && !normV.includes('sin raiz'))
   );
   const esps = typeof getEspecies==='function' ? getEspecies() : [];
-  const espVal = document.getElementById(`ae-esp-${key}-${i}`)?.value || '';
+  const espVal = espValLookup;
   const matchEsp = esps.find(e=>e.especie===espVal);
   const tipoMat = (matchEsp?.tipo||v('f1-tipo-mat')||'').toLowerCase();
   const sinRaiz = !tipoMat.includes('raiz') && !tipoMat.includes('raíz');
