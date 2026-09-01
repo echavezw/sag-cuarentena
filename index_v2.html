@@ -3927,19 +3927,20 @@ function _especiesConsolidadas(r) {
   const especiesSet = new Set();
   const variedadesPorEspecie = {}; // especie → Set de valores distintos de "Variedades"
 
-  // Procesa un par (especie, variedad) individual — misma lógica de spp./entomológico
-  // que antes, factorizada para poder reusarla tanto en filas normales como en filas
-  // "crudas" del portal (ver abajo).
+  // Procesa un par (especie, variedad) individual.
+  // BUGFIX (Sol. 271 y otras): antes solo se agregaba una especie terminada en
+  // "spp." cuando el tipo de análisis era entomológico — pensado para no
+  // duplicar "Genero spp." junto a la especie real (ej. "Prunus persica" +
+  // "Prunus spp." entomológico). Pero esto descartaba SILENCIOSAMENTE géneros
+  // que legítimamente solo se declaran como "spp." (ej. "Vitis spp." en filas
+  // crudas del portal antes de tener Resolución, o análisis no-entomológicos
+  // cuyo material real es genérico). La redundancia "Genero spp." vs especie
+  // real ya se resuelve más abajo, por género, después de juntar TODO — así
+  // que aquí basta con agregar siempre la especie, sea o no "spp.".
   function _agregarPar(esp, vRaw, tipoAn) {
     esp = String(esp||'').trim();
     if (!esp) return;
-    const esSpp = /\bspp\.?$/i.test(esp);
-    if (esSpp) {
-      const esEntomologico = tipoAn === 'entomológico' || tipoAn === 'entomologico';
-      if (esEntomologico) especiesSet.add(esp);
-    } else {
-      especiesSet.add(esp);
-    }
+    especiesSet.add(esp);
     vRaw = String(vRaw||'').trim();
     if (vRaw) {
       if (!variedadesPorEspecie[esp]) variedadesPorEspecie[esp] = new Set();
