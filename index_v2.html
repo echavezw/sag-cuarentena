@@ -6208,7 +6208,113 @@ async function notificarEnvioFirma(nsol, correo, nombre) {
 // firmado (PDF/Word que Eduardo suba, ya que el generador Word del sistema
 // solo produce un BORRADOR, no el documento firmado real) y avisa al
 // importador que su material vegetal quedó autorizado para internación.
-function abrirEnvioResolucionIngreso() {
+// ── Vinculación de carpeta local/OneDrive "Resolución de Ingresos" ──────────
+// Usa la File System Access API (Chrome/Edge de escritorio) para recordar el
+// permiso de lectura sobre una carpeta local — típicamente la carpeta de
+// OneDrive sincronizada. El handle se guarda en IndexedDB para no tener que
+// re-seleccionar la carpeta cada vez. Solo lectura, nunca escritura, y nunca
+// sale de la carpeta que el propio usuario eligió explícitamente.
+const _FS_DB_NAME = 'sagFsHandles', _FS_STORE = 'handles';
+function _fsDbOpen() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(_FS_DB_NAME, 1);
+    req.onupgradeneeded = () => { req.result.createObjectStore(_FS_STORE); };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function _fsSaveHandle(key, handle) {
+  const db = await _fsDbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(_FS_STORE, 'readwrite');
+    tx.objectStore(_FS_STORE).put(handle, key);
+    tx.oncomplete = resolve; tx.onerror = () => reject(tx.error);
+  });
+}
+async function _fsLoadHandle(key) {
+  const db = await _fsDbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(_FS_STORE, 'readonly');
+    const req = tx.objectStore(_FS_STORE).get(key);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function vincularCarpetaResoluciones() {
+  if (!window.showDirectoryPicker) {
+    setS('Esta función requiere Chrome o Edge de escritorio (no está disponible en este navegador).','warn');
+    return;
+  }
+  try {
+    const handle = await window.showDirectoryPicker({ id: 'resIngresos', mode: 'read' });
+    await _fsSaveHandle('resIngresos', handle);
+    setS(`Carpeta "${handle.name}" vinculada. Se buscará ahí automáticamente al enviar resoluciones.`,'ok');
+  } catch(e) {
+    if (e.name !== 'AbortError') setS('No se pudo vincular la carpeta: '+e.message,'warn');
+  }
+}
+
+// Busca dentro de la carpeta vinculada (opcionalmente entrando primero a la
+// subcarpeta del año) archivos cuyo nombre contenga el N° de Resolución o el
+// N° de Solicitud. Recorre hasta 2 niveles de subcarpetas. Nunca pide permisos
+// nuevos si ya fueron otorgados antes (silencioso); si el permiso se perdió,
+// lo vuelve a solicitar UNA vez.
+async function _buscarArchivoResolucion(nres, nsol, anio) {
+  if (!window.showDirectoryPicker) return { soportado:false, candidatos:[] };
+  let root;
+  try {
+    root = await _fsLoadHandle('resIngresos');
+    if (!root) return { soportado:true, vinculado:false, candidatos:[] };
+    let perm = await root.queryPermission({ mode:'read' });
+    if (perm !== 'granted') perm = await root.requestPermission({ mode:'read' });
+    if (perm !== 'granted') return { soportado:true, vinculado:true, sinPermiso:true, candidatos:[] };
+  } catch(e) { return { soportado:true, vinculado:false, candidatos:[] }; }
+
+  let carpeta = root;
+  if (anio) {
+    try { carpeta = await root.getDirectoryHandle(String(anio)); }
+    catch(e) { carpeta = root; } // sin subcarpeta del año — busca desde la raíz
+  }
+
+  const nresNorm = String(nres||'').replace(/\D/g,'');
+  const nsolNorm = String(nsol||'').replace(/\D/g,'');
+  const candidatos = [];
+  async function walk(dirHandle, depth) {
+    for await (const [name, entryHandle] of dirHandle.entries()) {
+      if (entryHandle.kind === 'file') {
+        const ext = (name.split('.').pop()||'').toLowerCase();
+        if (!['pdf','doc','docx'].includes(ext)) continue;
+        const digits = name.replace(/\D/g,'');
+        const matchRes = !!(nresNorm && digits.includes(nresNorm));
+        const matchSol = !!(nsolNorm && digits.includes(nsolNorm));
+        if (matchRes || matchSol) candidatos.push({ name, handle: entryHandle, matchRes });
+      } else if (depth < 2) {
+        try { await walk(entryHandle, depth+1); } catch(e) {}
+      }
+    }
+  }
+  try { await walk(carpeta, 0); } catch(e) { console.error('Error buscando archivo de Resolución:', e); }
+  candidatos.sort((a,b) => (b.matchRes?1:0) - (a.matchRes?1:0));
+  return { soportado:true, vinculado:true, carpetaBuscada: carpeta.name, candidatos };
+}
+
+// Texto exacto del correo — debe reflejar lo que Code.gs realmente envía
+// (enviarResolucionIngreso_), solo para que el usuario lo revise antes de
+// confirmar el envío.
+function _textoCorreoResolucion(d) {
+  const asunto = `Resolución de Ingreso N° ${d.folioDisplay} — Autorización de Internación`;
+  const cuerpo = `Estimado/a ${d.nombre||'importador/a'},\n\n` +
+    `Le informamos que se ha emitido la Resolución de Ingreso N° ${d.folioDisplay}` +
+    (d.fres ? `, de fecha ${d.fres}` : '') +
+    `, que autoriza la internación del material vegetal de propagación individualizado en su ` +
+    (d.nsol ? `Solicitud de Autorización de Cuarentena Posentrada Absoluta N° ${d.nsol}` : 'solicitud') +
+    `.\n\nSe adjunta copia de la Resolución para sus registros.\n\n` +
+    `Servicio Agrícola y Ganadero — Red de Laboratorios SAG-ECA\nRegión Metropolitana`;
+  return { asunto, cuerpo };
+}
+
+async function abrirEnvioResolucionIngreso() {
   const nres = (v('f2-nres')||'').trim();
   const fres = (v('f2-fres')||'').trim();
   if(!nres || !fres) { setS('Complete N° Resolución y Fecha Res. antes de enviar la notificación.','warn'); return; }
@@ -6218,42 +6324,98 @@ function abrirEnvioResolucionIngreso() {
   const anio = (v('f2-anio-res')||'').trim() || fres.substring(0,4);
   const folioDisplay = anio ? `${nres}/${anio}` : nres;
 
+  window._resIngresoDatos = { nres, fres, anio, folioDisplay, nsol, nombre, correo, fileHandle:null };
+
   const correoTxt = correo
     ? `<div style="font-size:12px;color:var(--g400);margin-bottom:10px">Se enviará a: <strong>${correo}</strong> (${nombre})</div>`
     : `<div style="font-size:12px;color:var(--err,#c0392b);margin-bottom:10px">⚠ Este importador no tiene "Email Importacion" registrado. Complete el correo en Etapa I antes de continuar, o el envío fallará.</div>`;
 
+  const { asunto, cuerpo } = _textoCorreoResolucion(window._resIngresoDatos);
+  const previewHtml = `<div style="border:1px solid var(--g200,#ddd);border-radius:6px;padding:10px 12px;margin-bottom:12px;background:#fafafa">
+      <div style="font-size:11px;color:var(--g400);margin-bottom:4px">Vista previa del correo</div>
+      <div style="font-size:12px;font-weight:700;margin-bottom:6px">${asunto}</div>
+      <div style="font-size:12px;white-space:pre-wrap;line-height:1.5">${cuerpo.replace(/</g,'&lt;')}</div>
+    </div>`;
+
   const html = `<div style="font-family:var(--serif);font-size:16px;color:var(--gd,#B8975A);margin-bottom:4px">Enviar Resolución de Ingreso N° ${folioDisplay}</div>
     ${correoTxt}
-    <div class="ff" style="margin-bottom:12px">
+    ${previewHtml}
+    <div id="res-ing-buscando" style="font-size:12px;color:var(--g400);margin-bottom:10px">Buscando el documento en la carpeta vinculada...</div>
+    <div id="res-ing-archivo-area" style="display:none;margin-bottom:12px"></div>
+    <div id="res-ing-manual-area" class="ff" style="margin-bottom:12px;display:none">
       <label class="lbl">Documento firmado (PDF o Word) — obligatorio</label>
       <input type="file" id="res-ing-file" accept=".pdf,.doc,.docx" style="width:100%">
     </div>
     <div id="res-ing-status" style="font-size:12px;margin-bottom:8px"></div>
-    <div style="text-align:right;display:flex;gap:8px;justify-content:flex-end">
+    <div style="text-align:right;display:flex;gap:8px;justify-content:flex-end;align-items:center">
+      <a href="javascript:void(0)" onclick="vincularCarpetaResoluciones()" style="font-size:11px;color:var(--g400);margin-right:auto">🔗 Vincular/cambiar carpeta de Resoluciones</a>
       <button class="btn btn-gh btn-sm" onclick="cerrarModal()">Cancelar</button>
       <button class="btn btn-nv btn-sm" id="res-ing-confirm-btn" onclick="_enviarResolucionIngresoAplicar()">Enviar</button>
     </div>`;
-  window._resIngresoDatos = { nres, fres, anio, folioDisplay, nsol, nombre, correo };
   abrirModal(html);
-}
 
-function _fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+  // Búsqueda automática — corre después de abrir el modal para no bloquear la UI.
+  const buscando = $('res-ing-buscando');
+  const archivoArea = $('res-ing-archivo-area');
+  const manualArea = $('res-ing-manual-area');
+  const r = await _buscarArchivoResolucion(nres, nsol, anio);
+  if (buscando) buscando.style.display = 'none';
+
+  const mostrarManual = (mensaje) => {
+    if (manualArea) manualArea.style.display = '';
+    if (mensaje && archivoArea) { archivoArea.style.display=''; archivoArea.innerHTML = `<div style="font-size:12px;color:var(--g400)">${mensaje}</div>`; }
+  };
+
+  if (!r.soportado) {
+    mostrarManual('Búsqueda automática no disponible en este navegador — use Chrome o Edge de escritorio, o adjunte el archivo manualmente:');
+  } else if (!r.vinculado) {
+    mostrarManual('Aún no vinculaste tu carpeta de Resoluciones. Usa el enlace "🔗 Vincular carpeta" abajo, o adjunta el archivo manualmente:');
+  } else if (r.sinPermiso) {
+    mostrarManual('Se perdió el permiso de acceso a la carpeta vinculada — vuelve a vincularla, o adjunta el archivo manualmente:');
+  } else if (!r.candidatos.length) {
+    mostrarManual(`No se encontró ningún archivo que coincida con Res. ${nres} o Sol. ${nsol} en "${r.carpetaBuscada}". Adjunte manualmente:`);
+  } else if (r.candidatos.length === 1) {
+    const c = r.candidatos[0];
+    window._resIngresoDatos.fileHandle = c.handle;
+    if (archivoArea) {
+      archivoArea.style.display = '';
+      archivoArea.innerHTML = `<div style="font-size:12px;color:#2e7d32;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:4px;padding:8px 10px">
+        ✓ Documento detectado automáticamente: <strong>${c.name}</strong>
+        <a href="javascript:void(0)" onclick="this.closest('#res-ing-archivo-area').style.display='none';document.getElementById('res-ing-manual-area').style.display='';window._resIngresoDatos.fileHandle=null;" style="margin-left:8px;font-size:11px">(usar otro archivo)</a>
+      </div>`;
+    }
+  } else {
+    // Varias coincidencias: se muestra una lista para elegir.
+    if (archivoArea) {
+      archivoArea.style.display = '';
+      archivoArea.innerHTML = `<div style="font-size:12px;margin-bottom:6px">Se encontraron ${r.candidatos.length} documentos posibles — seleccione uno:</div>` +
+        r.candidatos.map((c,i) => `<label style="display:flex;align-items:center;gap:6px;font-size:12px;margin-bottom:4px;cursor:pointer">
+          <input type="radio" name="res-ing-cand" value="${i}" ${i===0?'checked':''} onchange="window._resIngresoDatos.fileHandle=window._resIngresoCandidatos[${i}].handle">
+          ${c.name}
+        </label>`).join('');
+      window._resIngresoCandidatos = r.candidatos;
+      window._resIngresoDatos.fileHandle = r.candidatos[0].handle;
+    }
+  }
 }
 
 async function _enviarResolucionIngresoAplicar() {
   const d = window._resIngresoDatos || {};
   const statusEl = $('res-ing-status');
   const btn = $('res-ing-confirm-btn');
-  const fileInput = $('res-ing-file');
-  const file = fileInput && fileInput.files && fileInput.files[0];
-  if(!file) { if(statusEl) statusEl.innerHTML = '<span style="color:var(--err,#c0392b)">Adjunte el documento firmado.</span>'; return; }
   if(!d.correo) { if(statusEl) statusEl.innerHTML = '<span style="color:var(--err,#c0392b)">El importador no tiene correo registrado. Complete "Email Importacion" en Etapa I primero.</span>'; return; }
+
+  let file = null, nombreArchivo = '';
+  if (d.fileHandle) {
+    try { file = await d.fileHandle.getFile(); nombreArchivo = file.name; }
+    catch(e) { if(statusEl) statusEl.innerHTML = '<span style="color:var(--err,#c0392b)">No se pudo leer el archivo detectado — adjunte manualmente.</span>'; return; }
+  } else {
+    const fileInput = $('res-ing-file');
+    file = fileInput && fileInput.files && fileInput.files[0];
+    nombreArchivo = file ? file.name : '';
+  }
+  if(!file) { if(statusEl) statusEl.innerHTML = '<span style="color:var(--err,#c0392b)">Adjunte el documento firmado.</span>'; return; }
+
   if(btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
   if(statusEl) statusEl.innerHTML = '<span style="color:var(--g400)">Preparando adjunto...</span>';
   try {
@@ -6264,7 +6426,7 @@ async function _enviarResolucionIngresoAplicar() {
       body: JSON.stringify({
         action:'enviarResolucionIngreso', adminToken:_ADMIN_TOKEN,
         correo:d.correo, nombre:d.nombre, folio:d.nres, anio:d.anio, fecha:d.fres,
-        solicitud:d.nsol, pdfBase64, pdfNombre:file.name
+        solicitud:d.nsol, pdfBase64, pdfNombre:nombreArchivo
       })
     });
     const data = await resp.json();
