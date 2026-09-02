@@ -10771,6 +10771,37 @@ function _nowStrSAG() {
 //   sagEcaKey:    Solicitud|Especie|TipoAnálisis|Campo(FEM/CCAA)
 // ══════════════════════════════════════════════════════════════════════════
 const CALENDAR_BASE_URL = 'https://www.googleapis.com/calendar/v3';
+const CALENDAR_NOMBRE_DEDICADO = 'SAG ECA — Muestreos';
+const CALENDAR_STORAGE_KEY = 'sag_eca_calendar_id';
+
+// Devuelve el ID del calendario secundario dedicado a estos eventos, creándolo
+// la primera vez si no existe. Así quedan separados del calendario personal
+// de Eduardo y se pueden prender/apagar solos en la barra lateral de Calendar.
+// El ID se cachea en localStorage para no listar calendarios en cada guardado.
+async function _calGetOrCreateCalendarId() {
+  const cacheado = localStorage.getItem(CALENDAR_STORAGE_KEY);
+  if (cacheado) return cacheado;
+
+  const rList = await fetch(`${CALENDAR_BASE_URL}/users/me/calendarList?minAccessRole=owner`,
+    { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!rList.ok) throw new Error('No se pudo listar calendarios (HTTP '+rList.status+')');
+  const dList = await rList.json();
+  const existente = (dList.items||[]).find(c => c.summary === CALENDAR_NOMBRE_DEDICADO);
+  if (existente) {
+    localStorage.setItem(CALENDAR_STORAGE_KEY, existente.id);
+    return existente.id;
+  }
+
+  const rCrear = await fetch(`${CALENDAR_BASE_URL}/calendars`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ summary: CALENDAR_NOMBRE_DEDICADO, description: 'Fechas Estimadas de Muestreo y CCAA generadas automáticamente por SAG Cuarentena.', timeZone: 'America/Santiago' })
+  });
+  if (!rCrear.ok) throw new Error('No se pudo crear el calendario dedicado (HTTP '+rCrear.status+')');
+  const dCrear = await rCrear.json();
+  localStorage.setItem(CALENDAR_STORAGE_KEY, dCrear.id);
+  return dCrear.id;
+}
 
 function _calNormEspecie(s) { return String(s||'').trim().toLowerCase(); }
 
@@ -10808,8 +10839,8 @@ function _calEstadoDeseado(rows, nsol) {
 
 // Trae del Calendar todos los eventos ya etiquetados para esta Solicitud
 // (una sola llamada, filtrando por la propiedad privada sagSolicitud).
-async function _calEventosExistentes(nsol) {
-  const url = `${CALENDAR_BASE_URL}/calendars/primary/events`
+async function _calEventosExistentes(nsol, calendarId) {
+  const url = `${CALENDAR_BASE_URL}/calendars/${encodeURIComponent(calendarId)}/events`
     + `?privateExtendedProperty=${encodeURIComponent('sagSolicitud='+nsol)}`
     + `&maxResults=250&showDeleted=false`;
   const r = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
@@ -10823,7 +10854,7 @@ async function _calEventosExistentes(nsol) {
   return mapa;
 }
 
-async function _calCrearEvento(nsol, key, info, res, importador) {
+async function _calCrearEvento(calendarId, nsol, key, info, res, importador) {
   const titulo = (info.campo==='FEM' ? 'Muestreo' : 'CCAA') + ' ' + info.tipoLabel + ' — ' + info.especie
     + (res ? ` (Res. ${res})` : ` (Sol. ${nsol})`);
   const descLineas = [
@@ -10842,7 +10873,7 @@ async function _calCrearEvento(nsol, key, info, res, importador) {
     extendedProperties: { private: { sagSolicitud: String(nsol), sagEcaKey: key } },
     reminders: { useDefault: true }
   };
-  const r = await fetch(`${CALENDAR_BASE_URL}/calendars/primary/events`, {
+  const r = await fetch(`${CALENDAR_BASE_URL}/calendars/${encodeURIComponent(calendarId)}/events`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
@@ -10850,8 +10881,8 @@ async function _calCrearEvento(nsol, key, info, res, importador) {
   if (!r.ok) throw new Error('No se pudo crear evento en Calendar (HTTP '+r.status+')');
 }
 
-async function _calActualizarEvento(eventoExistente, info) {
-  const r = await fetch(`${CALENDAR_BASE_URL}/calendars/primary/events/${eventoExistente.id}`, {
+async function _calActualizarEvento(calendarId, eventoExistente, info) {
+  const r = await fetch(`${CALENDAR_BASE_URL}/calendars/${encodeURIComponent(calendarId)}/events/${eventoExistente.id}`, {
     method: 'PATCH',
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ start: { date: info.fecha }, end: { date: info.fecha } })
@@ -10859,8 +10890,8 @@ async function _calActualizarEvento(eventoExistente, info) {
   if (!r.ok) throw new Error('No se pudo actualizar evento en Calendar (HTTP '+r.status+')');
 }
 
-async function _calBorrarEvento(eventoExistente) {
-  const r = await fetch(`${CALENDAR_BASE_URL}/calendars/primary/events/${eventoExistente.id}`, {
+async function _calBorrarEvento(calendarId, eventoExistente) {
+  const r = await fetch(`${CALENDAR_BASE_URL}/calendars/${encodeURIComponent(calendarId)}/events/${eventoExistente.id}`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${accessToken}` }
   });
@@ -10873,18 +10904,19 @@ async function _calBorrarEvento(eventoExistente) {
 async function sincronizarCalendarMuestreo(rows, nsol, res, importador) {
   try {
     const deseado = _calEstadoDeseado(rows, nsol);
-    const existentes = await _calEventosExistentes(nsol);
+    const calendarId = await _calGetOrCreateCalendarId();
+    const existentes = await _calEventosExistentes(nsol, calendarId);
     if (!deseado.size && !existentes.size) return;
 
     let creados=0, actualizados=0, borrados=0;
 
     for (const [key, info] of deseado) {
       const ev = existentes.get(key);
-      if (!ev) { await _calCrearEvento(nsol, key, info, res, importador); creados++; }
-      else if ((ev.start&&ev.start.date) !== info.fecha) { await _calActualizarEvento(ev, info); actualizados++; }
+      if (!ev) { await _calCrearEvento(calendarId, nsol, key, info, res, importador); creados++; }
+      else if ((ev.start&&ev.start.date) !== info.fecha) { await _calActualizarEvento(calendarId, ev, info); actualizados++; }
     }
     for (const [key, ev] of existentes) {
-      if (!deseado.has(key)) { await _calBorrarEvento(ev); borrados++; }
+      if (!deseado.has(key)) { await _calBorrarEvento(calendarId, ev); borrados++; }
     }
 
     if (creados||actualizados||borrados) {
@@ -12621,7 +12653,7 @@ function _requestNewToken(forceConsent) {
   });
 }
 
-const CURRENT_OAUTH_SCOPE = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.email';
+const CURRENT_OAUTH_SCOPE = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/userinfo.email';
 
 async function ensureToken() {
   // Google access tokens expire ~1hr. Refresh proactively if older than 50min,
