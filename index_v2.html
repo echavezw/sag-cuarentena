@@ -13622,7 +13622,10 @@ async function cargarBitacoraCondiciones(nSolicitud) {
       <td style="font-size:10px">${o['Enviado A']||''}</td>
       <td><input type="date" id="cond-bit-freal-${i}" value="${_isoFromFechaHora(o['Fecha Real Cambio'])}" style="font-size:11px;padding:2px 4px"></td>
       <td><input type="text" id="cond-bit-conf-${i}" value="${o['Confirmado Por']||''}" placeholder="nombre" style="font-size:11px;padding:2px 4px;width:90px"></td>
-      <td><button class="btn btn-gh btn-sm" onclick="_guardarFechaRealCondicion(${i})" title="Guardar">💾</button></td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-gh btn-sm" onclick="subirDocCondicion(${i})" title="Extraer fecha y confirmante desde un correo/documento (PDF, imagen o Word) — ej. correo de eduardo.ferrada@sag.gob.cl">🤖</button>
+        <button class="btn btn-gh btn-sm" onclick="_guardarFechaRealCondicion(${i})" title="Guardar">💾</button>
+      </td>
     </tr>`).join('');
   } catch(e) {
     tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:10px;color:var(--g400)">Error: ${e.message}</td></tr>`;
@@ -13664,6 +13667,54 @@ async function _guardarFechaRealCondicion(i) {
   } catch(e) {
     setS('No se pudo guardar: ' + e.message, 'err');
   }
+}
+
+// Extracción automática de la confirmación de cambio de condición ambiental
+// (típicamente un correo de eduardo.ferrada@sag.gob.cl avisando que el cambio
+// ya se hizo). Solo llena los dos campos de esa fila de la bitácora — NO
+// guarda solo, Eduardo revisa y presiona 💾 como siempre. Reutiliza la misma
+// Anthropic API Key configurada para el resto de las extracciones.
+const PROMPT_CCAA_CONFIRMACION=`Extrae datos de este correo o documento de confirmación de cambio de condición ambiental en una cuarentena vegetal SAG (normalmente un correo confirmando que el cambio de condición ya se realizó físicamente). Responde SOLO JSON valido, sin texto adicional, sin markdown backticks:
+{"fecha_real_cambio":"YYYY-MM-DD","confirmado_por":"nombre de quien confirma el cambio"}`;
+
+async function subirDocCondicion(i) {
+  const inp=document.createElement('input'); inp.type='file';
+  inp.accept='.pdf,.docx,.doc,.txt,.eml,.jpg,.jpeg,.png,.webp';
+  inp.onchange=()=>{ if(inp.files[0]) procesarDocumentoCondicion(i,inp); };
+  inp.click();
+}
+
+async function procesarDocumentoCondicion(i, input) {
+  const file=input.files[0]; if(!file) return;
+  const apiKey=GS.anthropicKey||localStorage.getItem('anthropic_key')||'';
+  if(!apiKey){ setS('Configure la Anthropic API Key en Configuracion.','warn'); goStage('config'); return; }
+  setS(`Leyendo ${file.name}...`,'');
+  try {
+    const b64=await fileToB64(file); const ext=file.name.split('.').pop().toLowerCase();
+    let messages;
+    if(['jpg','jpeg','png','webp'].includes(ext)){
+      const mm={jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp'};
+      messages=[{role:'user',content:[{type:'image',source:{type:'base64',media_type:mm[ext],data:b64}},{type:'text',text:PROMPT_CCAA_CONFIRMACION}]}];
+    } else if(ext==='pdf'){
+      messages=[{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},{type:'text',text:PROMPT_CCAA_CONFIRMACION}]}];
+    } else {
+      let txt='';
+      if(ext==='docx'&&typeof mammoth!=='undefined'){ const arr=Uint8Array.from(atob(b64),c=>c.charCodeAt(0)); txt=(await mammoth.extractRawText({arrayBuffer:arr.buffer})).value.substring(0,15000); }
+      else { try{ txt=decodeURIComponent(escape(atob(b64))).substring(0,15000); }catch(e){ txt=atob(b64).substring(0,15000); } }
+      messages=[{role:'user',content:`${PROMPT_CCAA_CONFIRMACION}\n\nCONTENIDO:\n${txt}`}];
+    }
+    setS('Claude analizando documento...','');
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:1000,messages})});
+    if(!resp.ok) throw new Error(`API error ${resp.status}`);
+    const data=await resp.json();
+    const txt2=data.content?.filter(b=>b.type==='text').map(b=>b.text).join('');
+    let extracted; try{ extracted=JSON.parse(txt2.replace(/[\s\S]*?(\{[\s\S]*\})[\s\S]*/,'$1')); }catch(e){ throw new Error('No se pudo parsear la respuesta'); }
+    const fechaInput = $('cond-bit-freal-' + i);
+    const confInput  = $('cond-bit-conf-' + i);
+    if(extracted.fecha_real_cambio && fechaInput) fechaInput.value = fmtD(extracted.fecha_real_cambio);
+    if(extracted.confirmado_por && confInput) confInput.value = extracted.confirmado_por;
+    setS('Datos extraídos — revisa y presiona 💾 para guardar.','ok');
+  } catch(e){ setS('Error: '+e.message,'err'); }
 }
 
 // ── Bitácora de Manejo — pestaña Bitacora en el Sheet, append-only ──────────
