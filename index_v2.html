@@ -1024,6 +1024,7 @@ input.field-blocked, select.field-blocked {
       <button class="btn btn-gh btn-sm" onclick="renderSeguimientoTabla()">Actualizar</button>
       <button class="btn btn-gh btn-sm" onclick="descargarExcelSeguimiento()">Excel</button>
       <button class="btn btn-nv btn-sm" onclick="enviarCambioCondicionesSeguimiento()">Cambio Condiciones</button>
+      <button class="btn btn-gh btn-sm" onclick="subirDocSeguimientoCCAA()" title="Sube o pega el correo de confirmación (PDF, imagen, Word o texto) y marca automáticamente las filas visibles que coincidan — ej. correo de eduardo.ferrada@sag.gob.cl">🤖 Extraer y marcar CCAA</button>
       <button class="btn btn-gd btn-sm" onclick="confirmarSeguimientoBulk('ccaa')" title="Marca el cambio de condiciones como efectuado, con la fecha que indiques, en todas las filas marcadas">✓ Cambio Efectuado</button>
       <button class="btn btn-gd btn-sm" onclick="confirmarSeguimientoBulk('muestreo')" title="Marca la toma de muestra como efectuada, con la fecha que indiques, en todas las filas marcadas">✓ Muestra Tomada</button>
     </div>
@@ -14804,17 +14805,81 @@ function confirmarSeguimientoBulk(tipo) {
   window._segBulkTipo = tipo;
   window._segBulkFilas = filasUnicas;
   const etiqueta = tipo === 'ccaa' ? 'Cambio de Condiciones Ambientales' : 'Toma de Muestra';
-  const hoyISO = new Date().toISOString().substring(0, 10);
+  // Si la extracción automática sugirió una fecha (_segBulkFechaSugerida), se
+  // precarga aquí; si no, la fecha de hoy como antes. Se consume una sola vez.
+  const fechaSugerida = window._segBulkFechaSugerida || new Date().toISOString().substring(0, 10);
+  window._segBulkFechaSugerida = null;
   const html = `<div style="font-family:var(--serif);font-size:16px;color:var(--gd,#B8975A);margin-bottom:4px">Confirmar ${etiqueta}</div>
     <div style="font-size:11px;color:var(--g400);margin-bottom:14px">${marcadas.length} cuarentena(s) seleccionada(s) — ${filasUnicas.length} fila(s) de Detalle</div>
     <div class="ff" style="margin-bottom:16px"><label class="lbl">Fecha en que se efectuó</label>
-      <input type="date" id="seg-bulk-fecha" value="${hoyISO}" style="width:100%"></div>
+      <input type="date" id="seg-bulk-fecha" value="${fechaSugerida}" style="width:100%"></div>
     <div id="seg-bulk-status" style="font-size:12px;margin-bottom:8px"></div>
     <div style="text-align:right;display:flex;gap:8px;justify-content:flex-end">
       <button class="btn btn-gh btn-sm" onclick="cerrarModal()">Cancelar</button>
       <button class="btn btn-nv btn-sm" id="seg-bulk-confirm-btn" onclick="_confirmarSeguimientoBulkAplicar()">Confirmar</button>
     </div>`;
   abrirModal(html);
+}
+
+// Extracción masiva para Seguimiento: sube o pega el correo de confirmación,
+// Claude devuelve la lista de identificadores mencionados (Resolución,
+// Solicitud o Cubículo) más la fecha del cambio. Se marcan automáticamente los
+// checkboxes de las filas VISIBLES (ya filtradas) que coincidan, y se abre el
+// mismo modal de "✓ Cambio Efectuado" con la fecha ya precargada — Eduardo
+// revisa qué quedó marcado y confirma él mismo, no se guarda solo.
+const PROMPT_CCAA_MASIVO=`Extrae de este correo de confirmación de cambio de condición ambiental (cuarentena vegetal SAG) la lista de identificadores de cuarentena mencionados (números de Resolución, de Solicitud, y/o de Cubículo) y la fecha en que se efectuó el cambio. Responde SOLO JSON válido, sin texto adicional, sin backticks:
+{"fecha_cambio":"YYYY-MM-DD","identificadores":["1168","271","6.1"]}`;
+
+async function subirDocSeguimientoCCAA() {
+  const inp=document.createElement('input'); inp.type='file';
+  inp.accept='.pdf,.docx,.doc,.txt,.eml,.jpg,.jpeg,.png,.webp';
+  inp.onchange=()=>{ if(inp.files[0]) procesarDocumentoSeguimientoCCAA(inp); };
+  inp.click();
+}
+
+async function procesarDocumentoSeguimientoCCAA(input) {
+  const file=input.files[0]; if(!file) return;
+  const apiKey=GS.anthropicKey||localStorage.getItem('anthropic_key')||'';
+  if(!apiKey){ setS('Configure la Anthropic API Key en Configuracion.','warn'); goStage('config'); return; }
+  setS(`Leyendo ${file.name}...`,'');
+  try {
+    const b64=await fileToB64(file); const ext=file.name.split('.').pop().toLowerCase();
+    let messages;
+    if(['jpg','jpeg','png','webp'].includes(ext)){
+      const mm={jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp'};
+      messages=[{role:'user',content:[{type:'image',source:{type:'base64',media_type:mm[ext],data:b64}},{type:'text',text:PROMPT_CCAA_MASIVO}]}];
+    } else if(ext==='pdf'){
+      messages=[{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},{type:'text',text:PROMPT_CCAA_MASIVO}]}];
+    } else {
+      let txt='';
+      if(ext==='docx'&&typeof mammoth!=='undefined'){ const arr=Uint8Array.from(atob(b64),c=>c.charCodeAt(0)); txt=(await mammoth.extractRawText({arrayBuffer:arr.buffer})).value.substring(0,15000); }
+      else { try{ txt=decodeURIComponent(escape(atob(b64))).substring(0,15000); }catch(e){ txt=atob(b64).substring(0,15000); } }
+      messages=[{role:'user',content:`${PROMPT_CCAA_MASIVO}\n\nCONTENIDO:\n${txt}`}];
+    }
+    setS('Claude analizando documento...','');
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:1500,messages})});
+    if(!resp.ok) throw new Error(`API error ${resp.status}`);
+    const data=await resp.json();
+    const txt2=data.content?.filter(b=>b.type==='text').map(b=>b.text).join('');
+    let extracted; try{ extracted=JSON.parse(txt2.replace(/[\s\S]*?(\{[\s\S]*\})[\s\S]*/,'$1')); }catch(e){ throw new Error('No se pudo parsear la respuesta'); }
+    const ids = (extracted.identificadores||[]).map(x=>String(x).trim().toLowerCase()).filter(Boolean);
+    if(!ids.length){ setS('No se identificaron cuarentenas en el documento.','warn'); return; }
+
+    let marcadas = 0;
+    document.querySelectorAll('#seg-tbody tr').forEach(tr => {
+      const cb = tr.querySelector('.seg-chk'); if(!cb) return;
+      const resRaw = String(cb.dataset.res||'').toLowerCase();
+      const resNum = resRaw.replace(/^sol:/,'');
+      const cubTxt = (tr.children[3]?.textContent||'').trim().toLowerCase();
+      const coincide = ids.some(id => id===resNum || id===resRaw || (cubTxt && id===cubTxt));
+      if(coincide){ cb.checked = true; marcadas++; }
+    });
+
+    if(!marcadas){ setS('No se encontraron filas visibles que coincidan con lo extraído — revisa filtros/año en Seguimiento.','warn'); return; }
+    if(extracted.fecha_cambio) window._segBulkFechaSugerida = fmtD(extracted.fecha_cambio);
+    setS(`${marcadas} fila(s) marcada(s) automáticamente desde "${file.name}". Revisa y confirma.`,'ok');
+    confirmarSeguimientoBulk('ccaa');
+  } catch(e){ setS('Error: '+e.message,'err'); }
 }
 
 async function _confirmarSeguimientoBulkAplicar() {
