@@ -4227,7 +4227,7 @@ function mostrarFichaResumen(r) {
           ${campo('Importador', (first['Importador']||'').trim())}
           ${campo('RUT', first['Rut']||'')}
           ${campo('Origen', first['Origen']||'')}
-          ${campo('Cubículo', (first['Cubículo']||'') + (first['Cubículo2']?(' / '+first['Cubículo2']):''))}
+          ${campo('Cubículo', _cubiculosDeFilas(rows).join(', '))}
 
           <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--g400);margin:14px 0 4px">Fechas Clave</div>
           ${campo('Recibida', first['Recibida']||'')}
@@ -4773,6 +4773,30 @@ function buscarPanelDefault() {
   setS(`${filtered.length} de ${found.length} registros (${minYear}-${thisYear}).`,'ok');
 }
 
+// Cubículo(s) de un registro: un registro agrupado por Res./Solicitud puede
+// tener varias filas de Detalle (una por especie/análisis), y cada una puede
+// estar en un cubículo distinto (ej. Res. 299: Especie A en 6.1, Especie B en
+// 6.3). Se agregan TODOS los cubículos distintos usados por cualquier fila del
+// registro — no solo los de la fila "representativa" que se eligió para
+// mostrar el resto de las columnas.
+function _cubiculosDeFilas(filas) {
+  const set = new Set();
+  (filas||[]).forEach(x => {
+    const c1 = String(x['Cubículo']||x['Cubiculo']||'').trim();
+    const c2 = String(x['Cubículo2']||x['Cubiculo2']||'').trim();
+    if(c1) set.add(c1);
+    if(c2) set.add(c2);
+  });
+  return [...set].sort((a,b)=>a.localeCompare(b,'es',{numeric:true}));
+}
+function _cubiculosDeRegistro(r) {
+  const rRes = String(r['Res.']||'').trim();
+  const rSol = String(r['Solicitud']||'').trim();
+  const filas = gsData.filter(x => rRes ? String(x['Res.']||'').trim()===rRes
+                                        : (String(x['Solicitud']||'').trim()===rSol && !String(x['Res.']||'').trim()));
+  return _cubiculosDeFilas(filas.length?filas:[r]);
+}
+
 // ── FILTROS POR COLUMNA (Búsqueda Rápida) ──
 function _colRawValue(key, r) {
   switch(key) {
@@ -4782,7 +4806,7 @@ function _colRawValue(key, r) {
     case 'anioSol': return (fmtD(r['Fecha Solicitud']||'')).substring(0,4) || '(sin año)';
     case 'fechaSol': return _fmtFechaHoraSol(r) || '(sin fecha)';
     case 'ing': return String(r['Año de Ingreso']||r['Ano de Ingreso']||'').trim() || '(sin año)';
-    case 'cub': return String(r['Cubículo']||r['Cubiculo']||'').trim() || '(sin cubículo)';
+    case 'cub': return _cubiculosDeRegistro(r).join(', ') || '(sin cubículo)';
     case 'imp': return (r['Importador']||'').trim() || '(sin importador)';
     case 'esp': return _especiesConsolidadas(r) || '(sin especie)';
     case 'stat': return (calcBadgePriority(_filasDelRegistro(r))||{}).label || calcStatusAuto(_filasDelRegistro(r));
@@ -4885,7 +4909,7 @@ var _PANEL_COLS = [
   {key:"anioSol", label:"Año Sol.", fn:function(r){return parseInt((fmtD(r["Fecha Solicitud"]||"")).substring(0,4))||0}},
   {key:"fechaSol", label:"Fecha y Hora Sol.", fn:function(r){const d=_fechaHoraSolInfo(r).date; return d?d.getTime():0;}},
   {key:"ing",  label:"Año Ing.",  fn:function(r){return parseInt(r["Año de Ingreso"]||r["Ano de Ingreso"]||0)||0}},
-  {key:"cub",  label:"Cubículo",  fn:function(r){return (r["Cubículo"]||r["Cubiculo"]||"").toLowerCase()}},
+  {key:"cub",  label:"Cubículo",  fn:function(r){return _cubiculosDeRegistro(r).join(', ').toLowerCase()}},
   {key:"imp",  label:"Importador",fn:function(r){return (r["Importador"]||"").toLowerCase()}},
   {key:"esp",  label:"Especie",   fn:function(r){return (r["Especie"]||"").toLowerCase()}},
   {key:"stat", label:"Status",    fn:function(r){return (r["Status"]||"").toLowerCase()}},
@@ -5203,10 +5227,13 @@ function _buildPanelCell(key, r, ctx) {
       td.style.fontFamily = 'var(--mono)';
       td.textContent = r["Año de Ingreso"]||r["Ano de Ingreso"]||'\u2014';
       break;
-    case 'cub':
+    case 'cub': {
       td.style.fontFamily = 'var(--mono)'; td.style.fontSize = '11px';
-      td.textContent = r["Cubículo"]||r["Cubiculo"]||'\u2014';
+      const cubs = _cubiculosDeRegistro(r);
+      td.textContent = cubs.length ? cubs.join(', ') : '\u2014';
+      if(cubs.length>1) td.title = cubs.length+' cubículos: '+cubs.join(', ');
       break;
+    }
     case 'imp':
       td.classList.add('pcol-left');
       td.textContent = (r["Importador"]||'').trim() || '\u2014';
