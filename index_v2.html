@@ -10758,6 +10758,148 @@ function _nowStrSAG() {
   return `${p(d.getDate())}-${p(d.getMonth()+1)}-${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
+// ══════════════════════════════════════════════════════════════════════════
+// SINCRONIZACIÓN CON GOOGLE CALENDAR — crea/actualiza/borra eventos en el
+// calendario personal de Eduardo para las Fechas Estimadas de Muestreo (FEM)
+// y de Condición Ambiental (CCAA) de cada análisis. Se ejecuta automáticamente
+// después de un Guardar exitoso; nunca revierte ni bloquea el guardado del
+// Sheet si falla — try/catch propio, solo deja aviso en el status bar.
+// Cada evento se etiqueta con extendedProperties.private para poder
+// encontrarlo de nuevo sin depender de una columna nueva en el Sheet:
+//   sagSolicitud: N° de Solicitud (ancla estable — no cambia aunque más tarde
+//                 se asigne un N° de Resolución, a diferencia de existKey)
+//   sagEcaKey:    Solicitud|Especie|TipoAnálisis|Campo(FEM/CCAA)
+// ══════════════════════════════════════════════════════════════════════════
+const CALENDAR_BASE_URL = 'https://www.googleapis.com/calendar/v3';
+
+function _calNormEspecie(s) { return String(s||'').trim().toLowerCase(); }
+
+function _calTipoCode(tipoAnalisis) {
+  const t = String(tipoAnalisis||'').toUpperCase();
+  if (t.includes('VIROL'))      return 'V';
+  if (t.includes('MICOL'))      return 'H';
+  if (t.includes('BACTERIOL'))  return 'B';
+  if (t.includes('FITOPLASMA')) return 'F';
+  if (t.includes('ENTOMOL'))    return 'E';
+  if (t.includes('NEMATOL'))    return 'N';
+  return '';
+}
+
+// Construye el estado deseado de eventos a partir de las filas recién
+// guardadas. Devuelve Map<sagEcaKey, {fecha,tipoLabel,especie,campo,patogenos:Set}>.
+// Varias filas (distintos patógenos) de la misma Especie+Tipo comparten FEM/CCAA
+// — se deduplican en un solo evento, listando los patógenos en la descripción.
+function _calEstadoDeseado(rows, nsol) {
+  const nombres = {V:'Virológico',H:'Micológico',B:'Bacteriológico',F:'Fitoplasma',E:'Entomológico',N:'Nematológico'};
+  const mapa = new Map();
+  rows.forEach(r => {
+    const especie = r['Especie']||'';
+    const tipoCode = _calTipoCode(r['Análisis']||'');
+    if (!tipoCode) return;
+    [['FEM', r['Fecha Estimada Muestreo']||''], ['CCAA', r['Fecha estimada de CCAA']||'']].forEach(([campo, fecha]) => {
+      if (!fecha) return;
+      const key = `${nsol}|${_calNormEspecie(especie)}|${tipoCode}|${campo}`;
+      if (!mapa.has(key)) mapa.set(key, { fecha, tipoLabel: nombres[tipoCode]||tipoCode, especie, campo, patogenos: new Set() });
+      if (r['Patógenos']) mapa.get(key).patogenos.add(r['Patógenos']);
+    });
+  });
+  return mapa;
+}
+
+// Trae del Calendar todos los eventos ya etiquetados para esta Solicitud
+// (una sola llamada, filtrando por la propiedad privada sagSolicitud).
+async function _calEventosExistentes(nsol) {
+  const url = `${CALENDAR_BASE_URL}/calendars/primary/events`
+    + `?privateExtendedProperty=${encodeURIComponent('sagSolicitud='+nsol)}`
+    + `&maxResults=250&showDeleted=false`;
+  const r = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!r.ok) throw new Error('No se pudo leer Calendar (HTTP '+r.status+')');
+  const d = await r.json();
+  const mapa = new Map();
+  (d.items||[]).forEach(ev => {
+    const key = ev.extendedProperties && ev.extendedProperties.private && ev.extendedProperties.private.sagEcaKey;
+    if (key) mapa.set(key, ev);
+  });
+  return mapa;
+}
+
+async function _calCrearEvento(nsol, key, info, res, importador) {
+  const titulo = (info.campo==='FEM' ? 'Muestreo' : 'CCAA') + ' ' + info.tipoLabel + ' — ' + info.especie
+    + (res ? ` (Res. ${res})` : ` (Sol. ${nsol})`);
+  const descLineas = [
+    `Solicitud N° ${nsol}` + (res ? ` / Resolución N° ${res}` : ''),
+    importador ? `Importador: ${importador}` : '',
+    `Especie: ${info.especie}`,
+    `Tipo de análisis: ${info.tipoLabel}`,
+    info.patogenos.size ? `Patógeno(s): ${[...info.patogenos].join(', ')}` : '',
+    info.campo==='CCAA' ? 'Fecha de cambio de Condición Ambiental estimada.' : 'Fecha estimada de toma de muestra.'
+  ].filter(Boolean);
+  const body = {
+    summary: titulo,
+    description: descLineas.join('\n'),
+    start: { date: info.fecha },
+    end:   { date: info.fecha },
+    extendedProperties: { private: { sagSolicitud: String(nsol), sagEcaKey: key } },
+    reminders: { useDefault: true }
+  };
+  const r = await fetch(`${CALENDAR_BASE_URL}/calendars/primary/events`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error('No se pudo crear evento en Calendar (HTTP '+r.status+')');
+}
+
+async function _calActualizarEvento(eventoExistente, info) {
+  const r = await fetch(`${CALENDAR_BASE_URL}/calendars/primary/events/${eventoExistente.id}`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ start: { date: info.fecha }, end: { date: info.fecha } })
+  });
+  if (!r.ok) throw new Error('No se pudo actualizar evento en Calendar (HTTP '+r.status+')');
+}
+
+async function _calBorrarEvento(eventoExistente) {
+  const r = await fetch(`${CALENDAR_BASE_URL}/calendars/primary/events/${eventoExistente.id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  if (!r.ok && r.status !== 410 && r.status !== 404) throw new Error('No se pudo borrar evento en Calendar (HTTP '+r.status+')');
+}
+
+// Punto de entrada: se llama después de un guardarTodo() exitoso.
+// Nunca lanza hacia afuera — cualquier error queda solo como aviso en el
+// status bar, para no revertir ni bloquear el guardado ya confirmado en el Sheet.
+async function sincronizarCalendarMuestreo(rows, nsol, res, importador) {
+  try {
+    const deseado = _calEstadoDeseado(rows, nsol);
+    const existentes = await _calEventosExistentes(nsol);
+    if (!deseado.size && !existentes.size) return;
+
+    let creados=0, actualizados=0, borrados=0;
+
+    for (const [key, info] of deseado) {
+      const ev = existentes.get(key);
+      if (!ev) { await _calCrearEvento(nsol, key, info, res, importador); creados++; }
+      else if ((ev.start&&ev.start.date) !== info.fecha) { await _calActualizarEvento(ev, info); actualizados++; }
+    }
+    for (const [key, ev] of existentes) {
+      if (!deseado.has(key)) { await _calBorrarEvento(ev); borrados++; }
+    }
+
+    if (creados||actualizados||borrados) {
+      const partes=[];
+      if(creados) partes.push(`${creados} creado(s)`);
+      if(actualizados) partes.push(`${actualizados} actualizado(s)`);
+      if(borrados) partes.push(`${borrados} eliminado(s)`);
+      setS(`Guardado. Calendar: ${partes.join(', ')}.`, 'ok');
+    }
+  } catch(e) {
+    console.error('sincronizarCalendarMuestreo error: '+e);
+    setS('Guardado en el Sheet, pero no se pudo sincronizar Calendar: '+e.message, 'warn');
+  }
+}
+
 async function guardarTodo() {
   if(window._saving){setS('Guardado en curso, espere...','warn');return;}
   if(!GS.sheetId){setS('Configure la conexion a Google Sheets.','warn');goStage('config');return;}
@@ -10834,6 +10976,7 @@ async function guardarTodo() {
     // Guarda (con o sin modal de sobrescritura previo) y, si corresponde, notifica por correo.
     const _guardarYNotificar = async (isUpdate) => {
       await doSave(rows,isUpdate,res,nsol,_eventoSAG);
+      await sincronizarCalendarMuestreo(rows, nsol, res, imp);
       if(_notificarFirma) await notificarEnvioFirma(nsol,_correoFirma,_nombreFirma);
     };
 
@@ -12441,7 +12584,7 @@ function initTokenClient() {
   if(!GS.oauthClientId||typeof google==='undefined') return;
   tokenClient=google.accounts.oauth2.initTokenClient({
     client_id:GS.oauthClientId,
-    scope:'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email',
+    scope:CURRENT_OAUTH_SCOPE,
     login_hint:'eduardo.chavez@sag.gob.cl',
     callback:r=>{ if(r.access_token){ accessToken=r.access_token; window._tokenObtainedAt=Date.now(); window._tokenScope=CURRENT_OAUTH_SCOPE; setGSDot('ok','Autenticado'); recargar(); } }
   });
@@ -12478,7 +12621,7 @@ function _requestNewToken(forceConsent) {
   });
 }
 
-const CURRENT_OAUTH_SCOPE = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email';
+const CURRENT_OAUTH_SCOPE = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.email';
 
 async function ensureToken() {
   // Google access tokens expire ~1hr. Refresh proactively if older than 50min,
