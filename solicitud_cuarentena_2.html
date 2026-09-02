@@ -2248,7 +2248,19 @@ function continuarEnvioSolicitud(recaptchaToken){
   fetch(ENDPOINT_URL,{ method:'POST', body:JSON.stringify({ action:'reservarFolio', rut: document.getElementById('rut').value.trim() }) })
   .then(function(r){ return r.json(); })
   .then(async function(folioData){
-    if(!folioData.ok) throw new Error('PASO1: ' + (folioData.error || 'No se pudo reservar el folio.'));
+    if(!folioData.ok){
+      if(folioData.cupoLleno){
+        ocultarOverlayEnvio();
+        document.getElementById('statusText').textContent='';
+        document.getElementById('bannerError').textContent = folioData.error;
+        document.getElementById('bannerError').style.display='block';
+        btn.disabled=false;
+        if (recaptchaWidgetId !== null) grecaptcha.reset(recaptchaWidgetId);
+        window.scrollTo({top:0,behavior:'smooth'});
+        return;
+      }
+      throw new Error('PASO1: ' + (folioData.error || 'No se pudo reservar el folio.'));
+    }
     const tsServidor   = folioData.timestamp || '';
     const folioDisplay = folioData.folioDisplay || '';
     const folio        = folioData.folio || null;
