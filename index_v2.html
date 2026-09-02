@@ -1876,6 +1876,7 @@ input.field-blocked, select.field-blocked {
     <button class="btn btn-gh btn-sm" onclick="goStage(6)">&#8592; VI. Recuento Final</button>
     <span class="stage-pg">7 / 7</span>
     <div style="display:flex;gap:5px">
+      <button type="button" class="btn btn-gh btn-sm" onclick="subirDoc(3)" style="font-size:10px;color:var(--gd)" title="Acepta PDF, imagen o Word — resolución de término firmada o informe de término (F-IIT-IMP-PA-016)">🤖 Extraer datos del documento</button>
       <button type="button" class="btn btn-gh btn-sm" onclick="generarBorradorTerminoCPE()" title="Genera borrador Word de Resolución de Término CPE">📄 Borrador Res. Término</button>
       <button class="btn btn-gh btn-sm" onclick="generarInformeTermino()" title="PDF">📄 Informe Término</button>
       <button class="btn btn-gh btn-sm" onclick="generarActaEntrega()" title="PDF">📄 Acta Entrega</button>
@@ -13335,6 +13336,29 @@ function aplicarDatosResolucion(d) {
   updateResBars(); updateReadonlyRefs();
 }
 
+// Etapa VII — Resolución de Término. Acepta como fuente tanto la resolución de
+// término firmada como el informe de término (F-IIT-IMP-PA-016); el prompt
+// pide los mismos campos en ambos casos y deja vacío lo que el documento no
+// tenga. 'terminada'/'liberada' y 'status_final' usan selEl(), que ya hace
+// match difuso contra las opciones del <select> y no rompe si no encuentra
+// coincidencia — mismo criterio que el resto de los aplicarDatos*.
+function aplicarDatosTermino(d) {
+  if(d.n_res_termino) sv('f6-nrest', d.n_res_termino);
+  if(d.fecha_res_termino) sv('f6-frterm', fmtD(d.fecha_res_termino));
+  if(d.terminada) selEl('f6-term', d.terminada);
+  if(d.liberada) selEl('f6-lib', d.liberada);
+  if(d.fecha_entrega) sv('f6-fent', fmtD(d.fecha_entrega));
+  if(d.status_final) selEl('f6-stat', d.status_final);
+  if(d.n_res_destruccion) sv('f6-resdestr', d.n_res_destruccion);
+  if(d.fecha_res_destruccion) sv('f6-fresdestr', fmtD(d.fecha_res_destruccion));
+  if(d.observaciones && !v('f6-obs')) sv('f6-obs', d.observaciones);
+  if(d.firma_responsable) sv('f6-firma-resp', d.firma_responsable);
+  if(d.firma_cargo) sv('f6-firma-cargo', d.firma_cargo);
+  if(d.firma_email) sv('f6-firma-email', d.firma_email);
+  if(typeof updateStatusBadge==='function') updateStatusBadge();
+  if(typeof autoStatusPorEntrega==='function' && d.fecha_entrega) autoStatusPorEntrega();
+}
+
 // ── SUBIR DOCUMENTO ──
 function subirDoc(stage) {
   const inp=document.createElement('input'); inp.type='file';
@@ -13350,7 +13374,8 @@ async function procesarDocumento(stage,input) {
   setS(`Leyendo ${file.name}...`,'');
   try {
     const b64=await fileToB64(file); const ext=file.name.split('.').pop().toLowerCase();
-    const prompt=stage===1?PROMPT_SOL:PROMPT_RES;
+    const STAGE_MAP = { 1: PROMPT_SOL, 2: PROMPT_RES, 3: PROMPT_TERM };
+    const prompt=STAGE_MAP[stage]||PROMPT_RES;
     let messages;
     if(['jpg','jpeg','png','webp'].includes(ext)){
       const mm={jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp'};
@@ -13368,7 +13393,8 @@ async function procesarDocumento(stage,input) {
     const data=await resp.json();
     const txt2=data.content?.filter(b=>b.type==='text').map(b=>b.text).join('');
     let extracted; try{ extracted=JSON.parse(txt2.replace(/[\s\S]*?(\{[\s\S]*\})[\s\S]*/,'$1')); }catch(e){ throw new Error('No se pudo parsear la respuesta'); }
-    if(stage===1) aplicarDatosSolicitud(extracted); else aplicarDatosResolucion(extracted);
+    const APLICAR_MAP = { 1: aplicarDatosSolicitud, 2: aplicarDatosResolucion, 3: aplicarDatosTermino };
+    (APLICAR_MAP[stage]||aplicarDatosResolucion)(extracted);
     setS(`${Object.keys(extracted).filter(k=>extracted[k]).length} campos completados desde "${file.name}".`,'ok');
   } catch(e){ setS('Error: '+e.message,'err'); }
 }
@@ -13377,6 +13403,8 @@ const PROMPT_SOL=`Extrae datos de esta solicitud de ingreso a cuarentena vegetal
 {"n_solicitud":"","fecha_solicitud":"YYYY-MM-DD","importador":"","rut":"","representante":"","proveedor":"","ciudad_proveedor":"","pais_origen":"","tipo_material":"","uso":"","cod_vivero":"","fecha_ing_solicitada":"YYYY-MM-DD","req_frio":"","horas_frio":"","pto_ingreso":"","material":[{"especie":"","variedad":"","tipo_material":"","cantidad":"","portainjerto":"","n_plantas":""}]}`;
 const PROMPT_RES=`Extrae datos de esta resolucion de internacion SAG. Responde SOLO JSON valido, sin texto adicional, sin markdown backticks:
 {"n_resolucion":"","fecha_resolucion":"YYYY-MM-DD","vigencia_desde":"YYYY-MM-DD","vigencia_hasta":"YYYY-MM-DD","n_solicitud":"","importador":"","rut":"","representante":"","proveedor":"","pais_origen":"","tipo_material":"","res_modificacion":"","vigencia_final_desde":"YYYY-MM-DD","vigencia_final_hasta":"YYYY-MM-DD","material":[{"especie":"","variedad":"","tipo_material":"","cantidad":"","portainjerto":"","n_plantas":""}]}`;
+const PROMPT_TERM=`Extrae datos de este documento de cierre de cuarentena vegetal SAG. Puede ser la Resolución de Término firmada, o el Informe de Término (F-IIT-IMP-PA-016) — usa el que corresponda y deja vacío lo que el documento no indique. Responde SOLO JSON valido, sin texto adicional, sin markdown backticks:
+{"n_res_termino":"","fecha_res_termino":"YYYY-MM-DD","n_solicitud":"","terminada":"SI o NO","liberada":"SI o NO","fecha_entrega":"YYYY-MM-DD","status_final":"una de: A destruir, Destruida, Eliminada, Desistida, Entregada, Liberada, No Recibida, No Prosperó, Terminada","n_res_destruccion":"","fecha_res_destruccion":"YYYY-MM-DD","observaciones":"","firma_responsable":"nombre del funcionario SAG que firma","firma_cargo":"","firma_email":""}`;
 
 async function fileToB64(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(',')[1]); r.onerror=rej; r.readAsDataURL(file); }); }
 
