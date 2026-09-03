@@ -3917,32 +3917,19 @@ function _filasDelRegistro(r) {
   return gsData.filter(x => !String(x['Res.']||'').trim() && String(x['Solicitud']||'').trim() === sol);
 }
 
-// Consolida todas las especies únicas de un registro (todas sus filas), agrupadas por género,
-// con la cantidad de variedades entre paréntesis.
-// BUGFIX: la columna "Variedades" de Detalle NO es un conteo — en registros actuales guarda
-// el NOMBRE de la variedad (ej. '12G713'), repetido en cada fila de análisis de esa variedad.
-// El conteo real = cantidad de nombres DISTINTOS por especie. Se mantiene un fallback para
-// registros históricos viejos donde "Variedades" sí guardaba directamente un número.
-// Formato: "Prunus avium (6); P. salicina (3)" — primera especie completa por género,
-// el resto abreviado con la inicial del género. Ordenado alfabéticamente.
-function _especiesConsolidadas(r) {
-  const rows = _filasDelRegistro(r);
-  const res = String(r['Res.'] || '').trim();
-  const sol = String(r['Solicitud'] || '').trim();
-  const especiesSet = new Set();
-  const variedadesPorEspecie = {}; // especie → Set de valores distintos de "Variedades"
-
-  // Procesa un par (especie, variedad) individual.
-  // BUGFIX (Sol. 271 y otras): antes solo se agregaba una especie terminada en
-  // "spp." cuando el tipo de análisis era entomológico — pensado para no
-  // duplicar "Genero spp." junto a la especie real (ej. "Prunus persica" +
-  // "Prunus spp." entomológico). Pero esto descartaba SILENCIOSAMENTE géneros
-  // que legítimamente solo se declaran como "spp." (ej. "Vitis spp." en filas
-  // crudas del portal antes de tener Resolución, o análisis no-entomológicos
-  // cuyo material real es genérico). La redundancia "Genero spp." vs especie
-  // real ya se resuelve más abajo, por género, después de juntar TODO — así
-  // que aquí basta con agregar siempre la especie, sea o no "spp.".
-  function _agregarPar(esp, vRaw, tipoAn) {
+// Agrega un par (especie, variedad) a las estructuras de acumulación,
+// manejando el caso de celdas con varias especies separadas por coma
+// (solicitudes del portal aún sin procesar por SAG, sin filas de análisis
+// todavía — ver BUGFIX abajo). Compartida por _especiesConsolidadas() y por
+// renderSeguimientoTabla(), que necesita el mismo agrupamiento pero acotado
+// solo a las filas de un grupo Resolución+Análisis, no de todo el registro.
+// BUGFIX: solicitudes aún sin procesar por SAG (recién llegadas del portal, sin
+// Resolución ni filas de análisis todavía) guardan Especie y Variedades como listas
+// separadas por coma EN UNA SOLA CELDA, una entrada por cada especie/variedad
+// declarada en el material — no una fila por especie como en registros ya
+// procesados. Se detecta por la coma y se empareja posicionalmente.
+function _acumularEspecieVariedad_(espRaw, varRaw, especiesSet, variedadesPorEspecie) {
+  const agregarPar = (esp, vRaw) => {
     esp = String(esp||'').trim();
     if (!esp) return;
     especiesSet.add(esp);
@@ -3951,57 +3938,55 @@ function _especiesConsolidadas(r) {
       if (!variedadesPorEspecie[esp]) variedadesPorEspecie[esp] = new Set();
       variedadesPorEspecie[esp].add(vRaw);
     }
+  };
+  espRaw = String(espRaw||'').trim();
+  if (!espRaw) return;
+  varRaw = String(varRaw||'').trim();
+  if (espRaw.includes(',')) {
+    const espList = espRaw.split(',').map(s=>s.trim()).filter(Boolean);
+    const varList = varRaw.includes(',') ? varRaw.split(',').map(s=>s.trim()).filter(Boolean) : [];
+    const pareable = varList.length === espList.length;
+    espList.forEach((esp, idx) => agregarPar(esp, pareable ? varList[idx] : ''));
+  } else {
+    agregarPar(espRaw, varRaw);
   }
+}
 
-  rows.forEach(row => {
-    const espRaw = String(row['Especie']||'').trim();
-    if (!espRaw) return;
-    const varRaw = String(row['Variedades']||'').trim();
-    const tipoAn = String(row['Análisis']||'').trim().toLowerCase();
-
-    // BUGFIX: solicitudes aún sin procesar por SAG (recién llegadas del portal, sin
-    // Resolución ni filas de análisis todavía) guardan Especie y Variedades como listas
-    // separadas por coma EN UNA SOLA CELDA, una entrada por cada especie/variedad
-    // declarada en el material — no una fila por especie como en registros ya
-    // procesados. Se detecta por la coma y se empareja posicionalmente.
-    if (espRaw.includes(',')) {
-      const espList = espRaw.split(',').map(s=>s.trim()).filter(Boolean);
-      const varList = varRaw.includes(',') ? varRaw.split(',').map(s=>s.trim()).filter(Boolean) : [];
-      const pareable = varList.length === espList.length;
-      espList.forEach((esp, idx) => {
-        _agregarPar(esp, pareable ? varList[idx] : '', tipoAn);
-      });
-    } else {
-      _agregarPar(espRaw, varRaw, tipoAn);
-    }
-  });
-  let especies = [...especiesSet].sort((a,b) => a.localeCompare(b));
-  if (!especies.length) return '';
-
-  // BUGFIX (res. 8173/2025 y otras): en Detalle, "Variedades" guarda una sola variedad
-  // representativa repetida en cada fila de análisis (una fila por correlativo/patógeno,
-  // no una fila por variedad) — el Set de valores distintos por especie subestima el total
-  // real. La pestaña Material es la fuente de verdad (una fila por variedad real), así que
-  // si hay filas de Material para este registro, su conteo de "Variedad" distintas por
-  // especie reemplaza al derivado de Detalle. Se mantiene el cálculo de Detalle como
-  // fallback para especies sin filas en Material.
+// Conteo de variedades por especie desde la pestaña Material (fuente de verdad,
+// una fila por variedad real) para un Res./Solicitud dado, o null si no hay
+// filas de Material para ese registro. Ver BUGFIX en _especiesConsolidadas.
+function _matVariedadesPorEspecie_(res, sol) {
   const matRowsReg = (typeof _matData !== 'undefined' && _matData.length) ? _matData.filter(m => {
     const mRes = String(m['Res.']||'').trim();
     const mSol = String(m['Solicitud']||'').trim();
     if (res) return mRes === res;
     return !mRes && mSol === sol;
   }) : [];
-  if (matRowsReg.length) {
-    const variedadesPorEspecieMat = {};
-    matRowsReg.forEach(row => {
-      const esp = String(row['Especie']||'').trim();
-      const vari = String(row['Variedad']||'').trim();
-      if (!esp) return;
-      if (!variedadesPorEspecieMat[esp]) variedadesPorEspecieMat[esp] = new Set();
-      if (vari) variedadesPorEspecieMat[esp].add(vari);
-    });
-    Object.keys(variedadesPorEspecieMat).forEach(esp => {
-      if (variedadesPorEspecieMat[esp].size) variedadesPorEspecie[esp] = variedadesPorEspecieMat[esp];
+  if (!matRowsReg.length) return null;
+  const variedadesPorEspecieMat = {};
+  matRowsReg.forEach(row => {
+    const esp = String(row['Especie']||'').trim();
+    const vari = String(row['Variedad']||'').trim();
+    if (!esp) return;
+    if (!variedadesPorEspecieMat[esp]) variedadesPorEspecieMat[esp] = new Set();
+    if (vari) variedadesPorEspecieMat[esp].add(vari);
+  });
+  return variedadesPorEspecieMat;
+}
+
+// Formatea un conjunto de especies + sus variedades en el string consolidado
+// por género con conteo de variedades entre paréntesis, agrupando géneros
+// repetidos con la inicial + punto. Formato: "Prunus avium (6); P. salicina (3)"
+// — primera especie completa por género, el resto abreviado. Ordenado
+// alfabéticamente. matVariedadesPorEspecie (opcional): si viene, sus conteos
+// reemplazan a los de variedadesPorEspecie por ser la fuente de verdad (Material).
+function _formatearEspeciesPorGenero_(especiesSet, variedadesPorEspecie, matVariedadesPorEspecie) {
+  let especies = [...especiesSet].sort((a,b) => a.localeCompare(b));
+  if (!especies.length) return '';
+
+  if (matVariedadesPorEspecie) {
+    Object.keys(matVariedadesPorEspecie).forEach(esp => {
+      if (matVariedadesPorEspecie[esp].size) variedadesPorEspecie[esp] = matVariedadesPorEspecie[esp];
     });
   }
 
@@ -4049,6 +4034,37 @@ function _especiesConsolidadas(r) {
     });
   });
   return partes.join('; ');
+}
+
+// Consolida todas las especies únicas de un registro (todas sus filas), agrupadas por género,
+// con la cantidad de variedades entre paréntesis.
+// BUGFIX: la columna "Variedades" de Detalle NO es un conteo — en registros actuales guarda
+// el NOMBRE de la variedad (ej. '12G713'), repetido en cada fila de análisis de esa variedad.
+// El conteo real = cantidad de nombres DISTINTOS por especie. Se mantiene un fallback para
+// registros históricos viejos donde "Variedades" sí guardaba directamente un número.
+// Formato: "Prunus avium (6); P. salicina (3)" — primera especie completa por género,
+// el resto abreviado con la inicial del género. Ordenado alfabéticamente.
+function _especiesConsolidadas(r) {
+  const rows = _filasDelRegistro(r);
+  const res = String(r['Res.'] || '').trim();
+  const sol = String(r['Solicitud'] || '').trim();
+  const especiesSet = new Set();
+  const variedadesPorEspecie = {}; // especie → Set de valores distintos de "Variedades"
+
+  rows.forEach(row => {
+    _acumularEspecieVariedad_(row['Especie'], row['Variedades'], especiesSet, variedadesPorEspecie);
+  });
+  if (!especiesSet.size) return '';
+
+  // BUGFIX (res. 8173/2025 y otras): en Detalle, "Variedades" guarda una sola variedad
+  // representativa repetida en cada fila de análisis (una fila por correlativo/patógeno,
+  // no una fila por variedad) — el Set de valores distintos por especie subestima el total
+  // real. La pestaña Material es la fuente de verdad (una fila por variedad real), así que
+  // si hay filas de Material para este registro, su conteo de "Variedad" distintas por
+  // especie reemplaza al derivado de Detalle. Se mantiene el cálculo de Detalle como
+  // fallback para especies sin filas en Material.
+  const matVariedadesPorEspecie = _matVariedadesPorEspecie_(res, sol);
+  return _formatearEspeciesPorGenero_(especiesSet, variedadesPorEspecie, matVariedadesPorEspecie);
 }
 
 
@@ -14615,7 +14631,7 @@ function renderSeguimientoTabla() {
         anioRes: fmtD(r['Fecha Res.']||'').substring(0,4),
         importador: String(r['Importador']||'').trim(),
         cubiculo: String(r['Cubículo']||r['Cubiculo']||'').trim(),
-        especies: [],
+        especiesSet: new Set(), variedadesPorEspecie: {},
         requerida, analisisCanonico,
         ccaaEstRaw: '', muestreoEstRaw: '',
         fechaMuestreoReal: '', fechaEnvio: '',
@@ -14626,8 +14642,7 @@ function renderSeguimientoTabla() {
     }
     const g = grupos[key];
     g.filas.push(idx + 2); // gsData[idx] = fila (idx+2) del Sheet
-    const especie = String(r['Especie']||'').trim();
-    if (especie && g.especies.indexOf(especie) === -1) g.especies.push(especie);
+    _acumularEspecieVariedad_(r['Especie'], r['Variedades'], g.especiesSet, g.variedadesPorEspecie);
     if (!g.ccaaEstRaw && r['Fecha estimada de CCAA']) g.ccaaEstRaw = r['Fecha estimada de CCAA'];
     if (!g.muestreoEstRaw && r['Fecha Estimada Muestreo']) g.muestreoEstRaw = r['Fecha Estimada Muestreo'];
     if (!g.fechaRealCCAA && r['Fecha Real de CCAA']) g.fechaRealCCAA = r['Fecha Real de CCAA'];
@@ -14639,7 +14654,7 @@ function renderSeguimientoTabla() {
   const filas = [];
   Object.values(grupos).forEach(g => {
     if (buscar) {
-      const hay = [g.res, g.nsol, g.importador, g.especies.join(' ')].join(' ').toLowerCase();
+      const hay = [g.res, g.nsol, g.importador, [...g.especiesSet].join(' ')].join(' ').toLowerCase();
       if (hay.indexOf(buscar) === -1) return;
     }
     // Reconstruye un objeto "fila sintética" con los datos ya fusionados del
@@ -14661,9 +14676,14 @@ function renderSeguimientoTabla() {
     if (fMuestreoDesde && (!estMuestreo.fechaISO || estMuestreo.fechaISO < fMuestreoDesde)) return;
     if (fMuestreoHasta && (!estMuestreo.fechaISO || estMuestreo.fechaISO > fMuestreoHasta)) return;
     const disp = g.res ? ('Res. ' + g.res + (g.anioRes ? ('/' + g.anioRes) : '')) : ('Sol. ' + g.nsol + ' (sin res.)');
+    // Mismo formato por género + conteo de variedades entre paréntesis que usa
+    // _especiesConsolidadas() en Búsqueda/Búsqueda Rápida (ej. "Prunus avium (6);
+    // P. salicina (3)"), acotado a las filas de este grupo Resolución+Análisis.
+    const matVarPorEsp = _matVariedadesPorEspecie_(g.res, g.nsol);
+    const especieFmt = _formatearEspeciesPorGenero_(g.especiesSet, g.variedadesPorEspecie, matVarPorEsp);
     filas.push({
       nsol: g.nsol, res: g.res, importador: g.importador, cubiculo: g.cubiculo,
-      especie: g.especies.join(', '), requerida: g.requerida, analisisCanonico: g.analisisCanonico,
+      especie: especieFmt, requerida: g.requerida, analisisCanonico: g.analisisCanonico,
       disp, sortKey: g.sortKey,
       ccaaEst: fmtDisplay(g.ccaaEstRaw) || '—',
       muestreoEst: fmtDisplay(g.muestreoEstRaw) || '—',
