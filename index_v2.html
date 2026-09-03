@@ -5273,7 +5273,6 @@ function _buildPanelCell(key, r, ctx) {
       td.textContent = _especiesConsolidadas(r) || '\u2014';
       break;
     case 'stat': {
-      td.classList.add('pcol-left');
       const badge = document.createElement('span');
       badge.className = 'badge ' + ctx.sc;
       badge.textContent = ctx.st;
