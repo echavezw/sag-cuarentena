@@ -14629,7 +14629,7 @@ function renderSeguimientoTabla() {
       grupos[key] = {
         nsol, res,
         anioRes: fmtD(r['Fecha Res.']||'').substring(0,4),
-        importador: String(r['Importador']||'').trim(),
+        importador: toTitleCase(String(r['Importador']||'').trim()),
         cubiculo: String(r['Cubículo']||r['Cubiculo']||'').trim(),
         especiesSet: new Set(), variedadesPorEspecie: {},
         requerida, analisisCanonico,
