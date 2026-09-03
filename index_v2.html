@@ -3674,6 +3674,16 @@ function calcBadgePriority(rows) {
 
   // ── 13. TERMINADA ────────────────────────────────────────────────────────────
   if (isAfirmativo(first['Terminada'])) {
+    // Entrega Parcial: hay una nota registrada en "Entrega Parcial — Registro de
+    // Variedades Pendientes" (Etapa VI/VII, columna 'Obs. Entrega Parcial').
+    // Prevalece sobre 'Entregada' aunque esta ya tenga fecha, porque lo entregado
+    // no fue el total del material — quedaron variedades con análisis pendiente,
+    // a la espera de una resolución complementaria.
+    const obsEntregaParcial = norm(first['Obs. Entrega Parcial']);
+    if (obsEntregaParcial) {
+      return {label:'Terminada/Entrega Parcial', cls:'badge-warn',
+        pendientes: ['Entrega parcial — variedades pendientes: ' + obsEntregaParcial, ...flagPositivo]};
+    }
     return isAfirmativo(first['Entregada'])
       ? {label:'Terminada/Entregada', cls:'badge-ok', pendientes: flagPositivo}
       : {label:'Terminada/Sin Entregar', cls:'badge-warn', pendientes: ['Terminada — pendiente registrar fecha/estado de entrega', ...flagPositivo]};
