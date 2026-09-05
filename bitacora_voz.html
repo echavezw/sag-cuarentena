@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Bitácora por Voz — SAG ECA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#0A1628;
+    --navy-2:#12233d;
+    --gold:#B8975A;
+    --gold-d:#8f7442;
+    --ok:#2f8f5b;
+    --err:#c0392b;
+    --text:#e8ecf1;
+    --muted:#9fb0c3;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;background:var(--navy);color:var(--text);font-family:'Inter',sans-serif;font-weight:300;min-height:100vh;}
+  body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);}
+  header{padding:22px 20px 14px;text-align:center;border-bottom:1px solid rgba(184,151,90,0.25);}
+  header h1{font-family:'Cormorant Garamond',serif;font-weight:700;font-size:26px;margin:0 0 2px;color:#fff;letter-spacing:.3px;}
+  header p{margin:0;font-size:12px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;}
+  main{max-width:520px;margin:0 auto;padding:18px 16px 40px;}
+  .card{background:var(--navy-2);border:1px solid rgba(184,151,90,0.2);border-radius:14px;padding:18px;margin-bottom:16px;}
+  .card h2{font-family:'Cormorant Garamond',serif;font-size:19px;font-weight:600;color:var(--gold);margin:0 0 12px;}
+  textarea, input[type=text], input[type=number], input[type=date], input[type=time], select{
+    width:100%;background:#0d1d33;border:1px solid rgba(159,176,195,0.3);border-radius:10px;
+    color:var(--text);font-family:'Inter',sans-serif;font-size:16px;padding:12px 14px;font-weight:400;
+  }
+  textarea{min-height:120px;resize:vertical;line-height:1.5;}
+  label{display:block;font-size:12px;color:var(--muted);margin:0 0 6px;text-transform:uppercase;letter-spacing:.4px;}
+  .field{margin-bottom:14px;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .btn{
+    display:block;width:100%;text-align:center;border:none;border-radius:12px;padding:16px;
+    font-size:16px;font-weight:600;font-family:'Inter',sans-serif;cursor:pointer;
+    -webkit-appearance:none;appearance:none;
+  }
+  .btn-gold{background:var(--gold);color:var(--navy);}
+  .btn-gold:active{background:var(--gold-d);}
+  .btn-outline{background:transparent;color:var(--muted);border:1px solid rgba(159,176,195,0.35);margin-top:10px;}
+  .btn-outline:active{background:rgba(255,255,255,0.05);}
+  .btn:disabled{opacity:.5;}
+  .radiogroup{display:flex;gap:8px;flex-wrap:wrap;}
+  .radiogroup label{
+    flex:1;text-align:center;background:#0d1d33;border:1px solid rgba(159,176,195,0.3);border-radius:10px;
+    padding:10px 6px;font-size:13px;text-transform:none;letter-spacing:0;color:var(--text);margin:0;
+  }
+  .radiogroup input{display:none;}
+  .radiogroup input:checked + span{color:var(--navy);}
+  .radiogroup label:has(input:checked){background:var(--gold);border-color:var(--gold);}
+  .status{font-size:14px;text-align:center;padding:10px;border-radius:10px;margin-bottom:14px;display:none;}
+  .status.show{display:block;}
+  .status.info{background:rgba(184,151,90,0.15);color:var(--gold);}
+  .status.ok{background:rgba(47,143,91,0.18);color:#6fd39a;}
+  .status.err{background:rgba(192,57,43,0.18);color:#f19c93;}
+  .hint{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.4;}
+  .importador-box{background:rgba(184,151,90,0.1);border:1px dashed rgba(184,151,90,0.4);border-radius:10px;padding:10px 12px;font-size:14px;margin-bottom:14px;}
+  .importador-box b{color:var(--gold);}
+  #screenToken{display:none;}
+  #screenDictar, #screenRevisar{display:none;}
+  .spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,0.3);border-top-color:var(--navy);border-radius:50%;display:inline-block;vertical-align:middle;margin-right:8px;animation:spin .7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  footer{text-align:center;font-size:11px;color:var(--muted);padding:10px 0 30px;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Bitácora por Voz</h1>
+  <p>SAG · Estación de Cuarentena Agrícola</p>
+</header>
+
+<main>
+
+  <section id="screenToken" class="card">
+    <h2>Acceso</h2>
+    <div class="field">
+      <label for="tokenInput">Clave de administrador</label>
+      <input type="text" id="tokenInput" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="ADMIN_TOKEN">
+    </div>
+    <button class="btn btn-gold" onclick="guardarToken()">Ingresar</button>
+    <p class="hint">Se guarda solo en este teléfono. No se comparte con nadie.</p>
+  </section>
+
+  <section id="screenDictar">
+    <div id="statusDictar" class="status"></div>
+    <div class="card">
+      <h2>Dictar actividad</h2>
+      <div class="field">
+        <textarea id="textoDictado" placeholder="Toca el campo, luego el micrófono del teclado, y dicta. Por ejemplo: «Resolución 269, hoy se realizó la injertación del material, quedó pendiente el riego de la tarde»." autofocus></textarea>
+      </div>
+      <button class="btn btn-gold" id="btnProcesar" onclick="procesarTexto()">Procesar</button>
+    </div>
+    <button class="btn btn-outline" onclick="cambiarToken()">Cambiar clave</button>
+  </section>
+
+  <section id="screenRevisar">
+    <div id="statusRevisar" class="status"></div>
+    <div class="card">
+      <h2>Confirmar actividad</h2>
+
+      <div class="field">
+        <label>Folio</label>
+        <div class="radiogroup">
+          <label><input type="radio" name="folioTipo" value="resolucion" onchange="onFolioTipoChange()"><span>Resolución</span></label>
+          <label><input type="radio" name="folioTipo" value="solicitud" onchange="onFolioTipoChange()"><span>Solicitud</span></label>
+          <label><input type="radio" name="folioTipo" value="" onchange="onFolioTipoChange()"><span>Sin folio</span></label>
+        </div>
+      </div>
+
+      <div class="field" id="folioNumField">
+        <label for="folioNum">N°</label>
+        <input type="number" id="folioNum" inputmode="numeric" oninput="buscarImportadorDebounced()">
+      </div>
+
+      <div id="importadorBox" class="importador-box" style="display:none;">
+        Importador: <b id="importadorNombre">—</b>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label for="fechaActividad">Fecha</label>
+          <input type="date" id="fechaActividad">
+        </div>
+        <div class="field">
+          <label for="horaActividad">Hora</label>
+          <input type="time" id="horaActividad">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="tipoActividad">Tipo de actividad</label>
+        <input type="text" id="tipoActividad" list="tiposComunes" placeholder="Riego, poda, injertación...">
+        <datalist id="tiposComunes">
+          <option value="Riego">
+          <option value="Fumigación">
+          <option value="Poda">
+          <option value="Injertación">
+          <option value="Muestreo">
+          <option value="Inspección">
+          <option value="Fertilización">
+          <option value="Control Fitosanitario">
+          <option value="Otro">
+        </datalist>
+      </div>
+
+      <div class="field">
+        <label for="descripcionActividad">Descripción</label>
+        <textarea id="descripcionActividad"></textarea>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label for="responsableActividad">Responsable</label>
+          <input type="text" id="responsableActividad" placeholder="Opcional">
+        </div>
+        <div class="field">
+          <label for="duracionActividad">Duración (min)</label>
+          <input type="number" id="duracionActividad" inputmode="numeric" placeholder="Opcional">
+        </div>
+      </div>
+
+      <button class="btn btn-gold" id="btnGuardar" onclick="guardarActividad()">Guardar en Bitácora</button>
+      <button class="btn btn-outline" onclick="volverADictar()">Descartar y volver a dictar</button>
+    </div>
+  </section>
+
+</main>
+
+<footer>Desarrollado por Ing. Agr. Eduardo Chávez Weisser</footer>
+
+<script>
+  const ENDPOINT = 'https://script.google.com/macros/s/AKfycbwxDEFA6OPi-mDYe2eJ9JlWcvA_409E6wfGuCAWxOM58rNzMerCz9tqvdFS2YeBEMp1/exec';
+  const TOKEN_KEY = 'sag_bitacora_admin_token';
+  const NOMBRE_KEY = 'sag_bitacora_responsable';
+
+  let importadorEncontrado = '';
+  let debounceTimer = null;
+
+  function getToken(){ return localStorage.getItem(TOKEN_KEY) || ''; }
+
+  function mostrarPantallaInicial(){
+    if (getToken()){
+      document.getElementById('screenToken').style.display = 'none';
+      document.getElementById('screenDictar').style.display = 'block';
+    } else {
+      document.getElementById('screenToken').style.display = 'block';
+      document.getElementById('screenDictar').style.display = 'none';
+    }
+    document.getElementById('screenRevisar').style.display = 'none';
+  }
+
+  function guardarToken(){
+    const v = document.getElementById('tokenInput').value.trim();
+    if (!v){ return; }
+    localStorage.setItem(TOKEN_KEY, v);
+    mostrarPantallaInicial();
+  }
+
+  function cambiarToken(){
+    localStorage.removeItem(TOKEN_KEY);
+    mostrarPantallaInicial();
+  }
+
+  function setStatus(elId, texto, tipo, mostrarSpinner){
+    const el = document.getElementById(elId);
+    el.className = 'status show ' + (tipo || 'info');
+    el.innerHTML = (mostrarSpinner ? '<span class="spinner"></span>' : '') + texto;
+  }
+
+  function ocultarStatus(elId){
+    document.getElementById(elId).className = 'status';
+  }
+
+  function fechaHoyISO(){
+    const d = new Date();
+    const pad = function(n){ return String(n).padStart(2,'0'); };
+    return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+  }
+
+  function horaAhora(){
+    const d = new Date();
+    const pad = function(n){ return String(n).padStart(2,'0'); };
+    return pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+
+  async function llamarBackend(payload){
+    const res = await fetch(ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error('Error de red (' + res.status + ')');
+    return res.json();
+  }
+
+  async function procesarTexto(){
+    const texto = document.getElementById('textoDictado').value.trim();
+    if (!texto){
+      setStatus('statusDictar', 'Dicta o escribe algo primero.', 'err');
+      return;
+    }
+    document.getElementById('btnProcesar').disabled = true;
+    setStatus('statusDictar', 'Interpretando actividad...', 'info', true);
+
+    try {
+      const data = await llamarBackend({
+        action: 'extraerActividadVoz',
+        adminToken: getToken(),
+        texto: texto
+      });
+      if (!data.ok){
+        setStatus('statusDictar', data.error || 'No se pudo procesar.', 'err');
+        document.getElementById('btnProcesar').disabled = false;
+        return;
+      }
+      ocultarStatus('statusDictar');
+      cargarRevision(data.extraido || {}, data.importador || '');
+    } catch (err){
+      setStatus('statusDictar', 'Error de conexión: ' + err.message, 'err');
+    } finally {
+      document.getElementById('btnProcesar').disabled = false;
+    }
+  }
+
+  function cargarRevision(ex, importador){
+    document.getElementById('screenDictar').style.display = 'none';
+    document.getElementById('screenRevisar').style.display = 'block';
+    ocultarStatus('statusRevisar');
+
+    const folioTipo = ex.folioTipo === 'resolucion' || ex.folioTipo === 'solicitud' ? ex.folioTipo : '';
+    document.querySelectorAll('input[name=folioTipo]').forEach(function(r){ r.checked = (r.value === folioTipo); });
+    document.getElementById('folioNum').value = ex.folio || '';
+    document.getElementById('fechaActividad').value = ex.fecha || fechaHoyISO();
+    document.getElementById('horaActividad').value = ex.hora || horaAhora();
+    document.getElementById('tipoActividad').value = ex.tipo || '';
+    document.getElementById('descripcionActividad').value = ex.descripcion || '';
+    document.getElementById('responsableActividad').value = ex.responsable || localStorage.getItem(NOMBRE_KEY) || '';
+    document.getElementById('duracionActividad').value = ex.duracionMin || '';
+
+    onFolioTipoChange();
+    mostrarImportador(importador);
+  }
+
+  function onFolioTipoChange(){
+    const tipo = (document.querySelector('input[name=folioTipo]:checked') || {}).value || '';
+    document.getElementById('folioNumField').style.display = tipo ? 'block' : 'none';
+    if (!tipo){ mostrarImportador(''); }
+  }
+
+  function mostrarImportador(nombre){
+    importadorEncontrado = nombre || '';
+    const box = document.getElementById('importadorBox');
+    if (importadorEncontrado){
+      box.style.display = 'block';
+      document.getElementById('importadorNombre').textContent = importadorEncontrado;
+    } else {
+      box.style.display = 'none';
+    }
+  }
+
+  function buscarImportadorDebounced(){
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(buscarImportador, 500);
+  }
+
+  async function buscarImportador(){
+    const tipo = (document.querySelector('input[name=folioTipo]:checked') || {}).value || '';
+    const folio = document.getElementById('folioNum').value;
+    if (!tipo || !folio){ mostrarImportador(''); return; }
+    try {
+      const data = await llamarBackend({
+        action: 'buscarImportadorPorFolio',
+        adminToken: getToken(),
+        folioTipo: tipo,
+        folio: folio
+      });
+      if (data.ok) mostrarImportador(data.importador || '');
+    } catch (e){ /* silencioso, no bloquea el flujo */ }
+  }
+
+  async function guardarActividad(){
+    const tipo = (document.querySelector('input[name=folioTipo]:checked') || {}).value || '';
+    const folio = document.getElementById('folioNum').value;
+    const descripcion = document.getElementById('descripcionActividad').value.trim();
+
+    if (!descripcion){
+      setStatus('statusRevisar', 'La descripción no puede quedar vacía.', 'err');
+      return;
+    }
+    if (tipo && !folio){
+      setStatus('statusRevisar', 'Falta el número de folio.', 'err');
+      return;
+    }
+
+    const responsable = document.getElementById('responsableActividad').value.trim();
+    if (responsable) localStorage.setItem(NOMBRE_KEY, responsable);
+
+    document.getElementById('btnGuardar').disabled = true;
+    setStatus('statusRevisar', 'Guardando...', 'info', true);
+
+    try {
+      const data = await llamarBackend({
+        action: 'guardarActividadVoz',
+        adminToken: getToken(),
+        folioTipo: tipo,
+        folio: folio,
+        importador: importadorEncontrado,
+        fecha: document.getElementById('fechaActividad').value,
+        hora: document.getElementById('horaActividad').value,
+        tipo: document.getElementById('tipoActividad').value.trim(),
+        descripcion: descripcion,
+        responsable: responsable,
+        duracionMin: document.getElementById('duracionActividad').value
+      });
+      if (!data.ok){
+        setStatus('statusRevisar', data.error || 'No se pudo guardar.', 'err');
+        document.getElementById('btnGuardar').disabled = false;
+        return;
+      }
+      setStatus('statusDictar', 'Actividad guardada correctamente.', 'ok');
+      document.getElementById('textoDictado').value = '';
+      document.getElementById('screenRevisar').style.display = 'none';
+      document.getElementById('screenDictar').style.display = 'block';
+    } catch (err){
+      setStatus('statusRevisar', 'Error de conexión: ' + err.message, 'err');
+    } finally {
+      document.getElementById('btnGuardar').disabled = false;
+    }
+  }
+
+  function volverADictar(){
+    document.getElementById('screenRevisar').style.display = 'none';
+    document.getElementById('screenDictar').style.display = 'block';
+    ocultarStatus('statusDictar');
+  }
+
+  mostrarPantallaInicial();
+</script>
+
+</body>
+</html>
