@@ -972,6 +972,7 @@ input.field-blocked, select.field-blocked {
   <div class="sb-item" id="nav-alerts" onclick="goStage('alerts');buildAlerts();renderAlertsStage()"><span class="sb-num">A</span>Alertas<span class="sb-dot empty" id="dot-alerts"></span></div>
   <div class="sb-item" id="nav-seguimiento" onclick="goStage('seguimiento')"><span class="sb-num">S</span>Seguimiento</div>
   <div class="sb-item" id="nav-bitacora" onclick="goStage('bitacora')"><span class="sb-num">B</span>Bitácora<span class="sb-dot empty" id="dot-bitacora"></span></div>
+  <div class="sb-item" id="nav-voz" onclick="goStage('voz')"><span class="sb-num">V</span>Propuestas de Voz<span class="sb-dot empty" id="dot-voz"></span></div>
   <hr class="sb-divider">
   <div class="sb-sec">Registro</div>
   <div class="sb-item" id="nav-1" onclick="goStage(1)"><span class="sb-num">I</span>Solicitud<span class="sb-dot empty" id="dot-1"></span></div>
@@ -1175,6 +1176,25 @@ input.field-blocked, select.field-blocked {
     </div>
 
     <div id="bit-timeline"><div style="padding:20px;text-align:center;color:var(--g400)">Sin actividades registradas todavía.</div></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+     PROPUESTAS DE VOZ (bitacora_voz.html)
+════════════════════════════════════ -->
+<div class="stage" id="stage-voz">
+  <div class="sec-h">
+    <div class="sec-n">V</div>
+    <div>
+      <div class="sec-t">Propuestas de Voz</div>
+      <div class="sec-s" id="voz-subt">Cambios dictados desde el teléfono, pendientes de aprobación</div>
+    </div>
+    <div class="sec-actions">
+      <button class="btn btn-gh btn-sm" onclick="cargarPropuestasVoz(true)">Actualizar</button>
+    </div>
+  </div>
+  <div class="tab-body" style="border-radius:0 0 var(--r) var(--r);padding:14px">
+    <div id="voz-lista"><div style="padding:20px;text-align:center;color:var(--g400)">Sin propuestas pendientes.</div></div>
   </div>
 </div>
 
@@ -3358,6 +3378,7 @@ function showApp() {
   renderVerifTable();
   goStage('panel');
   setTimeout(updateSidebarDots, 200);
+  setTimeout(()=>actualizarDotVoz(), 400);
   initDirtyTracking();
   const modalEl = $('modal');
   if(modalEl) modalEl.addEventListener('click', e=>{ if(e.target===modalEl) closeModal(); });
@@ -5537,6 +5558,7 @@ function goStage(n) {
   if(n==='seguimiento') { setTimeout(renderSeguimientoTabla, 80); }
   if(n==='usuarios') { setTimeout(recargarUsuarios, 80); }
   if(n==='bitacora') { setTimeout(()=>{ renderBitacoraStage(); }, 60); }
+  if(n==='voz') { setTimeout(()=>{ cargarPropuestasVoz(false); }, 60); }
   if(n===6) setTimeout(()=>{ renderCierreTabs(); }, 50);
   const stEl=$('stage-'+n); if(stEl) stEl.classList.add('active');
   const navEl=$('nav-'+n); if(navEl) navEl.classList.add('active');
@@ -13981,6 +14003,171 @@ async function guardarActividadBitacora() {
     setS('No se pudo guardar la actividad. Intente nuevamente.', 'err');
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Guardar actividad'; }
+  }
+}
+
+// ── Propuestas de Voz — pestaña PropuestasVoz, generada por bitacora_voz.html ──
+// Cada fila es un cambio estructurado dictado por voz, pendiente de aprobación
+// manual. Aprobar escribe UNA celda puntual en Detalle o Material (nunca pasa
+// por doSave/buildRows) y marca la propuesta como Aprobada; Rechazar solo
+// cambia el Estado. 'Fecha Injertación' se escribe solo en la primera fila del
+// bloque de la Res./Solicitud (igual que Importador); 'Fecha de Ingreso' se
+// replica en todas las filas del bloque (igual que el resto del sistema).
+const SHEET_PROPUESTAS_VOZ = 'PropuestasVoz';
+const CAMPOS_VOZ_SCOPE = { 'Fecha de Ingreso': 'todas', 'Fecha Injertación': 'primera' };
+let _propuestasVozRows = [];
+
+async function cargarPropuestasVoz(force) {
+  const cont = $('voz-lista');
+  try {
+    const rows = await fetchRawSheet(SHEET_PROPUESTAS_VOZ);
+    if (rows && rows.length >= 2) {
+      const hdr = rows[0];
+      _propuestasVozRows = rows.slice(1).map((r,i)=>{
+        const o={}; hdr.forEach((h,j)=>o[h]=r[j]||''); o._fila = i+2; return o;
+      }).filter(o=>String(o['Estado']||'').trim()==='Pendiente');
+    } else {
+      _propuestasVozRows = [];
+    }
+  } catch(e) {
+    console.error('No se pudo cargar PropuestasVoz:', e);
+    _propuestasVozRows = [];
+  }
+  renderPropuestasVoz();
+  actualizarDotVoz();
+}
+
+function renderPropuestasVoz() {
+  const el = $('voz-lista');
+  if (!el) return;
+  if (!_propuestasVozRows.length) {
+    el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--g400)">Sin propuestas pendientes.</div>';
+    return;
+  }
+  const porRegistro = {};
+  _propuestasVozRows.forEach(r=>{
+    const key = r['Res.'] ? ('Res. '+r['Res.']) : ('Sol. '+r['Solicitud']);
+    (porRegistro[key]=porRegistro[key]||[]).push(r);
+  });
+  let html = '';
+  Object.keys(porRegistro).forEach(key=>{
+    const grupo = porRegistro[key];
+    html += `<div style="font-size:10px;color:var(--g400);letter-spacing:.06em;text-transform:uppercase;margin:14px 0 8px">${key} — ${grupo[0]['Importador']||''}</div>`;
+    grupo.forEach(r=>{
+      const variedadTxt = r['Variedad'] ? ` · Variedad ${r['Variedad']}` : ' · Todas las variedades';
+      html += `<div class="bit-entry">
+        <div class="bit-dot" style="background:#B8975A"></div>
+        <div style="flex:1">
+          <div style="display:flex;justify-content:space-between"><span style="font-size:13px;font-weight:600">${r['Campo']}${r['Hoja']==='Material'?variedadTxt:''}</span></div>
+          <div style="font-size:14px;color:var(--g600);margin-top:3px">Valor propuesto: <b>${(r['Valor Propuesto']||'').replace(/</g,'&lt;')}</b></div>
+          <div style="font-size:11px;color:var(--g400);margin-top:4px;font-style:italic">"${(r['Texto Original']||'').replace(/</g,'&lt;')}"</div>
+          <div style="margin-top:8px;display:flex;gap:8px">
+            <button class="btn btn-gd btn-sm" onclick="resolverPropuestaVoz(${r._fila},'Aprobado')">Aprobar</button>
+            <button class="btn btn-gh btn-sm" onclick="resolverPropuestaVoz(${r._fila},'Rechazado')">Rechazar</button>
+          </div>
+        </div></div>`;
+    });
+  });
+  el.innerHTML = html;
+}
+
+async function actualizarDotVoz() {
+  try {
+    const rows = await fetchRawSheet(SHEET_PROPUESTAS_VOZ);
+    const dot = $('dot-voz');
+    if (!dot) return;
+    if (!rows || rows.length < 2) { dot.className = 'sb-dot empty'; return; }
+    const hdr = rows[0];
+    const iEstado = hdr.indexOf('Estado');
+    const pendientes = rows.slice(1).filter(r=>String(r[iEstado]||'').trim()==='Pendiente').length;
+    dot.className = 'sb-dot ' + (pendientes ? 'warn' : 'empty');
+  } catch(e) { /* no bloquea el resto de la app */ }
+}
+
+// Ubica todas las filas de un Res./Solicitud en Detalle. Devuelve índices
+// 1-based (fila real del Sheet) junto con si cada una es la "primera" del
+// bloque (donde vive Importador, igual que el resto del sistema la usa).
+async function _filasDetallePorFolio(res, sol) {
+  const allRows = await fetchAllRows();
+  const hdr = allRows[0]||[];
+  const iRes = hdr.indexOf('Res.'), iSol = hdr.indexOf('Solicitud'), iImp = hdr.indexOf('Importador');
+  const filas = [];
+  allRows.slice(1).forEach((row,i)=>{
+    const rRes = iRes>=0 ? String(row[iRes]||'').trim() : '';
+    const rSol = iSol>=0 ? String(row[iSol]||'').trim() : '';
+    const match = res ? rRes===String(res).trim() : (!rRes && rSol===String(sol).trim());
+    if (match) filas.push({ fila: i+2, esPrimera: !!(iImp>=0 && String(row[iImp]||'').trim()) });
+  });
+  return filas;
+}
+
+async function resolverPropuestaVoz(filaSheet, accion) {
+  const item = _propuestasVozRows.find(r=>r._fila===filaSheet);
+  if (!item) return;
+  try {
+    await ensureToken();
+    if (accion === 'Aprobado') {
+      if (item['Hoja'] === 'Detalle') {
+        const scope = CAMPOS_VOZ_SCOPE[item['Campo']] || 'primera';
+        const filas = await _filasDetallePorFolio(item['Res.'], item['Solicitud']);
+        const letra = await getColumnLetter(SHEET_DETALLE, item['Campo']);
+        const objetivo = scope === 'todas' ? filas : filas.filter(f=>f.esPrimera);
+        for (const f of objetivo) {
+          await fetch(`${BASE_URL}/${GS.sheetId}/values/${SHEET_DETALLE}!${letra}${f.fila}?valueInputOption=USER_ENTERED`,
+            {method:'PUT', headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+             body:JSON.stringify({values:[[item['Valor Propuesto']]]})});
+        }
+      } else if (item['Hoja'] === 'Material') {
+        const matRows = await fetchSheetRows(SHEET_MATERIAL);
+        const hdr = matRows[0]||[];
+        const iRes = hdr.indexOf('Res.'), iSol = hdr.indexOf('Solicitud'), iVar = hdr.indexOf('Variedad'), iCant = hdr.indexOf('Cantidad');
+        const letraCampo = await getColumnLetter(SHEET_MATERIAL, item['Campo']);
+        const variedadFiltro = String(item['Variedad']||'').trim();
+        for (let i=1; i<matRows.length; i++) {
+          const row = matRows[i];
+          const rRes = iRes>=0 ? String(row[iRes]||'').trim() : '';
+          const rSol = iSol>=0 ? String(row[iSol]||'').trim() : '';
+          const match = item['Res.'] ? rRes===String(item['Res.']).trim() : (!rRes && rSol===String(item['Solicitud']).trim());
+          if (!match) continue;
+          if (variedadFiltro && String(row[iVar]||'').trim() !== variedadFiltro) continue;
+          const filaSheetMat = i+1;
+          await fetch(`${BASE_URL}/${GS.sheetId}/values/${SHEET_MATERIAL}!${letraCampo}${filaSheetMat}?valueInputOption=USER_ENTERED`,
+            {method:'PUT', headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+             body:JSON.stringify({values:[[item['Valor Propuesto']]]})});
+          // Al marcar Recibida, copia Cantidad → Cant. Real si aún está vacía —
+          // "llegaron con las cantidades indicadas" implica recibido = esperado.
+          if (item['Campo'] === 'Recibida') {
+            const iCantReal = hdr.indexOf('Cant. Real');
+            const yaTiene = iCantReal>=0 ? String(row[iCantReal]||'').trim() : '';
+            if (!yaTiene && iCant>=0 && row[iCant]) {
+              const letraCR = await getColumnLetter(SHEET_MATERIAL, 'Cant. Real');
+              await fetch(`${BASE_URL}/${GS.sheetId}/values/${SHEET_MATERIAL}!${letraCR}${filaSheetMat}?valueInputOption=USER_ENTERED`,
+                {method:'PUT', headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+                 body:JSON.stringify({values:[[row[iCant]]]})});
+            }
+          }
+        }
+      }
+    }
+
+    const letraEstado = await getColumnLetter(SHEET_PROPUESTAS_VOZ, 'Estado');
+    const letraUsuario = await getColumnLetter(SHEET_PROPUESTAS_VOZ, 'Usuario Resolución');
+    const letraFechaRes = await getColumnLetter(SHEET_PROPUESTAS_VOZ, 'Fecha Hora Resolución');
+    const usuario = await _obtenerUsuarioActual();
+    await fetch(`${BASE_URL}/${GS.sheetId}/values:batchUpdate`,
+      {method:'POST', headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+       body:JSON.stringify({valueInputOption:'USER_ENTERED', data:[
+         {range:`${SHEET_PROPUESTAS_VOZ}!${letraEstado}${filaSheet}`, values:[[accion]]},
+         {range:`${SHEET_PROPUESTAS_VOZ}!${letraUsuario}${filaSheet}`, values:[[usuario||'']]},
+         {range:`${SHEET_PROPUESTAS_VOZ}!${letraFechaRes}${filaSheet}`, values:[[_nowStrSAG()]]}
+       ]})});
+
+    registrarEventoHistorial(item['Solicitud']||'', item['Res.']||'', item['Importador']||'', `Propuesta de Voz: ${item['Campo']} ${accion}`, 'index_v2');
+    setS(accion === 'Aprobado' ? 'Cambio aplicado.' : 'Propuesta rechazada.', 'ok');
+    cargarPropuestasVoz(true);
+  } catch(e) {
+    console.error('No se pudo resolver la propuesta de voz:', e);
+    setS('No se pudo aplicar el cambio. Intente nuevamente.', 'err');
   }
 }
 
