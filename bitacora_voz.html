@@ -60,6 +60,13 @@
   .hint{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.4;}
   .importador-box{background:rgba(184,151,90,0.1);border:1px dashed rgba(184,151,90,0.4);border-radius:10px;padding:10px 12px;font-size:14px;margin-bottom:14px;}
   .importador-box b{color:var(--gold);}
+  .cambio-row{background:#0d1d33;border:1px solid rgba(159,176,195,0.25);border-radius:10px;padding:10px 12px;margin-bottom:10px;}
+  .cambio-row .cambio-top{display:flex;gap:8px;margin-bottom:8px;}
+  .cambio-row select, .cambio-row input{font-size:14px;padding:9px 10px;}
+  .cambio-row .campo-sel{flex:1.3;}
+  .cambio-row .variedad-input{flex:1;}
+  .cambio-row .valor-input{flex:1;}
+  .cambio-remove{background:transparent;border:none;color:#f19c93;font-size:13px;padding:4px 0;cursor:pointer;}
   #screenToken{display:none;}
   #screenDictar, #screenRevisar{display:none;}
   .spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,0.3);border-top-color:var(--navy);border-radius:50%;display:inline-block;vertical-align:middle;margin-right:8px;animation:spin .7s linear infinite;}
@@ -167,6 +174,13 @@
       <button class="btn btn-gold" id="btnGuardar" onclick="guardarActividad()">Guardar en Bitácora</button>
       <button class="btn btn-outline" onclick="volverADictar()">Descartar y volver a dictar</button>
     </div>
+
+    <div class="card" id="cambiosCard" style="display:none;">
+      <h2>Cambios propuestos a la ficha</h2>
+      <p class="hint" style="margin-top:-6px;margin-bottom:12px;">Quedan pendientes de aprobación en el panel interno (Propuestas de Voz). No se escriben solos.</p>
+      <div id="cambiosLista"></div>
+      <button class="btn btn-outline" onclick="agregarCambioManual()">+ Agregar cambio</button>
+    </div>
   </section>
 
 </main>
@@ -180,6 +194,8 @@
 
   let importadorEncontrado = '';
   let debounceTimer = null;
+  let cambiosActuales = [];
+  const CAMPOS_VOZ = ['Fecha de Ingreso', 'Fecha Injertación', 'N° Plantas Establ.', 'Recibida'];
 
   function getToken(){ return localStorage.getItem(TOKEN_KEY) || ''; }
 
@@ -284,6 +300,48 @@
 
     onFolioTipoChange();
     mostrarImportador(importador);
+
+    cambiosActuales = Array.isArray(ex.cambiosPropuestos) ? ex.cambiosPropuestos.map(function(c){
+      return { hoja: c.hoja || '', campo: CAMPOS_VOZ.indexOf(c.campo) >= 0 ? c.campo : CAMPOS_VOZ[0], variedad: c.variedad || '', valor: c.valor || '' };
+    }) : [];
+    renderCambios();
+  }
+
+  function renderCambios(){
+    const cont = document.getElementById('cambiosLista');
+    const card = document.getElementById('cambiosCard');
+    card.style.display = cambiosActuales.length ? 'block' : 'none';
+    cont.innerHTML = cambiosActuales.map(function(c, i){
+      const opciones = CAMPOS_VOZ.map(function(op){
+        return '<option value="' + op + '"' + (op === c.campo ? ' selected' : '') + '>' + op + '</option>';
+      }).join('');
+      return '<div class="cambio-row">' +
+        '<div class="cambio-top">' +
+          '<select class="campo-sel" onchange="editarCambio(' + i + ',\'campo\',this.value)">' + opciones + '</select>' +
+        '</div>' +
+        '<div class="cambio-top">' +
+          '<input class="variedad-input" type="text" placeholder="Variedad (vacío = todas)" value="' + (c.variedad || '').replace(/"/g,'&quot;') + '" oninput="editarCambio(' + i + ',\'variedad\',this.value)">' +
+          '<input class="valor-input" type="text" placeholder="Valor" value="' + (c.valor || '').replace(/"/g,'&quot;') + '" oninput="editarCambio(' + i + ',\'valor\',this.value)">' +
+        '</div>' +
+        '<button class="cambio-remove" onclick="eliminarCambio(' + i + ')">Eliminar este cambio</button>' +
+      '</div>';
+    }).join('');
+  }
+
+  function editarCambio(i, campo, valor){
+    if (!cambiosActuales[i]) return;
+    cambiosActuales[i][campo] = valor;
+    if (campo === 'campo') cambiosActuales[i].hoja = (valor === 'N° Plantas Establ.' || valor === 'Recibida') ? 'Material' : 'Detalle';
+  }
+
+  function eliminarCambio(i){
+    cambiosActuales.splice(i, 1);
+    renderCambios();
+  }
+
+  function agregarCambioManual(){
+    cambiosActuales.push({ hoja: 'Detalle', campo: CAMPOS_VOZ[0], variedad: '', valor: '' });
+    renderCambios();
   }
 
   function onFolioTipoChange(){
@@ -355,15 +413,18 @@
         tipo: document.getElementById('tipoActividad').value.trim(),
         descripcion: descripcion,
         responsable: responsable,
-        duracionMin: document.getElementById('duracionActividad').value
+        duracionMin: document.getElementById('duracionActividad').value,
+        cambiosPropuestos: cambiosActuales.filter(function(c){ return c.valor && String(c.valor).trim(); })
       });
       if (!data.ok){
         setStatus('statusRevisar', data.error || 'No se pudo guardar.', 'err');
         document.getElementById('btnGuardar').disabled = false;
         return;
       }
-      setStatus('statusDictar', 'Actividad guardada correctamente.', 'ok');
+      const nProp = data.propuestasGuardadas || 0;
+      setStatus('statusDictar', 'Actividad guardada.' + (nProp ? ' ' + nProp + ' cambio(s) quedaron pendientes de aprobación.' : ''), 'ok');
       document.getElementById('textoDictado').value = '';
+      cambiosActuales = [];
       document.getElementById('screenRevisar').style.display = 'none';
       document.getElementById('screenDictar').style.display = 'block';
     } catch (err){
